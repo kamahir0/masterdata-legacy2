@@ -64,6 +64,7 @@ export function beginRangeSelection(
   v.focus();
   const finish = () => {
     if (!alive) return;
+    if(dragged)clickUntil=performance.now()+350;
     alive = false;
     cancelAnimationFrame(frame);
     document.removeEventListener("pointermove", move, true);
@@ -91,6 +92,7 @@ export function beginRangeSelection(
       e.preventDefault();
       e.stopImmediatePropagation();
       desktop.collapseRange();
+      clickUntil=performance.now()+350;
       finish();
     }
   };
@@ -248,7 +250,7 @@ function begin(
     settling = false,
     scope: Projection | null = null;
   const capture = event.currentTarget.closest<HTMLElement>(
-    "#viewport,.ant-drawer-body",
+    "#viewport,.complex-body,.near-value-body",
   );
   const initialScope = desktop.surface.projection;
   let hidden = new Set<HTMLElement>();
@@ -347,6 +349,7 @@ function begin(
       moved = true;
       overlay = document.createElement("div");
       overlay.className = "spatial-clip";
+      if(gesture.scroll.classList.contains("near-value-body"))overlay.classList.add("value-spatial-clip");
       overlay.setAttribute("aria-hidden", "true");
       overlay.inert = true;
       ghost = gesture.preview();
@@ -750,7 +753,8 @@ export function beginArrayDrag(
 ) {
   if (!view.node.shape?.array || !view.node.editable) return;
   const original = event.currentTarget.closest<HTMLElement>(".complex-item")!,
-    scroll = original.closest<HTMLElement>(".ant-drawer-body")!;
+    scroll = original.closest<HTMLElement>(".complex-body,.near-value-body");
+  if(!scroll)return;
   const grab = event.clientY - original.getBoundingClientRect().top;
   begin(event, () => {
     const p = desktop.surface.projection,

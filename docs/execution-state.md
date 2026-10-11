@@ -1,12 +1,12 @@
 # Development State
 
-Stage: decision-required
-Candidate: 7efb1442c94e13998f30acc1c21c357eae908d9e
-Work base: ba18eeaf90cf2956bd8eeb8863fa88316835058c
+Stage: implementation-ready
+Candidate: none
+Work base: 31a53befb18f3d60f6122a1caaf3709c89d691a9
 
 ## Active work
 
-Completed: Human-selected [両Pass統合改善](spec-changes/0058-contextual-table-authoring.md)のcanonical application / implementation / focused回帰 / actual macOS表示・操作 / production app更新 / 固定Candidate required CI reconciliation。[scope evidence](evidence/clean-room-candidate.md#両pass統合表の理解と近接編集2026-10-11)。既存global external evidence gates以外のactive workなし。
+Completed: Human-selected [日常編集の残り5点](spec-changes/0059-direct-authoring-continuity.md)のcanonical application / implementation / focused回帰。In progress: navigation測定とCandidate準備。Remaining: actual macOS確認 / fresh review / required CI。既存external evidence gatesは別件として保持。
 
 ## Blocking findings
 

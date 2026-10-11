@@ -166,7 +166,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
       schemaBase = await bytes(SCHEMA);
     const originalRows = desktop.surface.projection!.rows.map((row) => row.id);
     await focusCell(0, 11);
-    key(desktop.viewport!, "Enter");
+    find("#cell-0-11").click();
     await until(
       () => !!document.querySelector(".active-cell-editor input"),
       "scalar editor missing",
@@ -206,6 +206,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     );
     record("scalar-composition", {
       initialEditorFocused,
+      singleClickEditor: true,
       compositionEnterPreserved: true,
       compositionEndEnterPreserved: true,
       exactLocalizedBytes: true,
@@ -398,7 +399,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     );
     const add = [
       ...document.querySelectorAll<HTMLButtonElement>(
-        ".ant-drawer-body button",
+        ":is(.ant-drawer-body,.near-value-body) button",
       ),
     ].find((b) => b.textContent?.trim() === "要素");
     assert(add, "Array Add missing");
@@ -435,12 +436,12 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     );
     await until(
       () =>
-        document.querySelector('.ant-drawer-body [aria-busy="false"]') !== null,
+        document.querySelector(':is(.ant-drawer-body,.near-value-body) [aria-busy="false"]') !== null,
       "Array descriptor did not become current",
     );
     const secondAdd = [
       ...document.querySelectorAll<HTMLButtonElement>(
-        ".ant-drawer-body button",
+        ":is(.ant-drawer-body,.near-value-body) button",
       ),
     ].find((b) => b.textContent?.trim() === "要素")!;
     secondAdd.click();
@@ -451,7 +452,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
       () =>
         document.querySelectorAll(".complex-item").length === 4 &&
         !desktop.surface.busy &&
-        document.querySelector('.ant-drawer-body [aria-busy="false"]') !== null,
+        document.querySelector(':is(.ant-drawer-body,.near-value-body) [aria-busy="false"]') !== null,
       "second Add did not finish",
     );
     await frame();
@@ -567,6 +568,10 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     await undo();
     assert((await bytes()).after===base.after,"Enum Undo did not restore exact source");
     record("inline-enum-choice-and-undo");
+    await focusCell(0,col("enabled"));find(`#cell-0-${col("enabled")} [role="switch"]`).click();
+    await until(()=>desktop.surface.projection!.rows[0].cells[col("enabled")].display==="false","single click bool toggle missing");
+    await settle();await undo();assert((await bytes()).after===base.after,"direct bool toggle was not one exact Undo");
+    record("boolean-direct-toggle-one-undo");
     await focusCell(0,col("enabled"));find(`#cell-0-${col("enabled")}`).click();
     await until(()=>!!document.querySelector('.active-cell-editor [role="switch"]'),"bool active editor not typed");
     find('.active-cell-editor [role="switch"]').click();
@@ -606,6 +611,25 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     desktop.closeComplex();await frame();
     assert((await bytes()).after===base.after,"opening Custom mutated source");
     record("nearby-custom-open-is-read-only");
+    await focusCell(1,col("numbers"));find(`#cell-1-${col("numbers")}`).click();
+    await until(()=>!!document.querySelector('.near-value-body .complex-item'),"small Array not near the cell");
+    find('.near-value-body .element-value button').click();
+    await until(()=>!!document.querySelector('.near-value-body .complex-input input'),"near Array scalar missing");
+    const arrayInput=find('.near-value-body .complex-input input') as HTMLInputElement;
+    text(arrayInput,"7");key(arrayInput,"Enter");await settle();
+    assert((await bytes()).after!==base.after,"near Array edit did not commit");
+    desktop.closeComplex();await undo();assert((await bytes()).after===base.after,"near Array edit did not Undo exact bytes");
+    await focusCell(0,col("reward"));find(`#cell-0-${col("reward")}`).click();
+    await until(()=>!!document.querySelector('.near-value-body .custom-fields'),"Custom reopen missing");
+    const nearby=document.querySelector('.near-value-body');
+    find(`.near-value-body [data-value-path='["reward","values"]'] button`).click();
+    await until(()=>!!document.querySelector('.near-value-body .complex-item'),"nested Array changed to distant editor");
+    assert(document.querySelector('.near-value-body')===nearby,"nested navigation remounted value surface");
+    find('button[aria-label="元のセルの値"]').click();
+    await until(()=>!!document.querySelector('.near-value-body .custom-fields'),"return to root failed");
+    assert(document.querySelector('.near-value-body')===nearby,"root navigation remounted value surface");
+    desktop.closeComplex();await frame();assert((await bytes()).after===base.after,"nested navigation mutated source");
+    record("nearby-array-and-nested-continuity");
     assert(
       !startup.browserErrors ||
         (startup.browserErrors as string[]).length === 0,
@@ -649,7 +673,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
               ?.outerHTML.slice(0, 2000),
           })),
           drawerBusy: document
-            .querySelector(".ant-drawer-body [aria-busy]")
+            .querySelector(":is(.ant-drawer-body,.near-value-body) [aria-busy]")
             ?.getAttribute("aria-busy"),
           intended: desktop.inputIntent,
         },

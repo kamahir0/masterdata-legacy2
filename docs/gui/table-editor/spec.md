@@ -48,6 +48,8 @@ Drop FieldとReference Remove等のdestructive operationは明示confirmationと
 
 全fieldのMessagePack Keyとprimary / secondary / reference所属はshared snapshotから取得し、名前・型・操作を妨げない小さい読み取り情報として通常headerに示す。PKの値領域は控えめな背景でも識別でき、所属を色だけに依存させない。Key、Reference、MessagePack keyの変更controlと低頻度metadataは補助面へprogressively discloseする。定義面のfield候補は名前と型を併記し、関連診断を同じ面で確認できるようにする。通常時はTable名とcolumn / row dataを最も強く表示し、正常状態の説明を繰り返し常設しない。gridのkeyboard selection、field headerのtab順、operation失敗後のfocus復元はpointerなしでも成立しなければならない（MUST）。状態は色だけに依存せずassistive technologyへ伝える。 field名、type、header操作はhover / focus時にも重ねず、それぞれのhit areaを確保する。
 
+列contextのMessagePack Key / PK / SK / REF情報から対応定義へ到達できる。参照のsource fields / target Table / target keyをcompactな同じgroupで理解できるようにし、既存Plan / Diff / explicit Applyとfresh write authorizationを保持する。
+
 ### GUI-UNIFIED-006
 
 #### Stable editing surface

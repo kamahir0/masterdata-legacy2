@@ -61,11 +61,13 @@ export const AuthoringGrid = memo(function AuthoringGrid({
   types,
   pending,
   busy,
+  definition,
 }: {
   projection: Projection | null;
   types: string[];
   pending: boolean;
   busy: boolean;
+  definition:(field:string,section:"fields"|"keys"|"references")=>void;
 }) {
   const viewport = useRef<HTMLDivElement>(null),
     frame = useRef<number | null>(null);
@@ -243,6 +245,7 @@ export const AuthoringGrid = memo(function AuthoringGrid({
               primary={col.primary}
               secondary={col.secondary}
               references={col.references}
+              definition={definition}
               types={types}
               active={index >= columns.first && index < columns.last}
               busy={busy}
@@ -276,6 +279,7 @@ export const AuthoringGrid = memo(function AuthoringGrid({
       <ActiveEditor pending={pending || !p} />
       <GridMenu
         target={menu}
+        definition={definition}
         close={(restore=true) => {
           setMenu(null);
           if(restore)viewport.current?.focus({preventScroll:true});
@@ -290,6 +294,7 @@ const ColumnHeader = memo(
     primary,
     secondary,
     references,
+    definition,
     index,
     active,
     types,
@@ -302,6 +307,7 @@ const ColumnHeader = memo(
     primary: boolean;
     secondary: number[];
     references: string[];
+    definition:(field:string,section:"fields"|"keys"|"references")=>void;
     index: number;
     active: boolean;
     types: string[];
@@ -348,7 +354,7 @@ const ColumnHeader = memo(
             <HolderOutlined aria-hidden="true" />
           </button>
           <HeaderName field={field} active={active} editing={renaming} busy={busy} change={rename} />
-          <span className="field-key" title="MessagePack Key" aria-label={`${field.name} MessagePack Key ${field.key}`}>{field.key}</span>
+          <button className="field-key" title="MessagePack Keyを編集" aria-label={`${field.name} MessagePack Key ${field.key}`} disabled={busy} onClick={e=>{e.currentTarget.focus();definition(field.name,"fields");}}>{field.key}</button>
           <button
             className="spatial-handle column-actions"
             aria-label={`${field.name} の操作`}
@@ -414,9 +420,9 @@ const ColumnHeader = memo(
           )}
         </div>
         <div className="column-context" aria-label={`${field.name} の所属`}>
-          {primary && <span title="主キー">PK</span>}
-          {secondary.map(key => <span key={key} title={`副キー ${key}`}>SK{key}</span>)}
-          {!!references.length && <span title={`参照: ${references.join(", ")}`}>REF</span>}
+          {primary && <button className="column-membership" aria-label={`${field.name} 主キーの定義`} disabled={busy} onClick={e=>{e.currentTarget.focus();definition(field.name,"keys");}}>PK</button>}
+          {secondary.map(key => <button className="column-membership" key={key} aria-label={`${field.name} 副キー ${key} の定義`} disabled={busy} onClick={e=>{e.currentTarget.focus();definition(field.name,"keys");}}>SK{key}</button>)}
+          {!!references.length && <button className="column-membership" title={`参照: ${references.join(", ")}`} aria-label={`${field.name} 参照の定義`} disabled={busy} onClick={e=>{e.currentTarget.focus();definition(field.name,"references");}}>REF</button>}
         </div>
       </div>
     );
@@ -432,6 +438,7 @@ const ColumnHeader = memo(
     a.primary === b.primary &&
     a.secondary.join() === b.secondary.join() &&
     a.references.join() === b.references.join() &&
+    a.definition === b.definition &&
     a.field.name === b.field.name &&
     a.field.key === b.field.key &&
     a.field.typeName === b.field.typeName &&
@@ -536,9 +543,7 @@ const GridRow = memo(function GridRow({
               beginRangeSelection(e, row, column);
             }}
             onClick={e => {
-              const shape=p.columns[column].shape;
-              if(e.detail > 1 || e.shiftKey || desktop.interaction.anchor || !cell.editable || !shape || shape.array ||
-                !(shape.category === "enum" || shape.category === "flags" || shape.typeName === "bool" || shape.underlying === "bool"))return;
+              if(consumeSpatialClick(e.detail) || e.detail > 1 || e.shiftKey || e.metaKey || e.ctrlKey || desktop.interaction.anchor || !cell.editable || !p.columns[column].shape || row.pendingDelete)return;
               const intent=desktop.interaction.focusIntent;
               void desktop.commit().then(ok=>{
                 const current=desktop.surface.projection, selected=desktop.interaction.selection;
@@ -565,7 +570,13 @@ const GridRow = memo(function GridRow({
                 <CloseOutlined aria-hidden="true" />
               </button>
             )}
-            <span className="cell-value">{complexSummary(cell.display, cell.value === null)}</span>
+            {cell.editable && !row.pendingDelete && !cell.isNull && !p.columns[column].shape?.array &&
+              (p.columns[column].shape?.typeName==="bool" || p.columns[column].shape?.underlying==="bool") &&
+              cell.value && "value" in cell.value && typeof cell.value.value==="string" && ["true","false"].includes(cell.value.value) ?
+              <button className="cell-bool" role="switch" aria-checked={cell.value.value==="true"} aria-label={`${p.columns[column].field.name} 行 ${row.viewIndex+1} を切り替え`}
+                onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();if(!e.shiftKey&&!e.metaKey&&!e.ctrlKey&&!consumeSpatialClick(e.detail))void desktop.toggleBoolean(p,row.id,p.columns[column].field.name);}}>
+                <span className="bool-indicator" aria-hidden="true"/>{cell.display}
+              </button> : <span className="cell-value">{complexSummary(cell.display, cell.value === null)}</span>}
           </div>
         );
       })}
@@ -812,9 +823,11 @@ function HeaderName({field,active,editing,busy,change}:{field:Field;active:boole
 function GridMenu({
   target,
   close,
+  definition,
 }: {
   target: MenuTarget | null;
   close: (restore?:boolean) => void;
+  definition:(field:string,section:"fields"|"keys"|"references")=>void;
 }) {
   const dismiss=useRef(close);dismiss.current=close;
   useEffect(()=>{
@@ -891,6 +904,8 @@ function GridMenu({
       );
   } else if (target?.column !== undefined) {
     items.push(
+      {key:"definition",label:"MessagePackキーを編集…"},
+      {type:"divider"},
       {key:"insertLeft",label:"左に挿入",icon:<PlusOutlined aria-hidden="true"/>},
       {key:"insertRight",label:"右に挿入",icon:<PlusOutlined aria-hidden="true"/>},
       {type:"divider"},
@@ -921,6 +936,7 @@ function GridMenu({
           if (target.row) void desktop.rowAction(key, target.p, target.row.id);
           else if (target.column !== undefined) {
             const field=target.p.columns[target.column].field.name;
+            if(key==="definition"){definition(field,"fields");return;}
             if(key==="drop") {void desktop.fieldAction({kind:"drop",field},target.p);return;}
             if(key==="insertLeft" || key==="insertRight") {void desktop.fieldAction({kind:"add",neighbor:field,after:key==="insertRight"},target.p);return;}
             const order = target.p.columns.map((c) => c.field.name),

@@ -99,6 +99,50 @@ fn publish_problems(w: &mut Workspace) {
     assert!(w.accept_diagnostics(w.generation, problems));
 }
 #[test]
+fn flags_add_choices_are_width_correct_unused_and_lossless_read_suggestions() {
+    let (temp, _) = project();
+    for underlying in ["int", "uint", "long", "ulong"] {
+        fs::write(temp.path().join(format!("sources/flags-{underlying}.yaml")),format!("kind: type\nname: Available{underlying}\nflags:\n  underlying: {underlying}\n  members:\n    - name: None\n      value: 0\n    - name: Used\n      value: 1\n")).unwrap();
+    }
+    let mut w = Workspace::open(temp.path()).unwrap();
+    for (underlying, width, high) in [
+        ("int", 32, "-2147483648"),
+        ("uint", 32, "2147483648"),
+        ("long", 64, "-9223372036854775808"),
+        ("ulong", 64, "9223372036854775808"),
+    ] {
+        let source = format!("sources/flags-{underlying}.yaml");
+        let before = fs::read(temp.path().join(&source)).unwrap();
+        let masterdata_engine::workspace::SelectionProjection::Type(p) =
+            w.select_view(&source, 0, 32).unwrap()
+        else {
+            panic!("type required")
+        };
+        assert_eq!(p.available_flag_bits.len(), width - 1);
+        assert!(!p.available_flag_bits.iter().any(|choice| choice.bit == 0));
+        assert_eq!(
+            p.available_flag_bits.last().unwrap().bit as usize,
+            width - 1
+        );
+        assert_eq!(p.available_flag_bits.last().unwrap().value, high);
+        assert_eq!(p.available_flag_bits.first().unwrap().value, "2");
+        let choice = p.available_flag_bits.last().unwrap();
+        let review = w
+            .prepare_type_migration(
+                &source,
+                &p.identity,
+                masterdata_engine::type_migration::Command::AddEnumMember {
+                    type_name: p.name,
+                    name: "Highest".into(),
+                    value: choice.value.clone(),
+                },
+            )
+            .unwrap();
+        assert!(!review.destructive);
+        assert_eq!(fs::read(temp.path().join(source)).unwrap(), before);
+    }
+}
+#[test]
 fn problems_resolve_exact_record_and_array_occurrences_without_changing_search_or_bytes() {
     let (_temp, mut w) = project();
     let p = w.select(SOURCE, 0, 32).unwrap();

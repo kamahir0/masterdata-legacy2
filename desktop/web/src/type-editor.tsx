@@ -1,6 +1,6 @@
 import { uiMessage, statusLabel, sourceCategoryLabel, uiTerms } from "./language";
 import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from "react";
-import {Alert, Button, Checkbox, Descriptions, Dropdown, Flex, Form, Input, Modal, Radio, Select, Space, Spin, Table, Tag, Typography, type MenuProps} from "antd";
+import {Alert, Button, Checkbox, Descriptions, Dropdown, Flex, Form, Input, Modal, Popover, Radio, Select, Space, Spin, Table, Tag, Typography, type MenuProps} from "antd";
 import {DeleteOutlined, EditOutlined, MoreOutlined, PlusOutlined, SettingOutlined} from "@ant-design/icons";
 import {desktop, basename, type Surface} from "./workspace";
 import type {ConstantInput, DeclarationInput, MigrationReview, SetResult, Shape, TypeOperation, TypeProjection} from "./types";
@@ -35,6 +35,13 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
     const current=live.current;
     if(element?.isConnected&&current?.review&&planFocus.current?.token===current.review.token&&planFocus.current.intent===desktop.inputIntent&&current.target.clicked===desktop.surface.target&&!desktop.surface.comparison&&!desktop.surface.choice)element.focus();
   }
+  function focusInput() {
+    const c=live.current,intent=inputFocus.current;
+    if(c&&!c.review&&!c.closing&&c.target.clicked===desktop.surface.target&&intent?.id===c.id&&intent.intent===desktop.inputIntent) {
+      const element=document.querySelector<HTMLInputElement>('.type-body input[aria-label="変更後の名前"],.near-type-input input[aria-label="変更後の名前"]');
+      element?.focus({preventScroll:true});element?.select();
+    }
+  }
   const patch=(change:Partial<Draft>)=>{if(live.current){live.current={...live.current,...change};setDraft(live.current);}};
   useLayoutEffect(()=>{if(p&&ready&&body.current){desktop.committedType(p,body.current);if(document.activeElement===document.getElementById('editor-pane'))body.current.focus({preventScroll:true});}},[p,ready]);
   useLayoutEffect(()=>{if(!draft&&ready){const frame=requestAnimationFrame(restoreOrigin);return()=>cancelAnimationFrame(frame);}},[p,ready,draft]);
@@ -49,10 +56,13 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
   },[s.comparison,s.choice]);
   useEffect(()=>{const element=body.current;if(!element)return;const observer=new ResizeObserver(()=>setHeight(Math.max(160,element.clientHeight-122)));observer.observe(element);return()=>observer.disconnect();},[]);
   useEffect(()=>{ids.current++;version.current++;shapeVersion.current++;live.current=null;setDraft(null);},[s.status.epoch]);
+  useEffect(()=>{const c=live.current;if(c&&c.target.clicked!==s.target&&!c.applying){version.current++;shapeVersion.current++;live.current=null;setDraft(null);}},[s.target,draft?.applying]);
   function close() {
     if(live.current?.applying)return;
     if(origin.current)returnFocus.current={...origin.current,intent:desktop.inputIntent};
-    version.current++;patch({closing:true});
+    version.current++;
+    const command=live.current?.command;
+    if(!live.current?.review && (command?.operation==="renameEnumMember"||command?.operation==="renameCustomField"||command?.operation==="addEnumMember")){live.current=null;setDraft(null);}else patch({closing:true});
   }
   async function begin(command:TypeOperation, originLabel?:string) {
     if(!p||!desktop.currentType(p)||s.status.recoveryRequired||s.uncertainField)return;
@@ -85,6 +95,13 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
     change({...c,declaration:{...c.declaration,...changeInput}},changesType?{kind:"unset"}:live.current!.input);
     if(changesType)patch({shape:null,shapeError:null});
   }
+  useLayoutEffect(()=>{
+    const c=live.current;if(!c||c.review||c.closing)return;
+    const intent=inputFocus.current;
+    const frame=requestAnimationFrame(()=>{
+      if(live.current?.id===c.id&&intent?.id===c.id)focusInput();
+    });return()=>cancelAnimationFrame(frame);
+  },[draft?.id,draft?.review?.token]);
   const field=draft?.command.operation==="addCustomField"?draft.command.declaration:null;
   useEffect(()=>{
     const current=live.current;if(!current||current.command.operation!=="addCustomField")return;
@@ -134,7 +151,7 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
       if(reply.data.outcome==="Success") {
         if(origin.current) {
           const operation=current.command;
-          if(operation.operation==="renameEnumMember"||operation.operation==="renameCustomField")origin.current.label=`${operation.newName} ${operation.operation==="renameEnumMember"?"メンバー":"フィールド"}の操作`;
+          if(operation.operation==="renameEnumMember"||operation.operation==="renameCustomField")origin.current.label=origin.current.label?.startsWith("名前を変更: ")?`名前を変更: ${operation.newName}`:`${operation.newName} ${operation.operation==="renameEnumMember"?"メンバー":"フィールド"}の操作`;
           if(operation.operation==="dropEnumMember"||operation.operation==="dropCustomField")origin.current.label=operation.operation==="dropEnumMember"?"メンバーを追加":"フィールドを追加";
         }
         if(inputIntent===desktop.inputIntent)close();
@@ -156,7 +173,7 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
     const protectedMember=member&&p?.protectedMembers.includes(name);
     return {items:protectedMember?[]:[{key:"rename",label:"名前を変更…",icon:<EditOutlined aria-hidden="true"/>},{key:"drop",label:"削除…",danger:true,icon:<DeleteOutlined aria-hidden="true"/>}],onKeyDown:event=>{
       // Ant Menu 6.6.5 activates on keydown without consuming the native default.
-      // WKWebView's remaining Enter activation can close the newly opened Modal.
+      // WKWebView's remaining Enter activation can close the newly opened input.
       // Consume the handled Enter, keeping Menu's normal path and key-only input.
       // Composition Enter remains text input; the native Type workflow exercises
       // both Enter representations and Cancel with source/focus preservation.
@@ -174,6 +191,22 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
   const typeLabel=sourceCategoryLabel(declaration?.category==="enum"&&declaration.flags?"flags":declaration?.category??"");
   const dirty=draft?.review?.files.filter(file=>s.status.dirty.includes(file.source)).map(file=>file.source)??[];
   const command=draft?.command;
+  const inlineRename=command?.operation==="renameEnumMember"||command?.operation==="renameCustomField";
+  const nearbyAdd=command?.operation==="addEnumMember";
+  const lightInput=(inlineRename||nearbyAdd)&&!draft?.review&&!draft?.uncertain;
+  const cancelInput=(event:React.KeyboardEvent)=>{if(event.key==="Escape"&&!event.nativeEvent.isComposing&&event.keyCode!==229){event.preventDefault();event.stopPropagation();close();}};
+  const confirmInput=<Space size="small"><Button disabled={draft?.pending} onClick={close}>キャンセル</Button><Button type="primary" loading={draft?.pending} disabled={disabled||!!draft?.stale} onClick={()=>void plan()}>変更を確認</Button></Space>;
+  const nameCell=(name:string,member:boolean)=>{
+    const editing=lightInput&&inlineRename&&command&&("member" in command?command.member: "field" in command?command.field:null)===name;
+    if(editing&&command&&"newName" in command)return <Input aria-label="変更後の名前" value={command.newName} readOnly={draft?.pending} onChange={e=>change({...command,newName:e.target.value})} onKeyDown={e=>{cancelInput(e);if(e.key==="Enter"&&!e.nativeEvent.isComposing&&e.keyCode!==229){e.preventDefault();e.stopPropagation();void plan();}}}/>;
+    if(member&&p!.protectedMembers.includes(name))return name;
+    return <Button type="text" className="type-name-edit" aria-label={`名前を変更: ${name}`} disabled={disabled} onClick={()=>void begin(member?{operation:"renameEnumMember",typeName:p!.name,member:name,newName:name}:{operation:"renameCustomField",typeName:p!.name,field:name,newName:name},`名前を変更: ${name}`)}>{name}</Button>;
+  };
+  const addMemberInput=nearbyAdd&&command&&<div className="near-type-input" onKeyDown={cancelInput}><Form layout="vertical" className="type-operation" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing&&e.keyCode!==229&&e.target instanceof HTMLInputElement&&e.target.getAttribute('role')!=="combobox"){e.preventDefault();void plan();}}}>
+    <Form.Item label="名前"><Input aria-label="変更後の名前" value={command.name} readOnly={draft?.pending} onChange={e=>change({...command,name:e.target.value})}/></Form.Item>
+    {draft?.target.declaration.category==="enum"&&draft.target.declaration.flags&&<Form.Item label="未使用のBit"><Select aria-label="追加するFlagsのBit" showSearch={{optionFilterProp:"label"}} disabled={draft.pending} value={draft.target.availableFlagBits.find(bit=>bit.value===command.value)?.value} placeholder="Bitを選択" options={draft.target.availableFlagBits.map(bit=>({value:bit.value,label:`Bit ${bit.bit} · 1 << ${bit.bit} (${bit.value})`}))} onChange={value=>change({...command,value})}/></Form.Item>}
+    <Form.Item label="数値"><Input aria-label="メンバーの数値" inputMode="numeric" value={command.value} readOnly={draft?.pending} onChange={e=>change({...command,value:e.target.value})}/></Form.Item>
+  </Form>{draft?.error&&<Alert type="error" showIcon title={uiMessage(draft.error)}/>}<div className="type-input-actions">{confirmInput}</div></div>;
   return <section id="type-surface">
     <div className="type-context"><Typography.Text strong>{ready?p.name:basename(s.target)}</Typography.Text><Typography.Text type="secondary" className="selection-label">{s.target}</Typography.Text>{declaration&&<Tag>{typeLabel}</Tag>}</div>
     <div className="type-body" ref={body} tabIndex={0} aria-label="型エディター" aria-busy={s.pending} onFocus={()=>{if(p)desktop.acceptedType(p);}} onKeyDown={()=>{if(p)desktop.acceptedType(p);}}>
@@ -183,17 +216,18 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
           <div className="type-list-heading"><Typography.Text strong>変換</Typography.Text><Button icon={<SettingOutlined aria-hidden="true"/>} aria-label="変換を編集" disabled={disabled} onClick={()=>void begin({operation:"setValueObjectConversions",typeName:p!.name,fromImplicit:declaration.from_implicit,toImplicit:declaration.to_implicit},"変換を編集")}>変換を編集</Button></div>
           <Descriptions size="small" column={1} items={[{key:"from",label:"基になる型から",children:declaration.from_implicit?"暗黙の変換":"明示的な変換"},{key:"to",label:"基になる型へ",children:declaration.to_implicit?"暗黙の変換":"明示的な変換"}]}/>
         </>:<>
-          <div className="type-list-heading"><Typography.Text strong>{declaration.category==="enum"?"メンバー":"フィールド"}</Typography.Text><Button icon={<PlusOutlined aria-hidden="true"/>} aria-label={declaration.category==="enum"?"メンバーを追加":"フィールドを追加"} disabled={disabled} onClick={()=>{if(declaration.category==="enum")void begin({operation:"addEnumMember",typeName:p!.name,name:"",value:""},"メンバーを追加");else void addField();}}>{declaration.category==="enum"?"メンバーを追加":"フィールドを追加"}</Button></div>
-          {declaration.category==="enum"?<Table virtual size="small" pagination={false} scroll={{x:660,y:height}} rowKey="name" dataSource={declaration.members.map(([name,value])=>({name,value}))} columns={[{title:"名前",dataIndex:"name",width:330},{title:"値",dataIndex:"value",width:260,render:(value,row)=><span className="type-numeric">{value}{declaration.flags&&<Typography.Text type="secondary" className="flag-bit-hint">{value==="0"?" · None":p!.flagBits[row.name]!==undefined?` · Bit ${p!.flagBits[row.name]} · 1 << ${p!.flagBits[row.name]}`:""}</Typography.Text>}</span>},{title:"",width:70,render:(_,row)=>!p!.protectedMembers.includes(row.name)&&<Dropdown menu={actions(row.name,true)} trigger={["click"]}><Button type="text" disabled={disabled} icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${row.name} メンバーの操作`}/></Dropdown>}]}/>:<Table virtual size="small" pagination={false} scroll={{x:720,y:height}} rowKey="name" dataSource={declaration.fields} columns={[{title:"キー",dataIndex:"key",width:70},{title:"名前",dataIndex:"name",width:240},{title:"型",dataIndex:"typeName",width:240},{title:"修飾子",width:100,render:(_,row)=>row.array?"配列":row.nullable?"nullを許可":"—"},{title:"",width:70,render:(_,row)=><Dropdown menu={actions(row.name,false)} trigger={["click"]}><Button type="text" disabled={disabled} icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${row.name} フィールドの操作`}/></Dropdown>}]}/>}
+          <div className="type-list-heading"><Typography.Text strong>{declaration.category==="enum"?"メンバー":"フィールド"}</Typography.Text><Popover open={!!draft&&nearbyAdd&&lightInput&&!draft.closing&&!s.comparison&&!s.choice} trigger={["click"]} placement="bottomRight" content={addMemberInput} afterOpenChange={open=>{if(open)focusInput();}} onOpenChange={open=>{if(!open&&nearbyAdd&&lightInput)close();}}><Button icon={<PlusOutlined aria-hidden="true"/>} aria-label={declaration.category==="enum"?"メンバーを追加":"フィールドを追加"} disabled={disabled} onClick={()=>{if(declaration.category==="enum")void begin({operation:"addEnumMember",typeName:p!.name,name:"",value:""},"メンバーを追加");else void addField();}}>{declaration.category==="enum"?"メンバーを追加":"フィールドを追加"}</Button></Popover></div>
+          {declaration.category==="enum"?<Table virtual size="small" pagination={false} scroll={{x:660,y:height}} rowKey="name" dataSource={declaration.members.map(([name,value])=>({name,value}))} columns={[{title:"名前",dataIndex:"name",width:330,render:name=>nameCell(name,true)},{title:"値",dataIndex:"value",width:260,render:(value,row)=><span className="type-numeric">{value}{declaration.flags&&<Typography.Text type="secondary" className="flag-bit-hint">{value==="0"?" · None":p!.flagBits[row.name]!==undefined?` · Bit ${p!.flagBits[row.name]} · 1 << ${p!.flagBits[row.name]}`:""}</Typography.Text>}</span>},{title:"",width:70,render:(_,row)=>!p!.protectedMembers.includes(row.name)&&<Dropdown menu={actions(row.name,true)} trigger={["click"]}><Button type="text" disabled={disabled} icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${row.name} メンバーの操作`}/></Dropdown>}]}/>:<Table virtual size="small" pagination={false} scroll={{x:720,y:height}} rowKey="name" dataSource={declaration.fields} columns={[{title:"キー",dataIndex:"key",width:70},{title:"名前",dataIndex:"name",width:240,render:name=>nameCell(name,false)},{title:"型",dataIndex:"typeName",width:240},{title:"修飾子",width:100,render:(_,row)=>row.array?"配列":row.nullable?"nullを許可":"—"},{title:"",width:70,render:(_,row)=><Dropdown menu={actions(row.name,false)} trigger={["click"]}><Button type="text" disabled={disabled} icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${row.name} フィールドの操作`}/></Dropdown>}]}/>}
         </>}
       </>}
+      {lightInput&&inlineRename&&<div className="type-inline-actions">{draft?.error&&<Alert type="error" showIcon title={uiMessage(draft.error)}/>}<span>{confirmInput}</span></div>}
       {s.uncertainField&&<Alert type="warning" showIcon title="構造変更の結果を確認できません" description={<Space direction="vertical" size={4}><Typography.Text>{uiTerms.sourceRecheckDescription}</Typography.Text><Button aria-label="状態を再確認（対象ソース一式）" onClick={()=>void desktop.recheckFieldOperation()}>{uiTerms.recheck}</Button></Space>}/>}
     </div>
     {footer}
-    {draft&&<Modal open={!draft.closing&&!s.comparison&&!s.choice} title={`${labels[draft.command.operation]} · ${draft.target.name}`} width={620} destroyOnHidden={false} focusTriggerAfterClose={false} onCancel={close} keyboard={!draft.applying} mask={{closable:!draft.applying}} afterClose={()=>{if(live.current?.closing&&live.current.id===draft.id){live.current=null;setDraft(null);}}} afterOpenChange={open=>{if(!open)return;if(live.current?.review)focusPlan();else if(inputFocus.current?.id===live.current?.id&&inputFocus.current?.intent===desktop.inputIntent)document.querySelector<HTMLElement>('.type-operation input:not(:disabled),.type-operation button')?.focus();}} footer={<Space>
+    {draft&&!lightInput&&<Modal open={!draft.closing&&!s.comparison&&!s.choice} title={`${labels[draft.command.operation]} · ${draft.target.name}`} width={620} destroyOnHidden={false} focusTriggerAfterClose={false} onCancel={close} keyboard={!draft.applying} mask={{closable:!draft.applying}} afterClose={()=>{if(live.current?.closing&&live.current.id===draft.id){live.current=null;setDraft(null);}}} afterOpenChange={open=>{if(!open)return;if(live.current?.review)focusPlan();else if(inputFocus.current?.id===live.current?.id&&inputFocus.current?.intent===desktop.inputIntent)document.querySelector<HTMLElement>('.type-operation input:not(:disabled),.type-operation button')?.focus();}} footer={<Space>
       <Button disabled={draft.applying} onClick={close}>キャンセル</Button>
       {draft.uncertain?<Button type="primary" aria-label="状態を再確認（対象ソース一式）" onClick={()=>void recheck()}>{uiTerms.recheck}</Button>:draft.review?<>
-        <Button disabled={draft.applying} onClick={()=>{version.current++;patch({review:null});}}>入力を修正</Button>
+        <Button disabled={draft.applying} onClick={()=>{version.current++;inputFocus.current={id:draft.id,intent:desktop.inputIntent};patch({review:null});}}>入力を修正</Button>
         {draft.stale&&<Button title="現在の対象ソースから変更計画を取得します" onClick={()=>void plan(true)}>計画を作り直す</Button>}
         <Button type="primary" danger={draft.review.destructive} loading={draft.applying} disabled={!!dirty.length||s.status.recoveryRequired||draft.stale||draft.target.clicked!==s.target||s.pending} onClick={()=>void apply()}>適用</Button>
       </>:<Button type="primary" loading={draft.pending} disabled={draft.applying||s.status.recoveryRequired||s.pending||draft.target.clicked!==s.target} onClick={()=>void plan(draft.stale)}>{draft.stale?"計画を作り直す":"変更を確認"}</Button>}

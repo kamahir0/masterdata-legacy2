@@ -52,11 +52,20 @@ function ValueSurface({target, root, title, open, onClose, children}: {
   const anchor = useRef<HTMLSpanElement>(null);
   const occurrence = useRef<{row:string;index:number;column:number}|null>(null);
   const [position, setPosition] = useState<{left:number;top:number;width:number;height:number}|null>(null);
+  const surface = useRef<{key:string;mode:"inline"|"near"|"drawer"}|null>(null);
   const projection = desktop.surface.projection;
   const shape = root?.shape ?? projection?.columns.find(c=>c.field.name===target?.root)?.shape;
-  const near = target?.path.length === 1 && shape && !shape.array &&
-    (shape.category === "enum" || shape.category === "flags" ||
-      (shape.category === "custom" && (shape.fields?.length ?? 0) <= 6));
+  const key=target?JSON.stringify([target.epoch,target.source,target.row,target.root]):"";
+  if(surface.current?.key!==key)surface.current=null;
+  if(target && root && !surface.current) {
+    const small=target.path.length===1 && shape && (shape.array?root.totalChildren<=6:
+      shape.category==="enum" || shape.category==="flags" || shape.category==="custom"&&(shape.fields?.length??0)<=6);
+    // Keep the same mounted surface through nested navigation / Add. Changing
+    // the root size cannot remount a live typing session or create popup stacks.
+    surface.current={key,mode:small?(shape?.category==="enum"&&!shape.array?"inline":"near"):"drawer"};
+  }
+  const near=!!surface.current && surface.current.mode!=="drawer";
+  const inline=surface.current?.mode==="inline";
   useLayoutEffect(()=>{
     if(!target || !near) {setPosition(null);return;}
     const viewport = desktop.viewport, area = document.getElementById("grid-area");
@@ -77,24 +86,24 @@ function ValueSurface({target, root, title, open, onClose, children}: {
     return()=>{viewport?.removeEventListener("scroll",update);resize.disconnect();};
   },[target,near,projection?.revision,projection?.rowStart]);
   useEffect(()=>{
-    if(!near || shape?.category !== "enum" || !open)return;
+    if(!inline || !open)return;
     const outside=(event:PointerEvent)=>{
       const element=event.target as Element;
       if(!element.closest(".inline-enum-surface,.ant-select-dropdown"))onClose();
     };
     document.addEventListener("pointerdown",outside);
     return()=>document.removeEventListener("pointerdown",outside);
-  },[near,shape?.category,open,onClose]);
+  },[inline,open,onClose]);
   if(!near || !position)
     return <Drawer title={title} open={open} onClose={onClose} keyboard={false} mask={false} size={400}
       getContainer={()=>document.getElementById("grid-area")!} rootStyle={{position:"absolute"}}
       classNames={{body:"complex-body"}} destroyOnHidden autoFocus={false}>{children}</Drawer>;
-  if(shape?.category === "enum")
+  if(inline)
     return open ? <div className="inline-enum-surface" style={{position:"absolute",...position}}>{children}</div> : null;
   return <Popover open={open} onOpenChange={visible=>{if(!visible)onClose();}} trigger="click" placement="bottomLeft"
-    title={shape?.category === "enum" ? undefined : title} content={<div className="near-value-body">{children}</div>}
+    title={title} content={<div className="near-value-body">{children}</div>}
     getPopupContainer={()=>document.getElementById("grid-area")!} destroyOnHidden
-    classNames={{container:`near-value-popover ${shape?.category === "enum" ? "enum-value-popover" : ""}`}}>
+    classNames={{root:"near-value-popover"}}>
     <span ref={anchor} className="value-anchor" aria-hidden="true" style={{position:"absolute",pointerEvents:"none",...position}} />
   </Popover>;
 }
@@ -411,7 +420,8 @@ export function ComplexPanel() {
     (resolvedTarget.current !== target ||
       view.revision !== s.projection?.revision ||
       view.generation !== s.projection?.generation);
-  useLayoutEffect(() => {
+  const focusCurrent=useRef<()=>void>(()=>{});
+  focusCurrent.current=() => {
     const restore = restoreFocus.current;
     const validRestore =
       restore?.target === target && restore.intent === desktop.inputIntent;
@@ -425,12 +435,12 @@ export function ComplexPanel() {
       (!validRestore &&
         target.inputIntent !== undefined &&
         target.inputIntent !== desktop.inputIntent) ||
-      (focusedTarget.current === target && !restoreFocus.current)
+      (focusedTarget.current === target && !restoreFocus.current && body.current?.contains(document.activeElement))
     )
       return;
     const container = body.current;
     if (!container) return;
-    if (focusedTarget.current === target && !validRestore) return;
+    if (focusedTarget.current === target && !validRestore && container.contains(document.activeElement)) return;
     const focusPath =
       validRestore && restore.path
         ? restore.path
@@ -460,7 +470,15 @@ export function ComplexPanel() {
         restoreFocus.current = null;
       }
     }
-  }, [target, root, loading, stale, blocked]);
+  };
+  useLayoutEffect(()=>focusCurrent.current(),[target,root,loading,stale,blocked]);
+  // Popover content commits after its parent and can replace an initial loading
+  // surface. Publish focus from the mounted body, with the same latest-intent gate.
+  const bindBody=useCallback((element:HTMLDivElement|null)=>{
+    body.current=element;
+    if(element)requestAnimationFrame(()=>focusCurrent.current());
+  },[]);
+
   const arrayItems = (invalidFlag = false) =>
     root?.children
       .filter((child) => !invalidFlag || !child.valid)
@@ -556,12 +574,12 @@ export function ComplexPanel() {
       title={
         <Space>
           {target && target.path.length > 1 && (
-            <Button
+            <><Button type="text" aria-label="元のセルの値" onClick={()=>void navigate([target.root])}>{target.root}</Button><Button
               type="text"
               icon={<LeftOutlined aria-hidden="true" />}
               aria-label="親の値"
               onClick={() => void navigate(target.path.slice(0, -1))}
-            />
+            /></>
           )}
           <span>{root?.label ?? target?.root ?? "複合値"}</span>
         </Space>
@@ -570,7 +588,7 @@ export function ComplexPanel() {
       onClose={() => void close()}
     >
       <div
-        ref={body}
+        ref={bindBody}
         onKeyDown={keydown}
         inert={loading || stale || blocked}
         aria-busy={loading || stale || blocked}

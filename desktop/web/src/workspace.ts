@@ -1073,6 +1073,22 @@ class Desktop {
       this.viewport?.focus({preventScroll:true});
     return ok;
   }
+  async toggleBoolean(expected: Projection, rowId: string, field: string) {
+    const intent=this.inputIntent;
+    if (!(await this.commit()) || intent!==this.inputIntent) return false;
+    const p=this.currentFor(expected);
+    if(!p?.source || this.surface.busy) return false;
+    const column=p.columns.findIndex(c=>c.field.name===field), row=p.rows.find(r=>r.id===rowId);
+    const cell=row?.cells[column], shape=p.columns[column]?.shape;
+    if(!row || row.pendingDelete || !cell?.editable || cell.isNull || shape?.array ||
+      !(shape?.typeName==="bool" || shape?.underlying==="bool") ||
+      !cell.value || !("value" in cell.value) || typeof cell.value.value!=="string" || !["true","false"].includes(cell.value.value)) return false;
+    this.setSelection(row.viewIndex,column);
+    this.historySource=p.source;
+    const ok=await this.operation({kind:"editText",...this.scope(p),row:rowId,field,text:cell.value.value==="true"?"false":"true"});
+    if(ok && intent===this.inputIntent && this.currentFor(p))this.viewport?.focus({preventScroll:true});
+    return ok;
+  }
   closeComplex = () => this.interact({ complex: null });
   complexPath = (path: string[], start = 0, focusPath?: string[]) => {
     const c = this.interaction.complex;

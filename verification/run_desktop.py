@@ -55,8 +55,8 @@ def check_authoring(report):
     assert report['visibility'] == 'visible' and report['focused'], 'native window not usable'
     assert [item['name'] for item in report['checks']] == [
         'scalar-composition', 'pointer-range', 'row-drag-cancel', 'row-drag-drop',
-        'bidirectional-row-motion', 'between-frame-row-drop', 'column-drag-drop', 'bidirectional-column-motion', 'array-drag-drop', 'complex-typing-add', 'complex-focus-intent', 'nested-problem-focus', 'complex-navigation', 'readable-table-context', 'inline-enum-choice-and-undo', 'boolean-active-control',
-        'nearby-flags-direct-operation', 'nullable-direct-null-and-undo', 'nearby-custom-open-is-read-only',
+        'bidirectional-row-motion', 'between-frame-row-drop', 'column-drag-drop', 'bidirectional-column-motion', 'array-drag-drop', 'complex-typing-add', 'complex-focus-intent', 'nested-problem-focus', 'complex-navigation', 'readable-table-context', 'inline-enum-choice-and-undo', 'boolean-direct-toggle-one-undo', 'boolean-active-control',
+        'nearby-flags-direct-operation', 'nullable-direct-null-and-undo', 'nearby-custom-open-is-read-only', 'nearby-array-and-nested-continuity',
     ], report['checks']
     assert report['source']['before'] == report['source']['after']
     assert report['schema']['before'] == report['schema']['after']
@@ -113,7 +113,7 @@ def check_type(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
     assert report['checks'] == ['resolved-type-selection-warm-zero', 'type-keyboard-menu-cancel-focus', 'value-object-plan-diff-apply',
-                               'flags-none-protected', 'external-stale-plan-explicit-replan', 'enum-ulong-lossless-add',
+                               'flags-none-protected', 'flags-explicit-bit-candidate-no-write', 'external-stale-plan-explicit-replan', 'enum-ulong-lossless-add',
                                'enum-rename-preserves-number', 'unused-member-authorized-drop',
                                'custom-long-min-guided-initializer', 'custom-rename-occurrences',
                                'custom-authorized-drop', 'affected-dirty-plan-apply-gate', 'unrelated-draft-history-survives-apply']
@@ -195,7 +195,7 @@ def check_project(report):
 def check_declaration(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
-    assert report['checks'] == ['open-close-physical-draft-focus', 'messagepack-review-compare-composition',
+    assert report['checks'] == ['column-context-direct-definition-no-write', 'open-close-physical-draft-focus', 'messagepack-review-compare-composition',
         'primary-key-direct-ordered-components', 'secondary-key-composite-order', 'reference-add-rust-resolved-feedback',
         'reference-helper-override', 'incoming-reference-key-removal-rejected', 'reference-remove-explicit-authorization',
         'stale-plan-no-auto-replan-apply', 'unknown-reply-explicit-recheck', 'dirty-revisit-undo-warm-zero-stable-grid']

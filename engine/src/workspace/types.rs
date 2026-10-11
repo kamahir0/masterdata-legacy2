@@ -11,8 +11,15 @@ pub struct TypeProjection {
     pub declaration: semantic::Type,
     pub protected_members: Vec<String>,
     pub flag_bits: BTreeMap<String, u32>,
+    pub available_flag_bits: Vec<FlagChoice>,
     pub generation: u64,
     pub measurement: Measurement,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FlagChoice {
+    pub bit: u32,
+    pub value: String,
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(untagged)]
@@ -49,6 +56,56 @@ impl Workspace {
         )?;
         drop(freshness);
         let _projection = instrument::span("projection");
+        let flag_bits: BTreeMap<String, u32> = if let semantic::Type::Enum {
+            underlying,
+            flags: true,
+            members,
+        } = &declaration
+        {
+            members
+                .iter()
+                .filter_map(|(name, value)| {
+                    let value = semantic::integer_value(value, underlying).ok()?;
+                    let mask = if matches!(underlying.as_str(), "int" | "uint") {
+                        value as u32 as u64
+                    } else {
+                        value as u64
+                    };
+                    mask.is_power_of_two()
+                        .then(|| (name.clone(), mask.trailing_zeros()))
+                })
+                .collect()
+        } else {
+            BTreeMap::new()
+        };
+        // These are read suggestions for explicit Add input. A later Plan
+        // validates the current declaration again; this cache authorizes no write.
+        let available_flag_bits = if let semantic::Type::Enum {
+            underlying,
+            flags: true,
+            ..
+        } = &declaration
+        {
+            let width = if matches!(underlying.as_str(), "int" | "uint") {
+                32
+            } else {
+                64
+            };
+            let signed = matches!(underlying.as_str(), "int" | "long");
+            (0..width)
+                .filter(|bit| !flag_bits.values().any(|used| used == bit))
+                .map(|bit| FlagChoice {
+                    bit,
+                    value: if signed && bit == width - 1 {
+                        (-(1_i128 << bit)).to_string()
+                    } else {
+                        (1_u64 << bit).to_string()
+                    },
+                })
+                .collect()
+        } else {
+            vec![]
+        };
         Ok(TypeProjection {
             kind: "type",
             clicked: clicked.into(),
@@ -63,28 +120,8 @@ impl Workspace {
             // The parsed declaration already owns integer width and atomic Flags
             // semantics. Publish read-only bit positions, including signed sign
             // bits, so the frontend never reconstructs them with JS Number.
-            flag_bits: if let semantic::Type::Enum {
-                underlying,
-                flags: true,
-                members,
-            } = &declaration
-            {
-                members
-                    .iter()
-                    .filter_map(|(name, value)| {
-                        let value = semantic::integer_value(value, underlying).ok()?;
-                        let mask = if matches!(underlying.as_str(), "int" | "uint") {
-                            value as u32 as u64
-                        } else {
-                            value as u64
-                        };
-                        mask.is_power_of_two()
-                            .then(|| (name.clone(), mask.trailing_zeros()))
-                    })
-                    .collect()
-            } else {
-                BTreeMap::new()
-            },
+            flag_bits,
+            available_flag_bits,
             declaration,
             generation: self.generation,
             measurement: instrument::measure(|| ()).1,

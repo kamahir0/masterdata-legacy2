@@ -695,6 +695,7 @@ function TableSurface({ s }: { s: Surface }) {
         <AuthoringGrid
           projection={p}
           types={types}
+          definition={declaration.openColumn}
           pending={s.pending || s.queryPending}
           busy={s.busy || s.status.recoveryRequired || !!uncertain}
         />

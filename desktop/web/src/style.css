@@ -851,12 +851,22 @@ main {
 
 /* GUI-UNIFIED-005: reading metadata consumes no extra toolbar or grid height. */
 .field-key { flex: none; font-size: 10px; font-variant-numeric: tabular-nums; color: var(--md-muted); padding-inline: 3px; border: 1px solid var(--md-border); border-radius: var(--md-radius); }
+.field-key { background:transparent; cursor:pointer; }
+.column-membership { flex:none; padding:0; font:inherit; color:inherit; background:transparent; border:0; cursor:pointer; }
+.field-key:focus-visible,.column-membership:focus-visible { outline:2px solid var(--md-focus); outline-offset:1px; }
+.reference-operation { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+.reference-operation .reference-context,.reference-operation .ant-form-item:last-child { grid-column:1/-1; }
+.reference-context { display:flex; flex-direction:column; gap:4px; padding-block:8px 14px; }
 .column { gap: 0; padding-block: 2px; }
 .column-context { height: 12px; display: flex; gap: 5px; align-items: center; color: var(--md-accent); font-size: 9px; line-height: 12px; overflow: hidden; }
 .column-context span { flex: none; }
 .primary-cell, .primary-column { background-color: var(--md-selected); }
 .cell { position: relative; }
 .cell-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cell-bool { border:0; background:transparent; padding:0; display:inline-flex; align-items:center; gap:7px; color:inherit; font:inherit; cursor:pointer; }
+.bool-indicator { width:12px; height:12px; border:1px solid var(--md-border); border-radius:var(--md-radius); background:var(--md-elevated); }
+.cell-bool[aria-checked="true"] .bool-indicator { background:var(--md-accent); border-color:var(--md-accent); box-shadow:inset 0 0 0 2px var(--md-bg); }
+.cell-bool:focus-visible { outline:2px solid var(--md-focus); outline-offset:3px; }
 .cell-null { position: absolute; inset-inline-start: 0; top: 4px; width: 20px; height: 24px; padding: 0; display: grid; place-items: center; opacity: 0; pointer-events: none; border: 0; border-radius: var(--md-radius); background: var(--md-elevated); color: var(--md-muted); box-shadow: var(--md-shadow-light); }
 .cell:hover .cell-null, .cell:focus-within .cell-null, .cell[aria-selected="true"] .cell-null { opacity: 1; pointer-events: auto; }
 .cell-null:focus-visible { opacity: 1; pointer-events: auto; outline: 2px solid var(--md-focus); }
@@ -865,12 +875,26 @@ main {
 .value-anchor { z-index: 9; }
 .near-value-body { width: 300px; max-width: calc(100vw - 80px); max-height: min(480px, 60vh); overflow: auto; }
 .near-value-popover { z-index: 20; }
+/* The editor accepts input while opening. Ant's scale motion moves its grip
+   between pointerdown and pointerup; retain its short motion with opacity only. */
+.near-value-popover[class*="ant-zoom-big"] { transform:none !important; }
+.near-value-popover[class*="-appear"],.near-value-popover[class*="-enter"] { animation-name:md-value-enter !important; }
+.near-value-popover[class*="-leave"] { animation-name:md-value-leave !important; }
+@keyframes md-value-enter { from {opacity:0;} to {opacity:1;} }
+@keyframes md-value-leave { from {opacity:1;} to {opacity:0;} }
+.value-spatial-clip { z-index:30; }
 .near-value-body .flags-members { gap: 8px; }
 .inline-enum-surface { z-index: 9; background: var(--md-bg); padding: 0; border: 1px solid var(--md-accent); box-shadow: var(--md-shadow-light); }
 .inline-enum-surface .complex-enum { width: 100%; height: var(--row-height,32px); }
 .inline-enum-surface .complex-control { min-height: 0; }
 .inline-enum-surface .ant-select { width: 100%; }
 .flag-bit-hint { margin-inline-start: 8px; font-size: 11px; }
+.type-name-edit.ant-btn { height:auto; padding:0 4px; margin-inline-start:-4px; font:inherit; justify-content:flex-start; }
+.near-type-input { width:320px; max-width:calc(100vw - 64px); }
+.near-type-input .ant-form-item { margin-bottom:12px; }
+.type-input-actions { display:flex; justify-content:flex-end; }
+.type-body { position:relative; }
+.type-inline-actions { position:absolute; bottom:14px; right:16px; max-width:calc(100% - 32px); display:flex; flex-direction:column; align-items:flex-end; gap:8px; padding:8px; border:1px solid var(--md-border); border-radius:var(--md-radius); background:var(--md-elevated); box-shadow:var(--md-shadow-light); z-index:3; }
 
 .nullable-cell { padding-inline-start: 26px; }
 .active-cell-editor.nullable-editor .ant-input { padding-inline-start: 25px; }
