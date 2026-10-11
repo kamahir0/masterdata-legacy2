@@ -8,6 +8,50 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 **Not cutover-ready — macOS dense input / held drag、Windows actual Desktop、Unity actual環境のrequired evidence gaps。** `f57102e`の実IME違反は`f7cf90d`で修正し、scalar / nestedのactual IMEとrequired CIで再検証した。2026-10-09にHumanがPR #16をmainへmergeしたが、未取得の外部証拠は免除していない。以下の旧Candidate evidenceは当時の記録として保持する。
 
+## 両Pass統合・表の理解と近接編集（2026-10-11）
+
+Candidate: `7efb1442c94e13998f30acc1c21c357eae908d9e`、Work base: `ba18eeaf90cf2956bd8eeb8863fa88316835058c`。[0058の有限採用ledger](../spec-changes/0058-contextual-table-authoring.md)は第一Pass 56項目と第二Pass 24項目の観察・訂正を統合した。canonical ownerはTable / Data / Type GUI。既存shell / writes / deliveryを維持し、表のread contextと型別の近接編集に改善を絞った。
+
+| Scope evidence | 結果 |
+| --- | --- |
+| 実装 | 全fieldのMessagePack KeyとPK/SK/REF、PKの小さい背景差、bounded実値preview、inline searchable Enum、近接Flags / small Custom、single active bool Switch、nullable × / Alt+Backspace、型付き定義候補、Flags bit表示 |
+| source / boundary | preview / roles / signed bit positionsはRust read projectionが所有。scalar editorはwireの実値だけを使う。syntax / write authority / occurrence / physical drafts/historyは維持。generic serializer・frontend YAML解釈・常設面は増やしていない |
+| focused回帰 | Rust workspace oracle-faults / clippy、complex 8 tests、frontend build / 表示4 tests、local WebView authoring19 / declaration11 / Type13 / geometry9がPASS。authoringはsource / schema exact復帰、定義はrecord draft / history保持。rawは実行時HEAD / dirty / binary hashを保持 |
+| actual macOS | 専用bundleでLight / Dark Table、Enum / Flags / bool / Custom、nullable keyboard / × / one Undo、型付き定義候補とsigned最高bit、outside Search focusを確認。8 YAMLの全SHA-256がbefore / after一致。専用appは各run通常Quit、対象process残存0。user app / OS設定・permissionは変更せず、Unity未起動 |
+| concrete correction | 選択nullable表示 / 値との重なり / keyboard、outside dismissal focus、signed longの最高bit表示欠落とpreview内literal翻訳を補正。declaration CIの`missing option intValue`は型併記後のlabelを旧文字列で探したadapter不一致を修正。assertionやtimeoutを弱めていない |
+| production app | `node scripts/local-app/app.mjs --no-launch`でproduction build / tests / staged smoke / install PASS。installedとpackageのbinary SHA-256は共に`cbe27ab0b7ce1934c287aec85fc0522ad8776f6340db19cccbb449b547b1ce66`。既存の起動中user appは閉じていない |
+| Candidate required CI | [implementation 38103212232](https://github.com/kamahir0/masterdata/actions/runs/38103212232): SUCCESS、全17 jobs。両Tier1のnative Desktopは15カテゴリ / 124 checksとcontrolled navigationを通過。[integrity 38103212262](https://github.com/kamahir0/masterdata/actions/runs/38103212262): SUCCESS |
+
+actual captures 01–06は先行buildのobservationsでbinary attestationなし。07–09は`d072376`（binary `ce209068…`）、10–12は`df30f26`（binary `9088ad432ae427c6f627f3b087a889669fc78af085f4f962035ba2107c8e73d3`）、13–14は最終`7efb144`（binary `71a02e5715447c2a72b939b32df4a235f617604066a1f27fb576536390d0f927`）。生成countだけが日本語となり、literal `3 items`は原文のままpreview / 近接editorで読めることを確認した。両専用project各8 YAMLのhashは一致。CUA native input / visual reviewをphysical human input、CGEvent、dense OS latencyへ改称しない。
+
+local controlled navigationは変更中の`ba18eea` + dirty、binary `3926c21a…`で取得した。最終Candidateの実測へ読み替えない。3 Tables / 8 sources / 12,000 records / selected 2,000×20、warm project-wide discovery / enumeration / parse / validationは全0、mounted rows最大33、非obsolete invalid0 / obsolete300拒否。
+
+| case | n | controlled accepted median / p95 / max ms | backend p95 ms |
+| --- | ---: | ---: | ---: |
+| firstSource | 1 | 87 (single) | 4.47 (single) |
+| revisit | 300 | 70.0 / 90 / 133 | 7.67 |
+| sameTable | 300 | 72.0 / 92.0 / 108 | 7.94 |
+| crossTable | 300 | 69.0 / 91 / 282.0 | 7.34 |
+| schema | 300 | 72.0 / 95 / 125 | 7.72 |
+| dirtyRevisit | 100 | 93.0 / 110 / 125 | 10.06 |
+| rapid | 100 | 53.0 / 66.0 / 82 | 7.11 |
+
+cold Open→inventory publicationは814ms、boot ready105ms（各n1）。input / selection / backend / freshness / projection / serialization / IPC / React / layout / target-filtered paint opportunity / controlled acceptedをrawに分離する。rAFをGPU presentationと呼ばず、既存actual OS target gateを維持する。passing metricの追加最適化は行っていない。
+
+最終CandidateのCI controlled accepted p95（revisit / same / cross / schema / dirty / rapid）はmacOS 108 / 106 / 107 / 105 / 102 / 69ms、Windows 87.4 / 93.6 / 88.3 / 92.8 / 123.6 / 68.8ms。first sourceは各238 / 270.3ms（n1、p95ではない）。全warm project-wide workは0、非obsolete invalid0。reference hardwareのactual OS target達成とは呼ばず、passing warm metricの追加最適化は行わない。各caseのmedian / p95 / max / n / stages / invalidはmachine rawに保持する。
+
+100k / 10files / 20columns / paste10kはbefore / after各2,000,000 values、exact targets / non-target / candidate bytes、Search、diagnostics0、disk unchangedが3OSでPASS。memoryの追加capは定義しない。
+
+| CI platform | native cold / paste / Find ms | native peak RSS bytes | Desktop peak RSS bytes | Desktop warm n / median / p95 / max ms |
+| --- | --- | ---: | ---: | --- |
+| macOS | 7944.59 / 549.15 / 31.89 | 3037249536 | 3264069632 | 100 / 95 / 127 / 148 |
+| Windows | 9707.37 / 463.19 / 34.30 | 3649490944 | 3677876224 | 100 / 77.25 / 97.5 / 123 |
+| Linux | 9903.45 / 330.65 / 31.26 | 3744419840 | 未測定 | native projectionのみ |
+
+RSSはisolated child lifetime maximum（WindowsはPeakWorkingSetSize）で合算RSSではない。bounded viewport / heavy editorの既存capacity checkを通過。native / WebView結果はWindows OS interaction / Unity実環境の代替証拠ではない。
+
+Fresh review: base→固定Candidateを同じagentの別passでreview。Specification Conformance / Tests / Rationale Freshness / Evidence Integrity / Architecture / Scope: scope内PASS、既知製品Blockingなし。bounded viewportのeditorを再mountせず、outside closeは新しいfocus intentを奪わないrationaleと回帰を照合した。current Candidateの3OS consumer / CLI / capacity / portable Unity、両Tier1 native Desktopをreconcile済み。Scope verdict: Ready to merge: Yes。global ledger / 4 external evidence gatesは不変。[machine evidence](clean-room-candidate-data.json.gz)の`contextualAuthoring`にraw / captures / checksを分離する。
+
 ## 開発者用語の見直し追加scope（2026-10-10）
 
 Candidate: `f8d7d4969c69425634f6e0822d512d961d6a486b`、Work base: `79781b66aa43f83315ed2f614c7596d398b75324`。authorityは[GUI-SHELL-LANGUAGE-001](../gui/app-shell.md#gui-shell-language-001)と[Desktop表示語](../product/terminology.md#desktop表示語)。[0057](../spec-changes/0057-desktop-developer-terminology.md)のHuman-selected実装scopeだけを対象にする。
