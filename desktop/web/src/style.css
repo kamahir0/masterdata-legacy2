@@ -858,7 +858,7 @@ main {
 .cell { position: relative; }
 .cell-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cell-null { position: absolute; inset-inline-start: 0; top: 4px; width: 20px; height: 24px; padding: 0; display: grid; place-items: center; opacity: 0; pointer-events: none; border: 0; border-radius: var(--md-radius); background: var(--md-elevated); color: var(--md-muted); box-shadow: var(--md-shadow-light); }
-.cell:hover .cell-null, .cell:focus-within .cell-null { opacity: 1; pointer-events: auto; }
+.cell:hover .cell-null, .cell:focus-within .cell-null, .cell[aria-selected="true"] .cell-null { opacity: 1; pointer-events: auto; }
 .cell-null:focus-visible { opacity: 1; pointer-events: auto; outline: 2px solid var(--md-focus); }
 .active-cell-editor:has(.ant-switch) { display: flex; align-items: center; padding-inline: 10px; background: var(--md-bg); }
 
@@ -871,3 +871,6 @@ main {
 .inline-enum-surface .complex-control { min-height: 0; }
 .inline-enum-surface .ant-select { width: 100%; }
 .flag-bit-hint { margin-inline-start: 8px; font-size: 11px; }
+
+.nullable-cell { padding-inline-start: 26px; }
+.active-cell-editor.nullable-editor .ant-input { padding-inline-start: 25px; }

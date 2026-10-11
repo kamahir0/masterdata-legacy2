@@ -559,7 +559,12 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     await until(()=>!!document.querySelector('.ant-select-item-option[title="Common"]'),"searchable Enum candidates missing");
     find('.ant-select-item-option[title="Common"]').click();
     await until(()=>desktop.surface.projection!.rows[0].cells[col("rarity")].display==="Common","Enum choice not committed");
-    await settle();desktop.closeComplex();await undo();
+    await settle();
+    const enumOutsideSearch=document.querySelector<HTMLInputElement>('#search')!;
+    enumOutsideSearch.focus();enumOutsideSearch.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}));
+    await until(()=>!desktop.interaction.complex,"outside dismissal did not close Enum");
+    assert(document.activeElement===enumOutsideSearch,"outside dismissal stole the user's newer focus");
+    await undo();
     assert((await bytes()).after===base.after,"Enum Undo did not restore exact source");
     record("inline-enum-choice-and-undo");
     await focusCell(0,col("enabled"));find(`#cell-0-${col("enabled")}`).click();
@@ -578,7 +583,11 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     assert((await bytes()).after===base.after,"Flags Undo did not restore source");
     record("nearby-flags-direct-operation");
     await focusCell(1,col("optionalCode"));
-    find(`#cell-1-${col("optionalCode")} .cell-null`).click();
+    const schemaControl=find('button[aria-label="名前を変更: optionalCode"]');
+    schemaControl.focus();key(schemaControl,"Backspace",{altKey:true});await frame();
+    assert((await bytes()).after===base.after,"schema focus applied a record null operation");
+    desktop.viewport!.focus();
+    key(desktop.viewport!,"Backspace",{altKey:true});
     await until(()=>desktop.surface.projection!.rows[1].cells[col("optionalCode")].isNull,"nullable direct null missing");
     await settle();await undo();
     assert((await bytes()).after===base.after,"null Undo did not restore lexical source");

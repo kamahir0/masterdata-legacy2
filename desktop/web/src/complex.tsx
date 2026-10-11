@@ -257,10 +257,14 @@ export function ComplexPanel() {
     setMenu(null);
   }, [target?.row, target?.source, target?.path]);
   const close = async () => {
-    const current = desktop.interaction.complex;
+    const current = desktop.interaction.complex, intent = desktop.inputIntent, element = document.activeElement;
     if ((await commit()) && desktop.interaction.complex === current) {
+      // Outside dismissal must not steal the search/menu/navigation focus that
+      // caused it. Explicit Escape/close still returns focus to the grid.
+      const restore = intent === desktop.inputIntent && element === document.activeElement && element instanceof Element &&
+        !!element.closest(".ant-drawer,.near-value-popover,.inline-enum-surface");
       desktop.closeComplex();
-      desktop.viewport?.focus();
+      if(restore)desktop.viewport?.focus({preventScroll:true});
     }
   };
   const navigate = async (path: string[], start = 0) => {

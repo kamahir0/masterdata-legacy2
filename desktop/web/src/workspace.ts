@@ -1061,13 +1061,16 @@ class Desktop {
     return ok;
   }
   async setCellNull(expected: Projection, row: string, field: string) {
+    const intent=this.inputIntent, element=document.activeElement;
     if (!(await this.commit())) return false;
     const p = this.currentFor(expected);
     if (!p?.source) return false;
     const view = await this.complexView({epoch:p.sessionEpoch,source:p.source,row,root:field,path:[field],start:0});
     if (!view || !this.currentFor(p)) return false;
     const ok = await this.complexEdit(view, [field], {kind:"null"});
-    if(ok && this.surface.projection?.source === p.source) this.viewport?.focus({preventScroll:true});
+    if(ok && this.currentFor(p) && intent===this.inputIntent &&
+      (document.activeElement===element || (element && !element.isConnected && document.activeElement===document.body)))
+      this.viewport?.focus({preventScroll:true});
     return ok;
   }
   closeComplex = () => this.interact({ complex: null });

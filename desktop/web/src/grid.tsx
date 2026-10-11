@@ -161,6 +161,14 @@ export const AuthoringGrid = memo(function AuthoringGrid({
       return;
     }
     if ((e.target as Element).closest("button")) return;
+    if (p && e.altKey && e.key === "Backspace" && !desktop.interaction.anchor) {
+      const selection=desktop.interaction.selection;
+      const row=p.rows.find(row=>row.viewIndex===selection.row), column=p.columns[selection.column], cell=row?.cells[selection.column];
+      if(row && column?.field.nullable && cell?.editable && !cell.isNull) {
+        e.preventDefault();void desktop.setCellNull(p,row.id,column.field.name);
+      }
+      return;
+    }
     if (e.key === "Enter" || e.key === "F2") {
       e.preventDefault();
       desktop.beginEditor();
@@ -511,7 +519,7 @@ const GridRow = memo(function GridRow({
         return (
           <div
             key={p.columns[column].field.name}
-            className={`cell${cell.valid ? "" : " invalid"}${p.columns[column].primary ? " primary-cell" : ""}`}
+            className={`cell${cell.valid ? "" : " invalid"}${p.columns[column].primary ? " primary-cell" : ""}${p.columns[column].field.nullable ? " nullable-cell" : ""}`}
             id={`cell-${row.viewIndex}-${column}`}
             role="gridcell"
             aria-colindex={column + 2}
@@ -552,7 +560,7 @@ const GridRow = memo(function GridRow({
             }}
           >
             {p.columns[column].field.nullable && !cell.isNull && cell.editable && (
-              <button className="cell-null" aria-label={`${p.columns[column].field.name} 行 ${row.viewIndex + 1} をnullにする`} title="nullにする"
+              <button className="cell-null" aria-label={`${p.columns[column].field.name} 行 ${row.viewIndex + 1} をnullにする`} title="nullにする（Alt+Backspace）"
                 onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); void desktop.setCellNull(p, row.id, p.columns[column].field.name); }}>
                 <CloseOutlined aria-hidden="true" />
               </button>
@@ -681,7 +689,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
   return (
     <div
       ref={element}
-      className="active-cell-editor"
+      className={`active-cell-editor${shape?.nullable ? " nullable-editor" : ""}`}
       aria-hidden={pending}
       inert={pending}
       style={{

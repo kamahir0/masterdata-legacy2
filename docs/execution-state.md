@@ -1,7 +1,7 @@
 # Development State
 
-Stage: implementation-ready
-Candidate: none
+Stage: correction-ready
+Candidate: a3471b8fe7c028ba956de30e7f8caed5d4b3fe2e
 Work base: ba18eeaf90cf2956bd8eeb8863fa88316835058c
 
 ## Active work
@@ -9,6 +9,8 @@ Work base: ba18eeaf90cf2956bd8eeb8863fa88316835058c
 In progress: Human-selected [両Pass統合改善](spec-changes/0058-contextual-table-authoring.md)のcanonical application / 実装 / Rust回帰 / actual WebView authoring 19項目 / geometry 9項目がPASS。Remaining: 固定Candidateのactual表示、required CI、production app更新。既存external evidence gatesは保持。
 
 ## Blocking findings
+
+Product correction: nullableのkeyboard / selected表示 / 非重複、近接editorのoutside dismissal focusを修正し、authoring 19項目 / declaration 11項目、frontend build / integrityのfocused再検証がPASS。既知製品Blockingなし。new Candidateでactual表示とrequired CIへ進む。
 
 Evidence gaps: macOS actual first-accepted <150ms証明 / held-drag Escape（CGEvent permission不足、設定変更禁止）、Windows x64 actual OS interaction / performance、Unity actual Editor / runtime。実IMEのconcrete Blockingは修正・再検証済みで他の既知製品Blockingは未検出。Cutover-ready / objective-complete未達。
 
