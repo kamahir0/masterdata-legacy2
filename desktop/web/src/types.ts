@@ -22,6 +22,7 @@ export interface Shape {
 export interface Cell {
   value: WireValue | null;
   display: string;
+  isNull: boolean;
   valid: boolean;
   editable: boolean;
   reason: string | null;
@@ -54,7 +55,7 @@ export interface Projection {
   source: string | null;
   table: { name: string; csharpName: string; source: string; fields: Field[] };
   sources: string[];
-  columns: { field: Field; shape: Shape | null; reason: string | null }[];
+  columns: { field: Field; shape: Shape | null; reason: string | null; primary: boolean; secondary: number[]; references: string[] }[];
   rows: Row[];
   totalRows: number;
   sourceTotalRows: number;

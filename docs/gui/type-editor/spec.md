@@ -20,6 +20,8 @@ Type Editorは少なくともlogical type name、source provenance、resolved ca
 
 Value Objectではunderlying primitiveと`fromUnderlyingImplicit` / `toUnderlyingImplicit`、Normal Enum / Flags Enumではunderlyingとmember declaration order・name・numeric value、Custom Typeではfield declaration order・MessagePack key・name・base type・modifierを表示しなければならない（MUST）。
 
+Flagsの既存numeric declarationにはatomic bitの位置と式を補助表示する。数値をJS Numberへ変換せず、None=0の保護と既存mutation範囲を維持する。
+
 v1非対象のdeclaration name、underlying、member numeric value、field type/modifier/key/reorder等をdirect-edit可能なcontrolとして表示してはならない（MUST NOT）。read-onlyとして表示することはできる（MAY）。
 
 ### GUI-TYPE-LAYOUT-003

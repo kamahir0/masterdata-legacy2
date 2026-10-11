@@ -544,6 +544,59 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
       typingPreserved: true,
       sourceLocalUndo: true,
     });
+    // GUI-UNIFIED-005 / GUI-DATA-EDIT-003: observable context and the
+    // single active typed controls, not a component/command topology test.
+    desktop.closeComplex();
+    const col=(name:string)=>desktop.surface.projection!.columns.findIndex(c=>c.field.name===name);
+    assert(document.querySelectorAll(".field-key").length===desktop.surface.projection!.columns.length,"serialization keys missing from normal headers");
+    assert(document.querySelector('[data-field="id"] .column-context')?.textContent?.includes("PK"),"primary membership hidden");
+    assert(document.querySelector('[data-field="code"] .column-context')?.textContent?.includes("SK3"),"composite secondary membership hidden");
+    assert(desktop.surface.projection!.rows[0].cells[col("tags")].display.includes("Fire"),"Flags preview hides values");
+    record("readable-table-context");
+    await focusCell(0,col("rarity"));find(`#cell-0-${col("rarity")}`).click();
+    await until(()=>!!document.querySelector('.inline-enum-surface [role="combobox"]'),"Enum not inline");
+    assert(!(await bytes()).after.includes("rarity: Common\n    tags: [Fire"),"opening Enum changed values");
+    await until(()=>!!document.querySelector('.ant-select-item-option[title="Common"]'),"searchable Enum candidates missing");
+    find('.ant-select-item-option[title="Common"]').click();
+    await until(()=>desktop.surface.projection!.rows[0].cells[col("rarity")].display==="Common","Enum choice not committed");
+    await settle();desktop.closeComplex();await undo();
+    assert((await bytes()).after===base.after,"Enum Undo did not restore exact source");
+    record("inline-enum-choice-and-undo");
+    await focusCell(0,col("enabled"));find(`#cell-0-${col("enabled")}`).click();
+    await until(()=>!!document.querySelector('.active-cell-editor [role="switch"]'),"bool active editor not typed");
+    find('.active-cell-editor [role="switch"]').click();
+    await until(()=>desktop.surface.projection!.rows[0].cells[col("enabled")].display==="false","bool change missing");
+    await settle();await undo();
+    assert((await bytes()).after===base.after,"bool Undo did not restore source");
+    record("boolean-active-control");
+    await focusCell(0,col("tags"));key(desktop.viewport!,"Enter");
+    await until(()=>!!document.querySelector('.near-value-body .flags-members'),"Flags not near the cell");
+    const flag=[...document.querySelectorAll<HTMLElement>('.flags-members label')].find(label=>label.textContent==="Ice");
+    assert(flag,"Flags member unavailable");flag.click();
+    await until(()=>desktop.surface.projection!.rows[0].cells[col("tags")].display.includes("Ice"),"Flags direct operation missing");
+    await settle();desktop.closeComplex();await undo();
+    assert((await bytes()).after===base.after,"Flags Undo did not restore source");
+    record("nearby-flags-direct-operation");
+    await focusCell(1,col("optionalCode"));
+    find(`#cell-1-${col("optionalCode")} .cell-null`).click();
+    await until(()=>desktop.surface.projection!.rows[1].cells[col("optionalCode")].isNull,"nullable direct null missing");
+    await settle();await undo();
+    assert((await bytes()).after===base.after,"null Undo did not restore lexical source");
+    record("nullable-direct-null-and-undo");
+    await focusCell(0,col("reward"));key(desktop.viewport!,"Enter");
+    await until(()=>!!document.querySelector('.near-value-body .custom-fields'),"small Custom not near cell");
+    const customField=find(`.near-value-body [data-value-path='["reward","itemId"]'] button`);
+    customField.click();
+    await until(()=>!!document.querySelector('.near-value-body .complex-input input'),"nearby scalar editor missing");
+    const draftInput=find('.near-value-body .complex-input input') as HTMLInputElement;
+    text(draftInput,"2009");
+    desktop.viewport!.scrollLeft=0;await frame();await frame();
+    assert(draftInput.isConnected && draftInput.value==="2009","offscreen anchor destroyed temporary typing");
+    key(draftInput,"Escape");await frame();
+    assert((await bytes()).after===base.after,"Escape committed nearby temporary input");
+    desktop.closeComplex();await frame();
+    assert((await bytes()).after===base.after,"opening Custom mutated source");
+    record("nearby-custom-open-is-read-only");
     assert(
       !startup.browserErrors ||
         (startup.browserErrors as string[]).length === 0,

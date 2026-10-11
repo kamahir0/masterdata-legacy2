@@ -15,6 +15,7 @@ import {
   Dropdown,
   Input,
   Select,
+  Switch,
   Tooltip,
   type InputRef,
   type MenuProps,
@@ -31,6 +32,7 @@ import {
   PlusOutlined,
   UndoOutlined,
   TagsOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import type { Field, Projection, Row } from "./types";
 import { desktop, GRID, type Editor } from "./workspace";
@@ -230,6 +232,9 @@ export const AuthoringGrid = memo(function AuthoringGrid({
               key={col.field.name}
               index={index}
               field={col.field}
+              primary={col.primary}
+              secondary={col.secondary}
+              references={col.references}
               types={types}
               active={index >= columns.first && index < columns.last}
               busy={busy}
@@ -274,6 +279,9 @@ export const AuthoringGrid = memo(function AuthoringGrid({
 const ColumnHeader = memo(
   function ColumnHeader({
     field,
+    primary,
+    secondary,
+    references,
     index,
     active,
     types,
@@ -283,6 +291,9 @@ const ColumnHeader = memo(
     rename,
   }: {
     field: Field;
+    primary: boolean;
+    secondary: number[];
+    references: string[];
     index: number;
     active: boolean;
     types: string[];
@@ -307,7 +318,7 @@ const ColumnHeader = memo(
     ].map((value) => ({ value, label: value }));
     return (
       <div
-        className="column"
+        className={`column${primary ? " primary-column" : ""}`}
         role="columnheader"
         aria-colindex={index + 2}
         data-field={field.name}
@@ -329,6 +340,7 @@ const ColumnHeader = memo(
             <HolderOutlined aria-hidden="true" />
           </button>
           <HeaderName field={field} active={active} editing={renaming} busy={busy} change={rename} />
+          <span className="field-key" title="MessagePack Key" aria-label={`${field.name} MessagePack Key ${field.key}`}>{field.key}</span>
           <button
             className="spatial-handle column-actions"
             aria-label={`${field.name} の操作`}
@@ -393,6 +405,11 @@ const ColumnHeader = memo(
             </span>
           )}
         </div>
+        <div className="column-context" aria-label={`${field.name} の所属`}>
+          {primary && <span title="主キー">PK</span>}
+          {secondary.map(key => <span key={key} title={`副キー ${key}`}>SK{key}</span>)}
+          {!!references.length && <span title={`参照: ${references.join(", ")}`}>REF</span>}
+        </div>
       </div>
     );
   },
@@ -404,6 +421,9 @@ const ColumnHeader = memo(
     a.menu === b.menu &&
     a.renaming === b.renaming &&
     a.rename === b.rename &&
+    a.primary === b.primary &&
+    a.secondary.join() === b.secondary.join() &&
+    a.references.join() === b.references.join() &&
     a.field.name === b.field.name &&
     a.field.key === b.field.key &&
     a.field.typeName === b.field.typeName &&
@@ -491,7 +511,7 @@ const GridRow = memo(function GridRow({
         return (
           <div
             key={p.columns[column].field.name}
-            className={`cell${cell.valid ? "" : " invalid"}`}
+            className={`cell${cell.valid ? "" : " invalid"}${p.columns[column].primary ? " primary-cell" : ""}`}
             id={`cell-${row.viewIndex}-${column}`}
             role="gridcell"
             aria-colindex={column + 2}
@@ -507,6 +527,17 @@ const GridRow = memo(function GridRow({
             onPointerDown={(e) => {
               beginRangeSelection(e, row, column);
             }}
+            onClick={e => {
+              const shape=p.columns[column].shape;
+              if(e.detail > 1 || e.shiftKey || desktop.interaction.anchor || !cell.editable || !shape || shape.array ||
+                !(shape.category === "enum" || shape.category === "flags" || shape.typeName === "bool" || shape.underlying === "bool"))return;
+              const intent=desktop.interaction.focusIntent;
+              void desktop.commit().then(ok=>{
+                const current=desktop.surface.projection, selected=desktop.interaction.selection;
+                if(ok && intent===desktop.interaction.focusIntent && current?.source===p.source && current.clicked===p.clicked && current.sessionEpoch===p.sessionEpoch && selected.row===row.viewIndex && selected.column===column)
+                  desktop.beginEditor();
+              });
+            }}
             onDoubleClick={() => {
               const intent = desktop.interaction.focusIntent;
               void desktop.commit().then((ok) => {
@@ -520,7 +551,13 @@ const GridRow = memo(function GridRow({
               menu(row, e.clientX, e.clientY);
             }}
           >
-            {complexSummary(cell.display, cell.value === null)}
+            {p.columns[column].field.nullable && !cell.isNull && cell.editable && (
+              <button className="cell-null" aria-label={`${p.columns[column].field.name} 行 ${row.viewIndex + 1} をnullにする`} title="nullにする"
+                onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); void desktop.setCellNull(p, row.id, p.columns[column].field.name); }}>
+                <CloseOutlined aria-hidden="true" />
+              </button>
+            )}
+            <span className="cell-value">{complexSummary(cell.display, cell.value === null)}</span>
           </div>
         );
       })}
@@ -639,6 +676,8 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
     input.current?.focus({ cursor: "all", preventScroll:true });
     return unbind;
   }, [commit, cancel]);
+  const shape = desktop.surface.projection?.columns[editor.column]?.shape;
+  const boolean = shape && !shape.array && (shape.typeName === "bool" || shape.underlying === "bool") && ["true", "false"].includes(text);
   return (
     <div
       ref={element}
@@ -653,7 +692,9 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
         height: GRID.row,
       }}
     >
-      <Input
+      {boolean ? <span onKeyDown={e => { if(e.key === "Escape") {e.preventDefault();e.stopPropagation();cancel();desktop.viewport?.focus();} }}><Switch autoFocus aria-label={`${editor.field} 行 ${editor.rowIndex + 1}`} checked={text === "true"} checkedChildren="true" unCheckedChildren="false"
+        onChange={checked => { value.current = checked ? "true" : "false"; setText(value.current); void commit().then(ok => {if(ok)desktop.viewport?.focus({preventScroll:true});}); }}
+        /></span> : <Input
         ref={input}
         aria-label={`${editor.field} 行 ${editor.rowIndex + 1}`}
         value={text}
@@ -705,7 +746,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
             });
           }
         }}
-      />
+      />}
     </div>
   );
 }

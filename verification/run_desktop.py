@@ -55,7 +55,8 @@ def check_authoring(report):
     assert report['visibility'] == 'visible' and report['focused'], 'native window not usable'
     assert [item['name'] for item in report['checks']] == [
         'scalar-composition', 'pointer-range', 'row-drag-cancel', 'row-drag-drop',
-        'bidirectional-row-motion', 'between-frame-row-drop', 'column-drag-drop', 'bidirectional-column-motion', 'array-drag-drop', 'complex-typing-add', 'complex-focus-intent', 'nested-problem-focus', 'complex-navigation',
+        'bidirectional-row-motion', 'between-frame-row-drop', 'column-drag-drop', 'bidirectional-column-motion', 'array-drag-drop', 'complex-typing-add', 'complex-focus-intent', 'nested-problem-focus', 'complex-navigation', 'readable-table-context', 'inline-enum-choice-and-undo', 'boolean-active-control',
+        'nearby-flags-direct-operation', 'nullable-direct-null-and-undo', 'nearby-custom-open-is-read-only',
     ], report['checks']
     assert report['source']['before'] == report['source']['after']
     assert report['schema']['before'] == report['schema']['after']

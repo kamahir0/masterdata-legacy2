@@ -848,3 +848,26 @@ main {
 .settings-problems .ant-typography { margin-bottom: 4px; }
 .comparison-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .comparison-columns textarea { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; margin-top: 8px; }
+
+/* GUI-UNIFIED-005: reading metadata consumes no extra toolbar or grid height. */
+.field-key { flex: none; font-size: 10px; font-variant-numeric: tabular-nums; color: var(--md-muted); padding-inline: 3px; border: 1px solid var(--md-border); border-radius: var(--md-radius); }
+.column { gap: 0; padding-block: 2px; }
+.column-context { height: 12px; display: flex; gap: 5px; align-items: center; color: var(--md-accent); font-size: 9px; line-height: 12px; overflow: hidden; }
+.column-context span { flex: none; }
+.primary-cell, .primary-column { background-color: var(--md-selected); }
+.cell { position: relative; }
+.cell-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cell-null { position: absolute; inset-inline-start: 0; top: 4px; width: 20px; height: 24px; padding: 0; display: grid; place-items: center; opacity: 0; pointer-events: none; border: 0; border-radius: var(--md-radius); background: var(--md-elevated); color: var(--md-muted); box-shadow: var(--md-shadow-light); }
+.cell:hover .cell-null, .cell:focus-within .cell-null { opacity: 1; pointer-events: auto; }
+.cell-null:focus-visible { opacity: 1; pointer-events: auto; outline: 2px solid var(--md-focus); }
+.active-cell-editor:has(.ant-switch) { display: flex; align-items: center; padding-inline: 10px; background: var(--md-bg); }
+
+.value-anchor { z-index: 9; }
+.near-value-body { width: 300px; max-width: calc(100vw - 80px); max-height: min(480px, 60vh); overflow: auto; }
+.near-value-popover { z-index: 20; }
+.near-value-body .flags-members { gap: 8px; }
+.inline-enum-surface { z-index: 9; background: var(--md-bg); padding: 0; border: 1px solid var(--md-accent); box-shadow: var(--md-shadow-light); }
+.inline-enum-surface .complex-enum { width: 100%; height: var(--row-height,32px); }
+.inline-enum-surface .complex-control { min-height: 0; }
+.inline-enum-surface .ant-select { width: 100%; }
+.flag-bit-hint { margin-inline-start: 8px; font-size: 11px; }

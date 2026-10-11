@@ -175,6 +175,7 @@ impl Default for SourceViewState {
 pub struct Cell {
     pub value: Option<Value>,
     pub display: String,
+    pub is_null: bool,
     pub valid: bool,
     pub editable: bool,
     pub reason: Option<String>,
@@ -193,6 +194,9 @@ pub struct ViewRow {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Column {
+    pub primary: bool,
+    pub secondary: Vec<usize>,
+    pub references: Vec<String>,
     pub field: Field,
     pub shape: Option<Shape>,
     pub reason: Option<String>,
@@ -891,11 +895,39 @@ impl Workspace {
             .iter()
             .map(|f| match semantic::shape(f, &types) {
                 Ok(shape) => Column {
+                    primary: table.primary.fields.contains(&f.name),
+                    secondary: table
+                        .secondary
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, key)| key.fields.contains(&f.name))
+                        .map(|(i, _)| i + 1)
+                        .collect(),
+                    references: table
+                        .references
+                        .iter()
+                        .filter(|reference| reference.fields.contains(&f.name))
+                        .map(|reference| reference.name.clone())
+                        .collect(),
                     field: f.clone(),
                     shape: Some(shape),
                     reason: None,
                 },
                 Err(e) => Column {
+                    primary: table.primary.fields.contains(&f.name),
+                    secondary: table
+                        .secondary
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, key)| key.fields.contains(&f.name))
+                        .map(|(i, _)| i + 1)
+                        .collect(),
+                    references: table
+                        .references
+                        .iter()
+                        .filter(|reference| reference.fields.contains(&f.name))
+                        .map(|reference| reference.name.clone())
+                        .collect(),
                     field: f.clone(),
                     shape: None,
                     reason: Some(e.to_string()),
@@ -938,6 +970,7 @@ impl Workspace {
                             return Cell {
                                 value: None,
                                 display: "(missing)".into(),
+                                is_null: false,
                                 valid: pending.is_some(),
                                 editable: false,
                                 reason: Some("field entry missing".into()),
@@ -957,6 +990,7 @@ impl Workspace {
                                 _ => Some(raw.value()),
                             },
                             display,
+                            is_null: matches!(raw.raw, Raw::Null),
                             valid: pending.is_some() || interpreted.is_ok(),
                             editable,
                             reason: if editable {
@@ -1563,11 +1597,71 @@ impl Workspace {
         true
     }
 }
+// Summaries are bounded read projections, never an editable value or write base.
+// Visit at most three members at two levels; large/offscreen values stay in Rust.
 fn display(raw: &crate::source::Node) -> String {
+    fn preview(raw: &crate::source::Node, depth: usize) -> String {
+        match &raw.raw {
+            Raw::Null => "null".into(),
+            Raw::Scalar(s) => {
+                if s.is_empty() || s == "null" {
+                    return format!("\"{s}\"");
+                }
+                let mut chars = s.chars();
+                let mut result: String = chars.by_ref().take(40).collect();
+                if chars.next().is_some() {
+                    result.push('…');
+                }
+                result
+            }
+            Raw::Sequence(values) => {
+                if depth >= 2 {
+                    return format!("[{} items]", values.len());
+                }
+                let mut items = values
+                    .iter()
+                    .take(3)
+                    .map(|v| preview(&v.value, depth + 1))
+                    .collect::<Vec<_>>();
+                if values.len() > 3 {
+                    items.push("…".into());
+                }
+                format!("[{}] · {} items", items.join(", "), values.len())
+            }
+            Raw::Mapping(values) => {
+                if depth >= 2 {
+                    return format!("{{{} fields}}", values.len());
+                }
+                let mut fields = values
+                    .iter()
+                    .take(3)
+                    .map(|v| {
+                        format!(
+                            "{}: {}",
+                            v.name.chars().take(24).collect::<String>(),
+                            preview(&v.value, depth + 1)
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                if values.len() > 3 {
+                    fields.push("…".into());
+                }
+                format!("{{{}}}", fields.join(", "))
+            }
+        }
+    }
+    // Scalar input/display remains complete and lossless; only complex previews
+    // are capped. The frontend edits scalar wire values, not this summary.
     match &raw.raw {
-        Raw::Null => "null".into(),
-        Raw::Scalar(s) => s.clone(),
-        Raw::Sequence(s) => format!("[{} items]", s.len()),
-        Raw::Mapping(m) => format!("{{{} fields}}", m.len()),
+        Raw::Scalar(s) if !s.is_empty() && s != "null" => s.clone(),
+        _ => {
+            let summary = preview(raw, 0);
+            let mut chars = summary.chars();
+            let mut result: String = chars.by_ref().take(180).collect();
+            if chars.next().is_some() {
+                result.push('…');
+            }
+            result
+        }
     }
 }

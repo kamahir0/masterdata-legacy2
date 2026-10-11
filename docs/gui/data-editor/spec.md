@@ -106,6 +106,10 @@ Complex value editorはshared resolved value authoring stateから構成しな�
 
 frontendはeditorを構成するためにYAML parse、type lookup、Enum / Flags resolution、Custom Type shape reconstructionをdomain authorityとして再実装してはならない（MUST NOT）。exact inline / popover / drawer component、spacing、routine focus stylingはdata safety / accessibilityを変えない範囲でimplementation detailとする。
 
+Array / Customのセル要約はboundedな実値と件数 / field名を含め、空文字・空Array・nullを区別する。previewはRustで生成し、全値をfrontendへ渡さず、preview文字列をscalar入力へ再利用しない。小さいEnumはinline searchable selector、Flagsと小さいCustomはcell付近で編集する。deep / 大きい値はDrawerを使い、nestedでもbool / Enumの型別操作を継続する。single active editor、unknown / invalid値の保持、Problems focusを維持する。
+
+nullable editable non-null cellにはhover / focus時の共通「nullにする」操作を提供する。whole cellをnullにし、一Undoでexact前値へ戻せる。keyboardからも到達可能にし、geometryを変えない。nullからの編集は通常型別editorで行い、暗黙のdefault valueを作らない。
+
 Array element等の各itemに共通のmove / remove action群を値より強い定常表示として繰り返してはならない（MUST NOT）。secondary actionは対象itemのfocus / menuからpointerとkeyboardの両方で到達可能にしなければならない（MUST）。
 
 ### GUI-DATA-EDIT-004

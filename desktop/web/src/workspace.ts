@@ -1006,7 +1006,7 @@ class Desktop {
     if (!r || !cell?.editable || !column?.shape) return;
     if (
       column.shape.array ||
-      column.shape.nullable ||
+      cell.isNull ||
       ["custom", "flags", "enum"].includes(column.shape.category)
     ) {
       this.interact({
@@ -1031,7 +1031,7 @@ class Desktop {
           field: column.field.name,
           rowIndex: s.row,
           column: s.column,
-          initial: cell.value?.kind === "null" ? "" : cell.display,
+          initial: cell.value && "value" in cell.value && typeof cell.value.value === "string" ? cell.value.value : "",
           display: cell.display,
         },
         complex: null,
@@ -1058,6 +1058,16 @@ class Desktop {
       this.historySource = editor.source;
       this.closeEditor();
     }
+    return ok;
+  }
+  async setCellNull(expected: Projection, row: string, field: string) {
+    if (!(await this.commit())) return false;
+    const p = this.currentFor(expected);
+    if (!p?.source) return false;
+    const view = await this.complexView({epoch:p.sessionEpoch,source:p.source,row,root:field,path:[field],start:0});
+    if (!view || !this.currentFor(p)) return false;
+    const ok = await this.complexEdit(view, [field], {kind:"null"});
+    if(ok && this.surface.projection?.source === p.source) this.viewport?.focus({preventScroll:true});
     return ok;
   }
   closeComplex = () => this.interact({ complex: null });

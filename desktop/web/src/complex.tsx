@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import {
   Alert,
@@ -15,7 +16,9 @@ import {
   Dropdown,
   Empty,
   Input,
+  Popover,
   Select,
+  Switch,
   Space,
   Spin,
   Tag,
@@ -35,10 +38,66 @@ import {
   WarningOutlined,
 } from "@ant-design/icons";
 import { useInteraction, useSurface } from "./app";
-import { desktop, type ComplexView, type EditorNode } from "./workspace";
+import { desktop, GRID, type ComplexView, type EditorNode } from "./workspace";
 import { beginArrayDrag, consumeSpatialClick } from "./spatial";
 const same = (a: string[], b: string[]) =>
   a.length === b.length && a.every((s, i) => s === b[i]);
+
+// One active surface, anchored to the exact occurrence. Large/deep editors
+// retain the existing drawer rather than building nested popup stacks.
+function ValueSurface({target, root, title, open, onClose, children}: {
+  target: ReturnType<typeof useInteraction>["complex"];
+  root?: EditorNode; title: ReactNode; open: boolean; onClose: () => void; children: ReactNode;
+}) {
+  const anchor = useRef<HTMLSpanElement>(null);
+  const occurrence = useRef<{row:string;index:number;column:number}|null>(null);
+  const [position, setPosition] = useState<{left:number;top:number;width:number;height:number}|null>(null);
+  const projection = desktop.surface.projection;
+  const shape = root?.shape ?? projection?.columns.find(c=>c.field.name===target?.root)?.shape;
+  const near = target?.path.length === 1 && shape && !shape.array &&
+    (shape.category === "enum" || shape.category === "flags" ||
+      (shape.category === "custom" && (shape.fields?.length ?? 0) <= 6));
+  useLayoutEffect(()=>{
+    if(!target || !near) {setPosition(null);return;}
+    const viewport = desktop.viewport, area = document.getElementById("grid-area");
+    const update = () => {
+      const p = desktop.surface.projection;
+      const row = p?.rows.find(row=>row.id===target.row), column = p?.columns.findIndex(c=>c.field.name===target.root) ?? -1;
+      if(row && column>=0)occurrence.current={row:target.row,index:row.viewIndex,column};
+      const saved=occurrence.current;
+      if(saved?.row!==target.row || !viewport || !area)return;
+      // Virtual scrolling can remove the anchor cell. Keep the same mounted
+      // editor and clamp its anchor to the viewport, so typing never remounts.
+      const left=GRID.identity+saved.column*GRID.column-viewport.scrollLeft;
+      const top=GRID.header+saved.index*GRID.row-viewport.scrollTop;
+      setPosition({left:Math.max(GRID.identity,Math.min(left,area.clientWidth-GRID.column)),top:Math.max(GRID.header,Math.min(top,area.clientHeight-GRID.row)),width:GRID.column,height:GRID.row});
+    };
+    update(); viewport?.addEventListener("scroll",update,{passive:true});
+    const resize=new ResizeObserver(update);if(area)resize.observe(area);
+    return()=>{viewport?.removeEventListener("scroll",update);resize.disconnect();};
+  },[target,near,projection?.revision,projection?.rowStart]);
+  useEffect(()=>{
+    if(!near || shape?.category !== "enum" || !open)return;
+    const outside=(event:PointerEvent)=>{
+      const element=event.target as Element;
+      if(!element.closest(".inline-enum-surface,.ant-select-dropdown"))onClose();
+    };
+    document.addEventListener("pointerdown",outside);
+    return()=>document.removeEventListener("pointerdown",outside);
+  },[near,shape?.category,open,onClose]);
+  if(!near || !position)
+    return <Drawer title={title} open={open} onClose={onClose} keyboard={false} mask={false} size={400}
+      getContainer={()=>document.getElementById("grid-area")!} rootStyle={{position:"absolute"}}
+      classNames={{body:"complex-body"}} destroyOnHidden autoFocus={false}>{children}</Drawer>;
+  if(shape?.category === "enum")
+    return open ? <div className="inline-enum-surface" style={{position:"absolute",...position}}>{children}</div> : null;
+  return <Popover open={open} onOpenChange={visible=>{if(!visible)onClose();}} trigger="click" placement="bottomLeft"
+    title={shape?.category === "enum" ? undefined : title} content={<div className="near-value-body">{children}</div>}
+    getPopupContainer={()=>document.getElementById("grid-area")!} destroyOnHidden
+    classNames={{container:`near-value-popover ${shape?.category === "enum" ? "enum-value-popover" : ""}`}}>
+    <span ref={anchor} className="value-anchor" aria-hidden="true" style={{position:"absolute",pointerEvents:"none",...position}} />
+  </Popover>;
+}
 type Typing = {
   authority: ComplexView;
   path: string[];
@@ -256,10 +315,10 @@ export function ComplexPanel() {
       if (typing.current && typing.current.text !== typing.current.initial) {
         typing.current.cancel();
         typing.current = null;
-      } else if (active || nonNull) {
         setActive(null);
         setNonNull(false);
-        typing.current = null;
+      } else if (active || nonNull) {
+        void close();
       } else if (menu) setMenu(null);
       else void close();
     } else if (
@@ -287,10 +346,14 @@ export function ComplexPanel() {
           {complexSummary(node.display, node.kind === "sequence" || node.kind === "mapping")}
         </Typography.Text>
       );
+    if (!node.shape.array && node.kind !== "null" && (node.shape.typeName === "bool" || node.shape.underlying === "bool") && ["true", "false"].includes(node.input ?? ""))
+      return <Switch aria-label={node.label} checked={node.input === "true"} checkedChildren="true" unCheckedChildren="false" onChange={checked => void change(node.path, {kind:"text",text:checked ? "true" : "false"})} />;
+    if (!node.shape.array && node.shape.category === "enum" && node.kind !== "null")
+      return <Select aria-label={node.label} showSearch value={node.input ?? undefined} options={node.shape.members?.map(value=>({value,label:value}))} status={node.valid?undefined:"error"} onChange={symbol=>void change(node.path,{kind:"enum",symbol})} className="complex-enum" />;
     if (
       node.shape.array ||
       ["custom", "flags"].includes(node.shape.category) ||
-      node.shape.nullable
+      node.kind === "null"
     )
       return (
         <Button
@@ -483,7 +546,9 @@ export function ComplexPanel() {
         },
       ];
   return (
-    <Drawer
+    <ValueSurface
+      target={target}
+      root={root}
       title={
         <Space>
           {target && target.path.length > 1 && (
@@ -499,14 +564,6 @@ export function ComplexPanel() {
       }
       open={!!target && (!s.pending || s.externalPending) && target.epoch === s.status.epoch}
       onClose={() => void close()}
-      keyboard={false}
-      mask={false}
-      size={400}
-      getContainer={() => document.getElementById("grid-area")!}
-      rootStyle={{ position: "absolute" }}
-      classNames={{ body: "complex-body" }}
-      destroyOnHidden
-      autoFocus={false}
     >
       <div
         ref={body}
@@ -750,7 +807,7 @@ export function ComplexPanel() {
           aria-hidden="true"
         />
       </Dropdown>
-    </Drawer>
+    </ValueSurface>
   );
 }
 function LeafInput({
@@ -801,10 +858,14 @@ function LeafInput({
       observed.current = authority;
     }
   }, [node.input, nonNull, authority]);
+  if (node.shape && !node.shape.array && (node.shape.typeName === "bool" || node.shape.underlying === "bool") && ["true", "false"].includes(node.input ?? ""))
+    return <Switch autoFocus aria-label={node.label} checked={node.input === "true"} checkedChildren="true" unCheckedChildren="false" onChange={checked=>{value.current=checked?"true":"false";set(value.current);report();void commit();}} />;
   if (node.shape?.category === "enum")
     return (
       <Select
         autoFocus
+        showSearch
+        defaultOpen
         aria-label={node.label}
         value={node.input ?? undefined}
         placeholder={complexSummary(node.display, node.kind === "sequence" || node.kind === "mapping")}

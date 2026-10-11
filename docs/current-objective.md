@@ -12,6 +12,7 @@
 - [日本語を第一言語とするDesktop](gui/app-shell.md#gui-shell-language-001)（2026-10-09 Human-selected追加scope）。 [開発者用語の見直し](spec-changes/0057-desktop-developer-terminology.md)（2026-10-10 Human-selected実装scope）。
 - [Desktop操作feedback修正](spec-changes/0056-desktop-authoring-feedback.md)（2026-10-10 Human-selected追加scope）。
 - [既存GUIのmotion / 操作feedbackの磨き込み](gui/app-shell.md#gui-shell-presentation-002)（2026-10-10 Human-selected追加scope）。
+- [表の理解と近接編集](spec-changes/0058-contextual-table-authoring.md)（2026-10-11 Human-selected両Pass統合改善scope）。
 - source / schema / type mutation、write safety、Migration、CLI、Build / Publish、native MasterMemory delegationとactual consumer。
 - [independent oracle](../fixtures/rewrite-oracle/v1/README.md)の全category、[acceptance matrix](rewrite-preparation/acceptance-matrix.md)、source exact bytes、100k capacity。
 - [performance contract](gui/performance.md)のdistribution / work counts、macOS arm64 / Windows x64 actual Desktop、fresh Candidate reviewとrequired CI。

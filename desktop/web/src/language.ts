@@ -433,5 +433,5 @@ export function uiMessage(text: string | null | undefined): string {
 export function complexSummary(display: string, complex: boolean): string {
   if (!complex) return display;
   if (display === "(missing)") return "（未指定）";
-  return display.replace(/^\[(\d+) items\]$/, "[$1 要素]").replace(/^\{(\d+) fields\}$/, "{$1 フィールド}");
+  return display.replace(/(\d+) items/g, "$1 要素").replace(/(\d+) fields/g, "$1 フィールド");
 }

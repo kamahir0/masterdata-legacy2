@@ -29,6 +29,52 @@ fn project() -> (tempfile::TempDir, Workspace) {
     (t, w)
 }
 const SOURCE: &str = "sources/catalog-data.yaml";
+
+#[test]
+fn table_read_context_and_bounded_value_preview_do_not_become_edit_authority() {
+    let (temp, mut w) = project();
+    let disk = fs::read(temp.path().join(SOURCE)).unwrap();
+    let p = w.select(SOURCE, 0, 32).unwrap();
+    let index = |name: &str| p.columns.iter().position(|c| c.field.name == name).unwrap();
+    assert!(p.columns[index("id")].primary);
+    assert_eq!(p.columns[index("code")].secondary, [1, 3]);
+    assert_eq!(p.columns[index("rarity")].secondary, [2, 3]);
+    assert_eq!(p.columns[index("longValue")].field.key, 7);
+    assert_eq!(
+        p.rows[0].cells[index("longValue")].display,
+        "9223372036854775807"
+    );
+    assert_eq!(
+        p.rows[1].cells[index("ulongValue")].display,
+        "18446744073709551615"
+    );
+    assert!(
+        p.rows[0].cells[index("tags")]
+            .display
+            .contains("Fire, Highest")
+    );
+    assert!(p.rows[0].cells[index("numbers")].display.starts_with("[]"));
+    assert!(p.rows[0].cells[index("optionalCode")].is_null);
+    assert!(!p.rows[0].cells[index("tags")].is_null);
+    assert!(
+        p.rows[0].cells[index("reward")]
+            .display
+            .contains("itemId: 2002")
+    );
+    assert!(p.rows[0].cells[index("reward")].display.chars().count() <= 181);
+    assert!(p.rows[0].cells[index("reward")].value.is_none());
+    let row = p.rows[1].id.clone();
+    operation(&mut w, &row, &["optionalCode"], Operation::Null);
+    let changed = w.select(SOURCE, 0, 32).unwrap();
+    assert!(changed.rows[1].cells[index("optionalCode")].is_null);
+    w.undo(SOURCE, false).unwrap();
+    let restored = w.select(SOURCE, 0, 32).unwrap();
+    assert_eq!(
+        restored.rows[1].cells[index("optionalCode")].display,
+        "potion"
+    );
+    assert_eq!(fs::read(temp.path().join(SOURCE)).unwrap(), disk);
+}
 fn publish_problems(w: &mut Workspace) {
     let (problems, _) = w.validation_snapshot().validate(None).unwrap();
     assert!(w.accept_diagnostics(w.generation, problems));

@@ -1,22 +1,12 @@
 # Development State
 
-Stage: decision-required
-Candidate: f8d7d4969c69425634f6e0822d512d961d6a486b
-Work base: 79781b66aa43f83315ed2f614c7596d398b75324
+Stage: implementation-ready
+Candidate: none
+Work base: ba18eeaf90cf2956bd8eeb8863fa88316835058c
 
 ## Active work
 
-Completed: Human-selected [開発者用語の見直し](spec-changes/0057-desktop-developer-terminology.md)の実装 / actual macOS表示 / source hashes / fresh review / production app更新、固定Candidate全17 required CI jobs / integrityがPASS。[追加scope evidence](evidence/clean-room-candidate.md#開発者用語の見直し追加scope2026-10-10)へ記録。今回scopeのactive implementationなし、既存external evidence gatesは維持する。
-
-Completed: GUI-SHELL-PRESENTATION-001 / 002のHuman-selected磨き込み。actual macOS review / source hashes / fresh review / production app更新、固定Candidateの全17 required CI jobs / integrityがPASS。結果は[GUI磨き込みevidence](evidence/clean-room-candidate.md#gui磨き込み追加scope2026-10-10)へ記録。今回scopeのactive implementationなし、既存external evidence gatesは維持する。
-
-Completed: 2026-10-10 Human-selected Desktop操作feedback（0056）の実装 / macOS actual review / source hashes / fresh review。固定Candidate全17 required CI jobs / integrityがPASS。結果は[追加scope evidence](evidence/clean-room-candidate.md#desktop操作feedback追加scope2026-10-10)へ記録。今回scopeのactive implementationなし、既存external evidence gatesは維持する。
-
-Completed: `GUI-SHELL-LANGUAGE-001`の日本語化、focused検証、macOS actual日本語UI確認、日本語Candidateの全17 required CI jobs / integrity reconciliation。既存external evidence gateは維持する。
-
-Completed: canonical authoring / write / structural / delivery / CLI / portable Unity implementation、全portable oracle adapters、React / Ant Design代表surface review、100k capacity、macOS OS入力2run、frozen-boundary fresh / adversarial review、Candidate required CI reconciliation。
-Completed: 許可済みmacOS実IMEで発見した`GUI-GRID-006`違反をcell / nested inputで修正。actual IME再検証 / 一Undo / source hashes、Reduced Motion ON / OFF復元、修正Candidate全14 CI jobs / integrityがPASS。
-Remaining: [Candidate evidence / finite ledger](evidence/clean-room-candidate.md#human-gates--verdict)のrequired external evidence。許可済みCGEvent helperはzero-input permission preflightで停止し、入力・product変更なし。未取得の証拠を追加実装や新しいacceptanceで置換しない。
+In progress: Human-selected [両Pass統合改善](spec-changes/0058-contextual-table-authoring.md)のcanonical application / 実装 / Rust回帰 / actual WebView authoring 19項目 / geometry 9項目がPASS。Remaining: 固定Candidateのactual表示、required CI、production app更新。既存external evidence gatesは保持。
 
 ## Blocking findings
 

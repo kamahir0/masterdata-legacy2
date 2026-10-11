@@ -46,7 +46,7 @@ Drop FieldとReference Remove等のdestructive operationは明示confirmationと
 
 同じTable面のgridは[Data Editor](../data-editor/spec.md)と[Grid Authoring](../data-editor/grid-authoring.md)のcell / complex value / row / TSV / Undo/Redo / Save / Problems / virtualization contractを維持する。schema draftとrecord file-local dirty bufferは同じ編集面で区別して保持する。Undo/Redoを確定済みdisk変更のrollbackに見せかけてはならない（MUST NOT）。Build / Publish / Gitをauthoringに暗黙結合しない（MUST NOT）。
 
-Key、Reference、MessagePack key、低頻度metadataは補助面へprogressively discloseする。通常時はTable名とcolumn / row dataを最も強く表示し、正常状態の説明を繰り返し常設しない。gridのkeyboard selection、field headerのtab順、operation失敗後のfocus復元はpointerなしでも成立しなければならない（MUST）。状態は色だけに依存せずassistive technologyへ伝える。 field名、type、header操作はhover / focus時にも重ねず、それぞれのhit areaを確保する。
+全fieldのMessagePack Keyとprimary / secondary / reference所属はshared snapshotから取得し、名前・型・操作を妨げない小さい読み取り情報として通常headerに示す。PKの値領域は控えめな背景でも識別でき、所属を色だけに依存させない。Key、Reference、MessagePack keyの変更controlと低頻度metadataは補助面へprogressively discloseする。定義面のfield候補は名前と型を併記し、関連診断を同じ面で確認できるようにする。通常時はTable名とcolumn / row dataを最も強く表示し、正常状態の説明を繰り返し常設しない。gridのkeyboard selection、field headerのtab順、operation失敗後のfocus復元はpointerなしでも成立しなければならない（MUST）。状態は色だけに依存せずassistive technologyへ伝える。 field名、type、header操作はhover / focus時にも重ねず、それぞれのhit areaを確保する。
 
 ### GUI-UNIFIED-006
 
