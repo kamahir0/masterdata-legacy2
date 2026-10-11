@@ -184,7 +184,7 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
           <Descriptions size="small" column={1} items={[{key:"from",label:"基になる型から",children:declaration.from_implicit?"暗黙の変換":"明示的な変換"},{key:"to",label:"基になる型へ",children:declaration.to_implicit?"暗黙の変換":"明示的な変換"}]}/>
         </>:<>
           <div className="type-list-heading"><Typography.Text strong>{declaration.category==="enum"?"メンバー":"フィールド"}</Typography.Text><Button icon={<PlusOutlined aria-hidden="true"/>} aria-label={declaration.category==="enum"?"メンバーを追加":"フィールドを追加"} disabled={disabled} onClick={()=>{if(declaration.category==="enum")void begin({operation:"addEnumMember",typeName:p!.name,name:"",value:""},"メンバーを追加");else void addField();}}>{declaration.category==="enum"?"メンバーを追加":"フィールドを追加"}</Button></div>
-          {declaration.category==="enum"?<Table virtual size="small" pagination={false} scroll={{x:660,y:height}} rowKey="name" dataSource={declaration.members.map(([name,value])=>({name,value}))} columns={[{title:"名前",dataIndex:"name",width:330},{title:"値",dataIndex:"value",width:260,render:value=><span className="type-numeric">{value}{declaration.flags&&<Typography.Text type="secondary" className="flag-bit-hint">{flagBitHint(value)}</Typography.Text>}</span>},{title:"",width:70,render:(_,row)=>!p!.protectedMembers.includes(row.name)&&<Dropdown menu={actions(row.name,true)} trigger={["click"]}><Button type="text" disabled={disabled} icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${row.name} メンバーの操作`}/></Dropdown>}]}/>:<Table virtual size="small" pagination={false} scroll={{x:720,y:height}} rowKey="name" dataSource={declaration.fields} columns={[{title:"キー",dataIndex:"key",width:70},{title:"名前",dataIndex:"name",width:240},{title:"型",dataIndex:"typeName",width:240},{title:"修飾子",width:100,render:(_,row)=>row.array?"配列":row.nullable?"nullを許可":"—"},{title:"",width:70,render:(_,row)=><Dropdown menu={actions(row.name,false)} trigger={["click"]}><Button type="text" disabled={disabled} icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${row.name} フィールドの操作`}/></Dropdown>}]}/>}
+          {declaration.category==="enum"?<Table virtual size="small" pagination={false} scroll={{x:660,y:height}} rowKey="name" dataSource={declaration.members.map(([name,value])=>({name,value}))} columns={[{title:"名前",dataIndex:"name",width:330},{title:"値",dataIndex:"value",width:260,render:(value,row)=><span className="type-numeric">{value}{declaration.flags&&<Typography.Text type="secondary" className="flag-bit-hint">{value==="0"?" · None":p!.flagBits[row.name]!==undefined?` · Bit ${p!.flagBits[row.name]} · 1 << ${p!.flagBits[row.name]}`:""}</Typography.Text>}</span>},{title:"",width:70,render:(_,row)=>!p!.protectedMembers.includes(row.name)&&<Dropdown menu={actions(row.name,true)} trigger={["click"]}><Button type="text" disabled={disabled} icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${row.name} メンバーの操作`}/></Dropdown>}]}/>:<Table virtual size="small" pagination={false} scroll={{x:720,y:height}} rowKey="name" dataSource={declaration.fields} columns={[{title:"キー",dataIndex:"key",width:70},{title:"名前",dataIndex:"name",width:240},{title:"型",dataIndex:"typeName",width:240},{title:"修飾子",width:100,render:(_,row)=>row.array?"配列":row.nullable?"nullを許可":"—"},{title:"",width:70,render:(_,row)=><Dropdown menu={actions(row.name,false)} trigger={["click"]}><Button type="text" disabled={disabled} icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${row.name} フィールドの操作`}/></Dropdown>}]}/>}
         </>}
       </>}
       {s.uncertainField&&<Alert type="warning" showIcon title="構造変更の結果を確認できません" description={<Space direction="vertical" size={4}><Typography.Text>{uiTerms.sourceRecheckDescription}</Typography.Text><Button aria-label="状態を再確認（対象ソース一式）" onClick={()=>void desktop.recheckFieldOperation()}>{uiTerms.recheck}</Button></Space>}/>}
@@ -227,17 +227,4 @@ function PlanPanel({token,focus,children}:{token:string;focus:(element:HTMLEleme
   // with latest-input guards, and the Modal's opening callback as a fallback.
   useLayoutEffect(()=>{const frame=requestAnimationFrame(()=>focus(element.current));return()=>cancelAnimationFrame(frame);},[token]);
   return <div ref={element} className="type-plan" aria-label="型の変更計画" tabIndex={-1}>{children}</div>;
-}
-
-function flagBitHint(value: string): string {
-  // Formatting a supplied integer declaration is presentation only. BigInt
-  // keeps ulong/high bits lossless; no candidate value or semantic default.
-  try {
-    if(value.length>20 || !/^-?\d+$/.test(value))return "";
-    const integer=BigInt(value);
-    if(integer===0n)return " · None";
-    if(integer<0n || (integer & (integer-1n))!==0n)return "";
-    const bit=integer.toString(2).length-1;
-    return ` · Bit ${bit} · 1 << ${bit}`;
-  } catch {return "";}
 }

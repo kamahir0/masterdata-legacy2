@@ -73,6 +73,15 @@ fn table_read_context_and_bounded_value_preview_do_not_become_edit_authority() {
         restored.rows[1].cells[index("optionalCode")].display,
         "potion"
     );
+    for source in ["sources/long-features.yaml", "sources/item-tags.yaml"] {
+        let masterdata_engine::workspace::SelectionProjection::Type(projection) =
+            w.select_view(source, 0, 32).unwrap()
+        else {
+            panic!("type projection required");
+        };
+        assert_eq!(projection.flag_bits.get("Highest"), Some(&63));
+        assert!(!projection.flag_bits.contains_key("None"));
+    }
     assert_eq!(fs::read(temp.path().join(SOURCE)).unwrap(), disk);
 }
 fn publish_problems(w: &mut Workspace) {

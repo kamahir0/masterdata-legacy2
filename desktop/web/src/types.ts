@@ -95,6 +95,7 @@ export interface TypeProjection {
   identity:string;
   declaration:TypeDeclaration;
   protectedMembers:string[];
+  flagBits:Record<string,number>;
   generation:number;
   measurement:Measurement;
 }

@@ -1,7 +1,7 @@
 # Development State
 
 Stage: correction-ready
-Candidate: a3471b8fe7c028ba956de30e7f8caed5d4b3fe2e
+Candidate: d072376b5ce109c9feec205627ffa0466ff75035
 Work base: ba18eeaf90cf2956bd8eeb8863fa88316835058c
 
 ## Active work
@@ -10,7 +10,9 @@ In progress: Human-selected [両Pass統合改善](spec-changes/0058-contextual-t
 
 ## Blocking findings
 
-Product correction: nullableのkeyboard / selected表示 / 非重複、近接editorのoutside dismissal focusを修正し、authoring 19項目 / declaration 11項目、frontend build / integrityのfocused再検証がPASS。既知製品Blockingなし。new Candidateでactual表示とrequired CIへ進む。
+Product correction closed: actual Flags表示で発見したsigned highest bitの補助表示欠落（GUI-TYPE-LAYOUT-002）をshared Rust read projectionで補正。focused Rust 8 tests / workspace clippy / Type WebView 13項目 / frontend build / integrity PASS。new Candidateのactual表示 / CIへ進む。
+
+Closed correction: nullableのkeyboard / selected表示 / 非重複、近接editorのoutside dismissal focusを修正し、authoring 19項目 / declaration 11項目、frontend build / integrityのfocused再検証がPASS。既知製品Blockingなし。new Candidateでactual表示とrequired CIへ進む。
 
 Evidence gaps: macOS actual first-accepted <150ms証明 / held-drag Escape（CGEvent permission不足、設定変更禁止）、Windows x64 actual OS interaction / performance、Unity actual Editor / runtime。実IMEのconcrete Blockingは修正・再検証済みで他の既知製品Blockingは未検出。Cutover-ready / objective-complete未達。
 

@@ -10,6 +10,7 @@ pub struct TypeProjection {
     pub identity: String,
     pub declaration: semantic::Type,
     pub protected_members: Vec<String>,
+    pub flag_bits: BTreeMap<String, u32>,
     pub generation: u64,
     pub measurement: Measurement,
 }
@@ -58,6 +59,31 @@ impl Workspace {
                 vec!["None".into()]
             } else {
                 vec![]
+            },
+            // The parsed declaration already owns integer width and atomic Flags
+            // semantics. Publish read-only bit positions, including signed sign
+            // bits, so the frontend never reconstructs them with JS Number.
+            flag_bits: if let semantic::Type::Enum {
+                underlying,
+                flags: true,
+                members,
+            } = &declaration
+            {
+                members
+                    .iter()
+                    .filter_map(|(name, value)| {
+                        let value = semantic::integer_value(value, underlying).ok()?;
+                        let mask = if matches!(underlying.as_str(), "int" | "uint") {
+                            value as u32 as u64
+                        } else {
+                            value as u64
+                        };
+                        mask.is_power_of_two()
+                            .then(|| (name.clone(), mask.trailing_zeros()))
+                    })
+                    .collect()
+            } else {
+                BTreeMap::new()
             },
             declaration,
             generation: self.generation,
