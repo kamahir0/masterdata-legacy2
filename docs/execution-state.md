@@ -1,12 +1,12 @@
 # Development State
 
-Stage: correction-ready
-Candidate: 5a444fc6405f74448fb903c2da0afe4c4f71d729
+Stage: decision-required
+Candidate: f41693f70e0c8e27e63e2066b49eb44c199707b6
 Work base: 31a53befb18f3d60f6122a1caaf3709c89d691a9
 
 ## Active work
 
-Completed: Human-selected [日常編集の残り5点](spec-changes/0059-direct-authoring-continuity.md)のcanonical application / implementation / focused回帰。Completed: macOS CIのArray adapter position-ready待機補正、affected21 checks再通過。In progress: correction Candidate / required CI reconciliation。Remaining: evidence確定。既存local / actual確認は[scope evidence](evidence/clean-room-candidate.md#日常編集の残り5点2026-10-11)として保持。既存external evidence gatesは別件として保持。
+Completed: Human-selected [日常編集の残り5点](spec-changes/0059-direct-authoring-continuity.md)のimplementation / focused56 checks / actual macOS / fresh review / required CI（全17 jobs + integrity SUCCESS）。macOS CIのArray pointer adapter correctionも閉じた。[scope evidence](evidence/clean-room-candidate.md#日常編集の残り5点2026-10-11)。In progress: None。Remaining: 既存4 external evidence gatesだけ。
 
 ## Blocking findings
 

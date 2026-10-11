@@ -10,7 +10,7 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 ## 日常編集の残り5点（2026-10-11）
 
-Candidate: `5a444fc6405f74448fb903c2da0afe4c4f71d729`、product commit: `195f3dd303836567a7335e880b61bbcee9f664f1`、Work base: `31a53befb18f3d60f6122a1caaf3709c89d691a9`。[0059](../spec-changes/0059-direct-authoring-continuity.md)の有限5項目だけを実装した。5a444fcは研究根拠のlink / Development State補正であり、product / test treeは195f3ddと同一。
+Candidate: `f41693f70e0c8e27e63e2066b49eb44c199707b6`、初回Candidate: `5a444fc6405f74448fb903c2da0afe4c4f71d729`、product commit: `195f3dd303836567a7335e880b61bbcee9f664f1`、Work base: `31a53befb18f3d60f6122a1caaf3709c89d691a9`。[0059](../spec-changes/0059-direct-authoring-continuity.md)の有限5項目だけを実装した。5a444fcは研究根拠のlink / Development State補正であり、product / test treeは195f3ddと同一。f41693fは以下のpointer adapter correctionとevidenceだけでproduct codeは不変。
 
 | 有限acceptance ledger | 結果 / exact evidence |
 | --- | --- |
@@ -38,9 +38,17 @@ local controlled navigationは3 Tables / 8sources / 12,000records / selected2,00
 
 cold Open→inventory publicationは755ms、boot ready96ms（n1）。全warm project-wide discovery / enumeration / YAML parse / validationは0、mounted rows最大33、非obsolete invalid0 / obsolete300拒否。input / publication / backend / freshness / projection / serialization / IPC / React / layout / target-filtered paint opportunity / controlled first acceptedをrawで分離する。CUA reviewやcontrolled DOM入力をdense OS <150msの証拠へ改称せず、passing metricを追加最適化しない。
 
-production build / tests / staged smoke / install PASS。`~/Applications/masterdata-local.app`のbinaryはpackageと同じ`223dc9c060add7001ce1da6e620b6d5b9d982cc7d70eeb9655a7b890c059139e`。install後は起動していない。
+production build / tests / staged smoke / install PASS。`~/Applications/masterdata-local.app`のbinaryはpackageと同じ`24be0538e30096b1f10a1f4f8adcb6a5c5731caa04143c3633b67a668b0aa0bc`（correction Candidateで再install）。install後は起動していない。
 
-Fresh review: Scopeはbase→固定Candidate。Specification Conformance: Pass。Tests / Regression Evidence: 上記focused / exact bytes / native入力。Rationale Freshness: Still accurate（read候補とwrite authorityの分離、root surface lifetime、near editor opacity、latest-intent focus、noncomposition Menu Enter）。Evidence Integrity: canonical ID / 0059 / fixed corpus / raw attestationを照合。Architecture: Rust semantics / workspace / history / bounded projection / fresh writesを維持、常設surface増加なし。Findings: None remaining within scope。CI correction: macOS authoringはAnt Popoverのposition-ready前に画面外の座標でdragを開始して失敗した。adapterを画面内 / non-inertの対象待機へ変更し、local21 checks再通過。animation完了待ち・timeout延長・assertion削減・product code変更なし。初回Candidateのfailure rawを残し、correction CIを別にreconcileする。Verdict: required CI reconciliation待ち。[machine evidence](clean-room-candidate-data.json.gz)の`directAuthoringContinuity`にraw / captures / reviewを保持。既存4 external gatesは不変。
+Fresh review: Scopeはbase→固定Candidate。Specification Conformance: Pass。Tests / Regression Evidence: 上記focused / exact bytes / native入力。Rationale Freshness: Still accurate（read候補とwrite authorityの分離、root surface lifetime、near editor opacity、latest-intent focus、noncomposition Menu Enter）。Evidence Integrity: canonical ID / 0059 / fixed corpus / raw attestationを照合。Architecture: Rust semantics / workspace / history / bounded projection / fresh writesを維持、常設surface増加なし。Findings: None remaining within scope。CI correction: macOS authoringはAnt Popoverのposition-ready前に画面外の座標でdragを開始して失敗した。adapterを画面内 / non-inertの対象待機へ変更し、local21 checks再通過。animation完了待ち・timeout延長・assertion削減・product code変更なし。初回Candidateのfailure rawを残し、correction CIを別にreconcileする。Verdict: selected scopeはReady to merge: Yes、required CI reconciliation完了。[machine evidence](clean-room-candidate-data.json.gz)の`directAuthoringContinuity`にraw / captures / reviewを保持。既存4 external gatesは不変。
+
+Candidate CI: [implementation 38145337519](https://github.com/kamahir0/masterdata/actions/runs/38145337519)全17 jobs SUCCESS、[integrity 38145337539](https://github.com/kamahir0/masterdata/actions/runs/38145337539)SUCCESS。両Tier1の15 native Desktopカテゴリ / 128 checks、3OSのshared oracle / consumer actual binary reload / CLI delivery / portable Unity / capacity、両production packageがPASS。Windowsのcontrolled WebViewをactual OS input / IME / visual reviewへ改称しない。
+
+CI controlled accepted p95（revisit / same / cross / schema / dirty / rapid）はmacOS 140 / 138 / 143 / 141 / 170 / 116ms、Windows 76.8 / 84.5 / 78 / 84.2 / 101.1 / 64.2ms。first sourceは261 / 341.2ms（n1）。macOS dirty tailを含め、異なるCI環境でreference hardwareのactual OS <150ms達成を主張しない。warm全project-wide counts0 / 非obsolete invalid0、全分布・段階をrawへ保持し、既存actual OS evidence gateを維持する。
+
+100k / 10files / 20columns / paste10kは全3OSでbefore / after各2,000,000 values、exact targets / non-target / candidate bytes、Search、diagnostics0、disk unchangedがPASS。native peak RSSはmacOS3,033,366,528 / Windows3,649,572,864 / Linux3,742,994,432 bytes、Desktop peakはmacOS3,069,640,704 / Windows3,677,638,656 bytes。Desktop warm n100のmedian / p95 / maxはmacOS126.5 / 169 / 198ms、Windows68.45 / 88.9 / 109.1ms。capacityをreference 2,000×20のSLAへ置換せず、RSSの新しい上限を作らない。required target / stretch / non-blocking polishの境界は不変。
+
+今回の有限5項目は完了。全体のverdictはNot cutover-ready、既存4 external evidence gatesを残し、追加の機能・polish・acceptance拡張は行わない。
 
 ## 両Pass統合・表の理解と近接編集（2026-10-11）
 
