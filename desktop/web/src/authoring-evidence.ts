@@ -147,6 +147,7 @@ async function undo() {
 }
 export async function run({ startup }: { startup: Record<string, unknown> }) {
   const checks: Record<string, unknown>[] = [];
+  let arrayOpeningGeometry:unknown;
   const bytes = async (source = SOURCE) =>
     (
       await desktop.rpc<{ before: string; after: string }>({
@@ -342,6 +343,16 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
         !desktop.surface.projection!.dirty,
       "opening Array made it dirty",
     );
+    // Ant mounts a Popover offscreen until its alignment is ready. DOM presence
+    // alone is not a pointer target; start as soon as both grips are on screen,
+    // without waiting for the opening animation or delaying product input.
+    const openingRect=()=>find(".near-value-body").getBoundingClientRect().toJSON();
+    arrayOpeningGeometry={before:document.querySelector(".near-value-body")?openingRect():null};
+    await until(()=>{
+      const grips=[...document.querySelectorAll<HTMLElement>(".near-value-body .element-grip")].slice(0,2);
+      return grips.length===2&&grips.every(element=>{const r=element.getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight&&!element.closest('[inert]');});
+    },"Array pointer targets were not placed on screen");
+    arrayOpeningGeometry={...(arrayOpeningGeometry as object),accepted:openingRect()};
     const firstItem = find(".complex-item").dataset.item;
     gesture = await drag(
       find(".complex-item .element-grip"),
@@ -655,6 +666,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
         format: 1,
         kind: "authoring",
         error: String(error),
+        arrayOpeningGeometry,
         checks,
         startup,
         visibility: document.visibilityState,

@@ -8,6 +8,40 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 **Not cutover-ready — macOS dense input / held drag、Windows actual Desktop、Unity actual環境のrequired evidence gaps。** `f57102e`の実IME違反は`f7cf90d`で修正し、scalar / nestedのactual IMEとrequired CIで再検証した。2026-10-09にHumanがPR #16をmainへmergeしたが、未取得の外部証拠は免除していない。以下の旧Candidate evidenceは当時の記録として保持する。
 
+## 日常編集の残り5点（2026-10-11）
+
+Candidate: `5a444fc6405f74448fb903c2da0afe4c4f71d729`、product commit: `195f3dd303836567a7335e880b61bbcee9f664f1`、Work base: `31a53befb18f3d60f6122a1caaf3709c89d691a9`。[0059](../spec-changes/0059-direct-authoring-continuity.md)の有限5項目だけを実装した。5a444fcは研究根拠のlink / Development State補正であり、product / test treeは195f3ddと同一。
+
+| 有限acceptance ledger | 結果 / exact evidence |
+| --- | --- |
+| scalar / bool | 一clickでactive input、bool直接一operation / exact Undo。authoring scalar-composition / boolean-direct-toggle-one-undo、actual captures01–02 |
+| 小さいArray / nested | 近接一surfaceでnested / root移動、入力 / Undo。authoring Array drag / focus / nested continuity、actual03–04。早い操作でAnt scaleがgripを移動する回帰をopacity motionへ補正し、Problems focusをmounted bodyのlatest intent gateへ接続 |
+| Type入力 | inline Rename、近接Enum / Flags Add。type14はPlan / Diff / explicit Apply、stale / dirty / destructive / keyboard focusを保持。actual05とRename Planの明示Cancel |
+| Flags候補 | Rustの未使用atomic Bit候補、32/64 signed/unsigned exact value。complex9、type Bit62、actual06で`4611686018427387904`を確認。既存numeric readonlyを保持 |
+| Key / Reference | header→exact field入力 / PK section、compact Reference関係。declaration12のphysical schema / record history、actual07–08でnumbers Key15と`item (id) → item (id)`を確認 |
+
+local focused native WebView: authoring21 / type14 / declaration12 / geometry9、計56 checks PASS。shared engine / CLI / oracle、fmt / clippy / TypeScript / 表示境界4 tests / Vite / integrity PASS。type adapterは閉じかけのCompare / Popoverを現行Modalの操作と混同せず、Applyの面が閉じるobservable状態を待つ。assertion / timeout / numeric期待値は弱めていない。
+
+actual macOS専用bundleのbinary SHA-256は`d2fde50f624c4e077d4f6ee55a6384566eb845c67c7d84a15358322019f25a60`。CUA native inputで上記面のDark / Lightを確認。全8 YAMLのbefore / after SHA-256一致、Save / structural Applyなし。scratch外観をSystemへ戻し通常Quit、owned PID14304残存0。既存legacy app / user app / OS設定・permissionは操作していない。Unity Editorは今回起動していない。
+
+local controlled navigationは3 Tables / 8sources / 12,000records / selected2,000×20。実行開始はbase + final product diff、終了時は195f3dd + state metadata、同じ上記binary。rawのHEAD / dirtyを保持し、過去測定を新Candidateへ読み替えない。
+
+| case | n | controlled accepted median / p95 / max ms | backend p95 ms |
+| --- | ---: | --- | ---: |
+| firstSource | 1 | 98.00 (single) | 4.36 (single) |
+| revisit | 300 | 68.00 / 75.00 / 119.00 | 3.44 |
+| sameTable | 300 | 70.00 / 78.00 / 197.00 | 3.41 |
+| crossTable | 300 | 68.00 / 75.00 / 135.00 | 3.32 |
+| schema | 300 | 70.00 / 78.00 / 195.00 | 3.40 |
+| dirtyRevisit | 100 | 50.00 / 74.00 / 79.00 | 4.51 |
+| rapid | 100 | 51.00 / 57.00 / 67.00 | 3.36 |
+
+cold Open→inventory publicationは755ms、boot ready96ms（n1）。全warm project-wide discovery / enumeration / YAML parse / validationは0、mounted rows最大33、非obsolete invalid0 / obsolete300拒否。input / publication / backend / freshness / projection / serialization / IPC / React / layout / target-filtered paint opportunity / controlled first acceptedをrawで分離する。CUA reviewやcontrolled DOM入力をdense OS <150msの証拠へ改称せず、passing metricを追加最適化しない。
+
+production build / tests / staged smoke / install PASS。`~/Applications/masterdata-local.app`のbinaryはpackageと同じ`223dc9c060add7001ce1da6e620b6d5b9d982cc7d70eeb9655a7b890c059139e`。install後は起動していない。
+
+Fresh review: Scopeはbase→固定Candidate。Specification Conformance: Pass。Tests / Regression Evidence: 上記focused / exact bytes / native入力。Rationale Freshness: Still accurate（read候補とwrite authorityの分離、root surface lifetime、near editor opacity、latest-intent focus、noncomposition Menu Enter）。Evidence Integrity: canonical ID / 0059 / fixed corpus / raw attestationを照合。Architecture: Rust semantics / workspace / history / bounded projection / fresh writesを維持、常設surface増加なし。Findings: None remaining within scope。CI correction: macOS authoringはAnt Popoverのposition-ready前に画面外の座標でdragを開始して失敗した。adapterを画面内 / non-inertの対象待機へ変更し、local21 checks再通過。animation完了待ち・timeout延長・assertion削減・product code変更なし。初回Candidateのfailure rawを残し、correction CIを別にreconcileする。Verdict: required CI reconciliation待ち。[machine evidence](clean-room-candidate-data.json.gz)の`directAuthoringContinuity`にraw / captures / reviewを保持。既存4 external gatesは不変。
+
 ## 両Pass統合・表の理解と近接編集（2026-10-11）
 
 Candidate: `7efb1442c94e13998f30acc1c21c357eae908d9e`、Work base: `ba18eeaf90cf2956bd8eeb8863fa88316835058c`。[0058の有限採用ledger](../spec-changes/0058-contextual-table-authoring.md)は第一Pass 56項目と第二Pass 24項目の観察・訂正を統合した。canonical ownerはTable / Data / Type GUI。既存shell / writes / deliveryを維持し、表のread contextと型別の近接編集に改善を絞った。
