@@ -33,7 +33,12 @@ const SOURCE: &str = "sources/catalog-data.yaml";
 #[test]
 fn table_read_context_and_bounded_value_preview_do_not_become_edit_authority() {
     let (temp, mut w) = project();
-    let disk = fs::read(temp.path().join(SOURCE)).unwrap();
+    let file = temp.path().join(SOURCE);
+    let text = fs::read_to_string(&file)
+        .unwrap()
+        .replace("note: null", "note: '3 items'");
+    fs::write(&file, text).unwrap();
+    let disk = fs::read(&file).unwrap();
     let p = w.select(SOURCE, 0, 32).unwrap();
     let index = |name: &str| p.columns.iter().position(|c| c.field.name == name).unwrap();
     assert!(p.columns[index("id")].primary);
@@ -62,6 +67,11 @@ fn table_read_context_and_bounded_value_preview_do_not_become_edit_authority() {
             .contains("itemId: 2002")
     );
     assert!(p.rows[0].cells[index("reward")].display.chars().count() <= 181);
+    assert!(
+        p.rows[0].cells[index("reward")]
+            .display
+            .contains("note: 3 items")
+    );
     assert!(p.rows[0].cells[index("reward")].value.is_none());
     let row = p.rows[1].id.clone();
     operation(&mut w, &row, &["optionalCode"], Operation::Null);

@@ -30,6 +30,8 @@ test('構造の要約だけを翻訳し同形のscalar値を保持する',()=>{
   assert.equal(complexSummary('{2 fields}',true),'{2 フィールド}');
   assert.equal(complexSummary('[3 items]',false),'[3 items]');
   assert.equal(complexSummary('{2 fields}',false),'{2 fields}');
+  assert.equal(complexSummary('[3 items] · 1 要素',true),'[3 items] · 1 要素');
+  assert.equal(complexSummary('{note: 2 fields}',true),'{note: 2 fields}');
 });
 
 // GUI-SHELL-LANGUAGE-001: developer category labels and prose share terminology.

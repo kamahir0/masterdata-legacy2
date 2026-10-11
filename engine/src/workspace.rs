@@ -1598,6 +1598,8 @@ impl Workspace {
     }
 }
 // Summaries are bounded read projections, never an editable value or write base.
+// Localize generated count labels here: translating the resulting mixed text
+// in the frontend could also translate a user scalar such as "3 items".
 // Visit at most three members at two levels; large/offscreen values stay in Rust.
 fn display(raw: &crate::source::Node) -> String {
     fn preview(raw: &crate::source::Node, depth: usize) -> String {
@@ -1616,7 +1618,7 @@ fn display(raw: &crate::source::Node) -> String {
             }
             Raw::Sequence(values) => {
                 if depth >= 2 {
-                    return format!("[{} items]", values.len());
+                    return format!("[{} 要素]", values.len());
                 }
                 let mut items = values
                     .iter()
@@ -1626,11 +1628,11 @@ fn display(raw: &crate::source::Node) -> String {
                 if values.len() > 3 {
                     items.push("…".into());
                 }
-                format!("[{}] · {} items", items.join(", "), values.len())
+                format!("[{}] · {} 要素", items.join(", "), values.len())
             }
             Raw::Mapping(values) => {
                 if depth >= 2 {
-                    return format!("{{{} fields}}", values.len());
+                    return format!("{{{} フィールド}}", values.len());
                 }
                 let mut fields = values
                     .iter()
