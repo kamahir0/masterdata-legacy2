@@ -1,17 +1,17 @@
 # Development State
 
-Stage: decision-required
-Candidate: f41693f70e0c8e27e63e2066b49eb44c199707b6
-Work base: 31a53befb18f3d60f6122a1caaf3709c89d691a9
+Stage: verification-ready
+Candidate: bd9ae8034fc8cdc426a96444cdb4779a8f9ba774
+Work base: 71fbe7f8142990f1dedb4c31882f0bd63740fa03
 
 ## Active work
 
-Completed: Human-selected [日常編集の残り5点](spec-changes/0059-direct-authoring-continuity.md)のimplementation / focused56 checks / actual macOS / fresh review / required CI（全17 jobs + integrity SUCCESS）。macOS CIのArray pointer adapter correctionも閉じた。[scope evidence](evidence/clean-room-candidate.md#日常編集の残り5点2026-10-11)。In progress: None。Remaining: 既存4 external evidence gatesだけ。
+Completed: [日常編集の残り5点](evidence/clean-room-candidate.md#日常編集の残り5点2026-10-11)、GUI-PERF-003 rapid correction / focused native41 checks + navigation / integrity。In progress: exact correction CandidateのmacOS dense OS input全warm分布 / held-drag Escape / required CI。Remaining: Windows / Unity実環境gate。
 
 ## Blocking findings
 
-既知製品Blockingなし。macOS actual first-accepted <150ms証明 / held-drag Escape（CGEvent permission不足、設定変更禁止）、Windows x64 actual OS interaction / performance、Unity actual Editor / runtimeのrequired evidence gapsを保持。Cutover-ready / objective-complete未達。
+旧CandidateのGUI-PERF-003 rapid p95 206msを表示行DOM再利用で修正した。最終Candidateの100件 / 複数runとrequired CIはpending。Windows x64 actual Desktop、Unity actual Editor / runtimeのrequired evidence gapsを保持。Cutover-ready / objective-complete未達。
 
 ## Human decision needed
 
-[exact gaps / evidence / choices](evidence/clean-room-candidate.md#human-gates--verdict)。Windows / Unity実行環境は未提供。macOS CGEvent使用はauthorization済みだが、permission preflightがfalseで送信前に停止した既存evidenceを保持し、permission設定を変更しない。実行環境またはHuman-selected evidence boundary decision後のscopeは有限ledgerの残証拠と、そこで発見したcontract defectだけ。main merge / cutoverはscope外。
+[exact gaps / evidence / choices](evidence/clean-room-candidate.md#human-gates--verdict)。Windows / Unity実行環境は未提供。macOSはhelperだけのpermission追加がHuman-authorizedとなったため有限ledgerを継続。scopeは残証拠と、そこで発見した既存contract defectだけ。main merge / cutoverはscope外。
