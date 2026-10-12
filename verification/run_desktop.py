@@ -17,6 +17,24 @@ from analyze_os_input import distribution
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def acknowledge_phase(report_path, phase):
+    acknowledgement = report_path.with_suffix('.ack')
+    pending = report_path.with_suffix('.ack.pending')
+    pending.write_text(json.dumps({'phase': phase, 'complete': True}), encoding='utf-8')
+    deadline = time.monotonic() + 1
+    while True:
+        try:
+            pending.replace(acknowledgement)
+            return
+        except OSError as error:
+            # Windows CI denied replacing the polled acknowledgement (WinError 5).
+            # Retry only this complete publication, never the fixture/source write.
+            if (platform.system() != 'Windows' or getattr(error, 'winerror', None) not in (5, 32, 33)
+                    or time.monotonic() >= deadline):
+                raise
+            time.sleep(.01)
+
+
 def check(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused'], 'native window not usable'
@@ -343,10 +361,7 @@ def run(binary: Path, output: Path, case: str):
                                     # The native reader can poll between truncate
                                     # and write. Publish a complete acknowledgement
                                     # instead of exposing an empty JSON document.
-                                    acknowledgement = report_path.with_suffix('.ack')
-                                    pending = report_path.with_suffix('.ack.pending')
-                                    pending.write_text(json.dumps({'phase': phase, 'complete': True}), encoding='utf-8')
-                                    pending.replace(acknowledgement)
+                                    acknowledge_phase(report_path, phase)
                             else: break
                     time.sleep(.1)
                 report['environment'] = {'os': platform.system(), 'release': platform.release(),

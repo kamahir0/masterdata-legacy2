@@ -144,6 +144,8 @@ jobs:
       - run: npm --prefix desktop/web run build
       - run: cargo clippy -p masterdata-desktop --features desktop-evidence --all-targets -- -D warnings
       - run: cargo build -p masterdata-desktop --release --locked --features desktop-evidence
+      - name: Verification acknowledgement replacement contention regression
+        run: python -m unittest discover -s verification -p test_acknowledgement.py
       - name: Native Desktop warm navigation, latest selection and bounded projection
         shell: bash
         run: |
