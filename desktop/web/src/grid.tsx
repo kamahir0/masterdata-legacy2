@@ -263,7 +263,9 @@ export const AuthoringGrid = memo(function AuthoringGrid({
           <div id="rows" style={{ top: (p?.rowStart ?? 0) * GRID.row, width }}>
             {p?.rows.map((row) => (
               <GridRow
-                key={row.id}
+                // Rows are stateless viewport slots. Keep their DOM across source
+                // switches; operations still use the exact occurrence in row.id.
+                key={row.viewIndex}
                 row={row}
                 p={p}
                 first={columns.first}
