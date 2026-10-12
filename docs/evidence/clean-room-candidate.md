@@ -6,11 +6,11 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 基準Candidate: `f57102e2d098a4a3385081dc111982e5c065d4ff`。既存のperformance raw samplesはこの基準binaryの実測として保持し、新SHAへ読み替えない。
 
-**Not cutover-ready — macOS rapid targetの修正・再証明、Windows actual Desktop、Unity actual環境のrequired evidence gaps。** `f57102e`の実IME違反は`f7cf90d`で修正し、scalar / nestedのactual IMEとrequired CIで再検証した。2026-10-09にHumanがPR #16をmainへmergeしたが、未取得の外部証拠は免除していない。以下の旧Candidate evidenceは当時の記録として保持する。
+**Not cutover-ready — Windows actual Desktop、Unity actual Editor / runtimeのrequired evidence gaps。** macOSのdense input / held Escapeは下記の修正Candidateで閉じた。`f57102e`の実IME違反は`f7cf90d`で修正し、scalar / nestedのactual IMEとrequired CIで再検証した。2026-10-09にHumanがPR #16をmainへmergeしたが、未取得の外部証拠は免除していない。以下の旧Candidate evidenceは当時の記録として保持する。
 
 ## macOS helper permission / rapid correction（2026-10-12）
 
-Correction Candidate: `bd9ae8034fc8cdc426a96444cdb4779a8f9ba774`。source / type / write / deliveryの追加変更はない。最終macOS分布 / held cancel / required CIを取得中。
+Product correction: `bd9ae8034fc8cdc426a96444cdb4779a8f9ba774`。Review Candidate: `5dbd3dc83e8177ec50ebeab100215fc04d86830b`。後者はWindows検証用ack publication / regression / CIだけのcorrectionで、desktop / engine / command / unityの全product treesは前者と同一。macOS rawは撮影・測定時のHEAD / binary hashを維持し、新SHAへ書き換えない。
 
 Humanは`/tmp/masterdata-os-input`だけのAccessibility追加を対象確定後に明示許可した。旧helperのsource / binaryは保持し、temporary LaunchServices wrapperから独立起動することでCodex本体へのpermission追加を避けた。source SHA-256 `96641f877d1fb37729e330d511500ea5278c4af39ce06aa6bacea220e7b7d37a`、binary `ee251603d8678c96e7c79ccb2f7ff88f112caa4b48679f4ec588242ac902bd3f`。persistent hook / daemonはない。対象は専用verification windowだけで、CGEvent注入をphysical human inputと呼ばない。
 
@@ -19,6 +19,25 @@ Humanは`/tmp/masterdata-os-input`だけのAccessibility追加を対象確定後
 行のheld dragでは実際のghost / neighbour displacementを観測し、helperのdown136ms→Escape20,656ms（held=true）→up25,658msのtraceと、元の行順 / dirtyなし / history不変を確認した。専用projectの全9 source/config hashesはbefore / after一致。初期の短いmouse trajectoryと不適切なfocusのprotocolは合格分布から除外し、rawを残した。OS Reduced Motionは今回変更していない。
 
 GUI-PERF-003のrapid未達だけを修正する。statelessな表示行はviewport位置をReact keyとし、source switchごとのDOM再生成を避ける。mutation / selection / dragは引き続きexact `row.id`とcurrent projectionを使い、active editor / history / Rust authorityは変更しない。同じprotocolの10件試行ではrapid p95 145msだったが、最終100件 / 複数runの代替にはしない。focused native navigation / focus / geometry / authoring / capacity、TypeScript / 表示境界tests / release build / integrityはPASS。source bytes、type / write / delivery semanticsに変更はない。rawは[machine evidence](clean-room-candidate-data.json.gz)の`macosInputPermission20261012`が所有する。
+
+最終release binary `6ab901d9c2e282495fc6f391d8f63e94cedb8d723783f1f1058016193395a4eb`、HEAD `7c28bad23d9214dc4a0a489b4acdb72ae6ed637c`、clean treeで2 capture runsを取得した。同じlong-lived workspaceでsample bufferだけをresetし、各warm selectionでProjectを再openしない。keyboard F6 / Tree / Enterで選択、各probeはCGEventのArrowキー、nominal interval 8ms。rapidはA→B→C→D、準備キー5ms / 最初の3 Enter後50ms、Dにだけ36 probes、burst後150msの休止。helperのrelative post clock、DOM Event.timeStamp、application receipt（DOM handler開始）、publication / native / serialization / IPC / React / layout / target-filtered rAF / first acceptedを分離する。post clockとWindow clockを推測で接続せず、rAFはGPU presentation完了ではない。
+
+| Case | accepted n / capture runs | OS event→first accepted median / p95 / max (ms) | backend median / p95 / max (ms) | invalid |
+| --- | --- | --- | --- | --- |
+| revisit | 100 / 2 | 94 / 103 / 112 | 3.410 / 4.133 / 5.115 | 0 |
+| same Table | 100 / 2 | 95 / 106 / 113 | 3.325 / 4.036 / 4.775 | 0 |
+| cross Table | 100 / 2 | 97 / 111 / 121 | 4.803 / 7.009 / 10.484 | 0 |
+| schema | 100 / 2 | 100 / 113 / 128 | 3.457 / 4.029 / 4.615 | 0 |
+| dirty revisit | 100 / 2 | 97 / 107 / 114 | 3.348 / 4.101 / 6.186 | 0 |
+| rapid D | 100 / 2 | 97 / 119 / 138 | 3.630 / 6.327 / 9.643（全400 selections） | 0 |
+
+全600 accepted samplesはtimely probe条件を満たし、paint→acceptedのgapは最大23ms。rapidのA/B/C 300 selectionsは意図的に受付probeなしで、invalidへ読み替えない。各backendが次selectionまでに完了し、OS runでobsoleteは0。意図的な遅延responseのlatest-winsは別のnative CI証拠が所有する。全warmのdiscovery / enumeration / project YAML parse / project validationは0、local parseも0、mounted rows最大33。receipt→publication p95 7ms。全caseの既存backend <50ms / accepted <150ms targetはPASS。<100ms stretchへ追加最適化しない。cold Open→inventory 813ms、boot ready101ms、first source→accepted150msは各n1で、p95を主張しない。
+
+dirty field01=65001は100 revisits後も残り、一回のUndoで2001 / cleanへ戻った。row / columnのactual ghost・neighbour movementを観測し、Escapeのpostは各20,663 / 20,623msでbuttonHeld=true、releaseは40,667 / 40,628ms。列はrelease前の元配置も撮影した。両cancelでorder / dirty / Undo履歴は不変。全9 source / config SHA-256はbefore / after一致、implicit Save / Buildなし。専用app PID28614は通常Quit後に終了確認済み。helper process0、一時helper / wrapperを削除、Accessibilityはhelperだけを外して元の4項目を維持した。Reduced Motionは今回変更せず、Unityは起動していない。
+
+Product correction Candidateの[implementation CI 38250009886](https://github.com/kamahir0/masterdata/actions/runs/38250009886)は全17 jobs、[integrity 38250009833](https://github.com/kamahir0/masterdata/actions/runs/38250009833)もSUCCESS。metadata HEADのWindows deliveryはtest-only `measurement.ack.pending → measurement.ack`でWinError 5となった。lock holderは未特定で、製品失敗と呼ばない。ack全JSONのatomic publicationだけをWindows拒否時・最大1秒で再試行し、fixture mutation / product writeは繰り返さない。assertion / existing timeoutは変更せず、恒久的拒否を隠さない。回帰3 tests / local native Build・receipt-only Publish7 checks / integrityはPASS。5dbd3dcの[required CI 38253592643](https://github.com/kamahir0/masterdata/actions/runs/38253592643)はattempt 2で全17 jobs、[integrity 38253592617](https://github.com/kamahir0/masterdata/actions/runs/38253592617)もSUCCESS。attempt 1ではWindowsのcontextが準備中のまま観測期限を超え、nativeWindow.focused=false、delivery / source errorなしだった。foreground lossのactorとnative subprocess進行は未特定で、timeoutを増やさず同一Candidateの失敗jobだけ再実行して閉じた。初回failureはrawに保持し、successful runへ読み替えない。
+
+同じagentによる別passのreview: source occurrenceとpresentation slotの境界、source-local draft / history、pendingのinert / hidden、bounded rows、exact product-tree equivalence、measurement clocks / trust、permission cleanupを確認した。新requirement / feature / polish / stronger targetは追加していない。known product Blockingなし。残るgateはWindows actual DesktopとUnity actual Editor / runtimeだけ。
 
 ## 日常編集の残り5点（2026-10-11）
 
@@ -308,11 +327,9 @@ Humanは修正Candidate `f7cf90d`上でtemporary CGEvent helperによるdense in
 
 ## Human gates / verdict
 
-1. **macOS actual performance**: helperだけのAccessibilityをHumanが追加許可し、独立起動でpermission preflightを通過した。固定Candidateのrapidは100件 / 2 runsでp95 206ms。GUI-PERF-003のこの未達を修正し、最終Candidateの全warm分布を再証明する。過去のtool-limited upper boundsを合格へ読み替えない。
-2. **Windows x64 actual Desktop**: native CIは成功したが、Computer Useから操作できるWindows環境がない。actual keyboard / IME / pointer / drag / visual / accepted-interaction distributionsが必要。
-3. **Unity actual Editor / runtime**: 利用できるlicensed Editor / project / Player環境がない。package import / compile / Editor observationとruntime loadの実行証拠が必要。[Unity contract](../specs/unity-integration.md)のportable CI成功を実Unityへ置換しない。
-4. **macOS held-drag Escape**: 固定Candidateのactual row ghost / Escape（held=true）/ no mutationを取得した。表示行lifetimeのcorrectionを含む最終Candidateで再確認する。actual IME correction、Reduced Motion ON / OFF復元の既存証拠は保持する。
+1. **Windows x64 actual Desktop**: native CIは成功したが、Computer Useから操作できるWindows環境がない。actual keyboard / IME / pointer / drag / visual / accepted-interaction distributionsが必要。
+2. **Unity actual Editor / runtime**: package import / compile / Editor observationとruntime loadの実行証拠が必要。2026-10-12のread-only確認で`/Applications/Unity/Hub/Editor/6000.6.4f1/Unity.app`の存在は確認したが、licensed project / runtimeの実行環境は未確認で、今回のmacOS input scopeでは起動していない。Editor不存在とは主張しない。[Unity contract](../specs/unity-integration.md)のportable CI成功を実Unityへ置換しない。
 
-[workflow Human gate 7](../execution-workflow.md#human-gate)とHuman completion rule 7によりWindows / Unityの外部環境gateを保持する。macOSは取得可能になった残証拠と、そこで発見した既存contract defectだけを継続する。Windows / Unity環境を提供できない場合のevidence exceptionはHuman-selected boundary decisionが必要で、自動免除しない。helperだけの操作authorizationは取得済みで、再確認は不要。
+[workflow Human gate 7](../execution-workflow.md#human-gate)とHuman completion rule 7、およびHumanのmacOS限定follow-upに従いWindows / Unityのgateを保持する。macOSの既存2項目は閉じ、scopeを新機能・polishへ広げない。未取得証拠のexceptionはHuman-selected boundary decisionが必要で、自動免除しない。
 
 Verdict: **Ready to merge: No。Not cutover-ready。** Review用Candidateは固定したがfinal cutover Candidate / objective-completeにはしていない。main置換、merge、releaseは行っていない。
