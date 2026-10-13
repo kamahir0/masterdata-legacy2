@@ -3,6 +3,9 @@
 fixtures/rewrite-oracle/** -text
 fixtures/rewrite-oracle/v1/crlf/** -text whitespace=cr-at-eol
 
+# include_str! embeds these bytes in native C# output; Windows checkout must keep LF.
+engine/src/codegen/*.cs.txt text eol=lf
+
 # Sample artifacts must stay byte-identical to native Build / Publish on Windows too.
 samples/UnityInventory/Unity/Assets/MasterData/Generated/*.g.cs -text
 samples/UnityInventory/Unity/Assets/StreamingAssets/*.bytes binary
