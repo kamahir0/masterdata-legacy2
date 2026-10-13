@@ -26,6 +26,12 @@ Self-review: Specification Conformance: Pass。Tests / Regression Evidence: 上�
 
 固定Candidate `caec78c537420c3a91790098354eb3d8af3fc53d`のfresh reviewでは、inline finishのvalidation待ち中にAdvancedへ切り替えると旧確定が残るBlockingを検出。mode revision / current modeをawait後に再確認するだけのcorrectionと、Advanced→inlineへ戻しても旧submitが復活しないno-write回帰を追加し、native creation9 checks / TypeScript / integrityがPASS。Native write authority / recovery / source semanticsは不変。初回Candidateの[implementation CI 38327384610](https://github.com/kamahir0/masterdata/actions/runs/38327384610)は全17 jobs、[integrity 38327384791](https://github.com/kamahir0/masterdata/actions/runs/38327384791)もSUCCESSだが、このfresh findingの代替にせずcorrection Candidateを別にreconcileする。
 
+Correction Candidate: `17b8f54ceb8dd036766b80946d45ada1da7a7dea`。Fresh verificationは`caec78c → 17b8f54`の確定diffとGUI-SHELL-INPUT-001を別passで照合。Specification Conformance: Pass。Tests / Regression Evidence: source no-write / mode往復 / latest validation / failure receiptのnative9 checks。Rationale Freshness: Fresh（新しいform modeが旧submitを無効化するrevision、epoch / draft ID / uncertainty guard）。Evidence Integrity: canonical / regression / raw hash / exact CI headを照合。Architecture: boundary violationなし。Findings: None remaining within selected scope。Verdict: Ready to merge: Yes。
+
+[Correction implementation CI 38328846207](https://github.com/kamahir0/masterdata/actions/runs/38328846207)は全17 jobs、[integrity 38328846255](https://github.com/kamahir0/masterdata/actions/runs/38328846255)もSUCCESS。両OSの15 native Desktopカテゴリ、3OSのshared / consumer / portable Unity / capacity、両production packageがPASS。Windows controlled DOMをactual OS input / IME / visual reviewへ読み替えない。既存Windows actual Desktop / Unity actual Editor-runtime gatesは不変。
+
+最終production package / staged smoke / installはPASS。`/Users/mahirohiratsuka/Applications/masterdata-local.app`のbinaryはpackageと同じSHA-256 `00e612b4083d03f07d47a7e39917ff292146a3628e381c4c8366c0cc97ad8375`。install後は起動していない。review / staged smoke process0、既存Legacy appを維持、Unity未起動。selected GUI scope完了。
+
 ## macOS helper permission / rapid correction（2026-10-12）
 
 Product correction: `bd9ae8034fc8cdc426a96444cdb4779a8f9ba774`。Review Candidate: `5dbd3dc83e8177ec50ebeab100215fc04d86830b`。後者はWindows検証用ack publication / regression / CIだけのcorrectionで、desktop / engine / command / unityの全product treesは前者と同一。macOS rawは撮影・測定時のHEAD / binary hashを維持し、新SHAへ書き換えない。
