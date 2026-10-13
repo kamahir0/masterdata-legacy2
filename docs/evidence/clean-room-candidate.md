@@ -8,6 +8,18 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 **Not cutover-ready — Windows actual Desktop、Unity actual Editor / runtimeのrequired evidence gaps。** macOSのdense input / held Escapeは下記の修正Candidateで閉じた。`f57102e`の実IME違反は`f7cf90d`で修正し、scalar / nestedのactual IMEとrequired CIで再検証した。2026-10-09にHumanがPR #16をmainへmergeしたが、未取得の外部証拠は免除していない。以下の旧Candidate evidenceは当時の記録として保持する。
 
+## Unity込みsample（2026-10-14）
+
+Scope: Work base `5c35b6d` → Candidate `cda27d129c2d71315e41115e91a6732484eb7dbe`。Human-selected [Unity Inventory Sample](../../samples/UnityInventory/README.md)。PROJECT-SOURCE-001 / 003、UNITY-DELIVERY-001 / 004 / 005 / 006 / 010 / 012の既存compositionを使い、共有Rust Build / safe Publishとcaller-owned MasterMemory databaseを接続した。新しいconfig、Unity側のYAML/binary意味論、global databaseは追加しない。
+
+`prepare.py`の固定NuGet復元 / Build / Publish、fresh native生成物とのC# / binary exact match test、fmt / clippy / clean-slate integrityはPASS。Unity 6000.6.4f1でactual import / compileとPlayMode 2 testsがPASS。tracked sample / packageだけのcacheなしcopyでも依存復元と同じ2 testsがPASS。Enum / Flags / 構造体 / リスト / nullable / secondary query / reference / explicit reloadを実databaseで確認した。配布binary SHA-256は`35e81d5556eaf2406a8331e46b0a9ce8239fb9ac32bf2643b49800b67765537f`。frozen corpusは不変。
+
+macOS player buildはPASS。専用copyの実画面で6 items / 3 quests、Bronze Sword詳細、quest rewardsと可読layoutを観測した。mouse実操作はCUAの`noWindowsAvailable` / bundle metadata cache制約により未確認で、実操作成功とは記録しない。previewはnormal Cmd-Q、targetingできなかった元playerは今回起動PID73309だけへSIGTERMで終了した。最後にUnity Editor / 今回の専用関連process / playerの残存0を確認した。
+
+Fresh review: Specification Conformance: Pass。Tests / Regression: generated artifact freshnessを既存native-consumer CIへ追加し、actual / fresh-checkout Unity testsでconsumer boundaryを照合。Rationale Freshness: Fresh（Unity tickで完了するTMP import待機、native生成assetのbytesを保持するGit属性）。Evidence Integrity: GUIDはUnity生成、source / binaryは既存Build / Publish生成、old runのHEAD / dirty / package provenanceを保持。Architecture: shared Rust / native .NETとUnity packageの既存boundaryを維持。Findings: selected sample scopeにBlockingなし。Verdict: Ready to merge: Yes。
+
+Candidateの[required CI全17 jobs](https://github.com/kamahir0/masterdata/actions/runs/38428544316)と[integrity](https://github.com/kamahir0/masterdata/actions/runs/38428544228)はSUCCESS。initial Candidateのintegrity failureはUnity生成空白の扱いで、native asset / imported TMPだけのGit属性によりbytes / GUIDを変更せず照合した。通常sourceの空白検査は維持する。[machine evidence](clean-room-candidate-data.json.gz)の`unityInventory20261014`にactual / clone / build / reviewを保持する。このsampleで得たUnity証拠をClean-room全scopeや全platformの証拠へ拡大しない。Windows actual Desktopと残るfull-scope Unity conformanceの既存gateは保持する。
+
 ## sources固定・単一化（2026-10-13）
 
 Scope: Work base `6b9c6be` → exact Candidate `58adf301fd27c6c596144530ae3aa7084066df08`。[0061](../spec-changes/0061-fixed-source-directory.md)の固定化と、追加Human decision「使用Projectなし / 保守不要」による[0062](../spec-changes/0062-remove-source-config-compatibility.md)の互換維持撤回。PROJECT-SOURCE-001 / 003を共有Rust / CLI / Desktopへ適用し、root設定と移行案内を除去した。fixed directoryへのscan / write / saved-input / Publish保護境界を照合し、YAML identityとnative namespace / stale / recovery guardsを維持した。
