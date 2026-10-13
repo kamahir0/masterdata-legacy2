@@ -1,0 +1,24 @@
+kind: "type"
+name: "RewardBundle"
+custom:
+  fields:
+    -
+      key: 0
+      name: "description"
+      type: "string"
+      nullable: true
+    -
+      key: 1
+      name: "bonus"
+      type: "CombatStats"
+      nullable: true
+    -
+      key: 2
+      name: "entries"
+      type: "RewardEntry"
+      array: true
+    -
+      key: 3
+      name: "checkpoints"
+      type: "WorldId"
+      array: true

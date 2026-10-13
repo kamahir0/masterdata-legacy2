@@ -1,63 +1,69 @@
 kind: data
 table: item
 records:
-  - id: 1001
+  - $tags: [common]
+    id: 1001
     code: bronze-sword
-    name: Bronze Sword
-    description: A reliable blade for a first adventure.
+    name: 銅の剣
+    description: 初めての冒険を支える、扱いやすい剣。
     rarity: Common
     tags: [Weapon, Crafting]
     price: 120
     stats: {attack: 12, defense: 0, health: 0}
-    ingredients: [Bronze Ore, Oak Wood]
+    ingredients: [銅鉱石, 樫の木材]
     note: null
-  - id: 1002
+  - $tags: [common]
+    id: 1002
     code: leather-shield
-    name: Leather Shield
-    description: Light protection that leaves room to move.
+    name: 革の盾
+    description: 軽くて動きやすい、探索向けの盾。
     rarity: Common
     tags: [Armor, Crafting]
     price: 90
     stats: {attack: 0, defense: 8, health: 10}
-    ingredients: [Leather, Oak Wood]
+    ingredients: [なめし革, 樫の木材]
     note: null
-  - id: 1003
+  - $tags: [common]
+    id: 1003
     code: healing-potion
-    name: Healing Potion
-    description: Restores health when the road gets rough.
+    name: 回復薬
+    description: 冒険の途中で体力を回復する薬。
     rarity: Common
     tags: [Consumable]
     price: 35
     stats: {attack: 0, defense: 0, health: 50}
     ingredients: []
-    note: Single use
-  - id: 2001
+    note: 一度だけ使用可能
+  - $tags: [common]
+    id: 2001
     code: frost-blade
-    name: Frost Blade
-    description: A rare sword forged from crystal and steel.
+    name: 氷晶の剣
+    description: 氷の結晶と鋼から作られた希少な剣。
     rarity: Rare
     tags: [Weapon, Crafting]
     price: 640
     stats: {attack: 34, defense: 2, health: 0}
-    ingredients: [Frost Crystal, Steel Ingot]
-    note: Reward from The Frozen Pass
-  - id: 2002
+    ingredients: [氷の結晶, 鋼のインゴット]
+    note: クエスト「凍てつく峠」の報酬
+  - $tags: [common]
+    id: 2002
     code: guardian-mail
-    name: Guardian Mail
-    description: Balanced armor for longer expeditions.
+    name: 守護者の鎧
+    description: 長い遠征に適した、守りと軽さの釣り合う鎧。
     rarity: Rare
     tags: [Armor]
     price: 520
     stats: {attack: 0, defense: 28, health: 60}
     ingredients: []
     note: null
-  - id: 3001
+  - $tags: [common]
+    id: 3001
     code: dawnbringer
-    name: Dawnbringer
-    description: A legendary blade carried by the valley's guardians.
+    name: 夜明けの剣
+    description: 谷の守護者が受け継いできた伝説の剣。
     rarity: Epic
     tags: [Weapon]
     price: 2400
     stats: {attack: 80, defense: 12, health: 40}
     ingredients: []
-    note: Reward from The Last Watch
+    note: クエスト「最後の見張り」の報酬

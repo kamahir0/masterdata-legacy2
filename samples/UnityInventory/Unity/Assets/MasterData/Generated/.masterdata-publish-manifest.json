@@ -1,11 +1,31 @@
 {
   "version": 1,
   "files": [
+    "Announcement.g.cs",
+    "CharacterFlags.g.cs",
     "CombatStats.g.cs",
+    "Distance.g.cs",
+    "Effect.g.cs",
     "Item.g.cs",
     "ItemCode.g.cs",
     "ItemTags.g.cs",
+    "Language.g.cs",
+    "LocalizedText.g.cs",
+    "ModelCase.g.cs",
+    "Player.g.cs",
+    "PlayerId.g.cs",
     "Quest.g.cs",
-    "Rarity.g.cs"
+    "Rarity.g.cs",
+    "ReferenceCase.g.cs",
+    "RewardBundle.g.cs",
+    "RewardEntry.g.cs",
+    "SessionFlags.g.cs",
+    "SessionId.g.cs",
+    "SessionState.g.cs",
+    "TextId.g.cs",
+    "UnsignedState.g.cs",
+    "WorldFlags.g.cs",
+    "WorldId.g.cs",
+    "WorldPhase.g.cs"
   ]
 }

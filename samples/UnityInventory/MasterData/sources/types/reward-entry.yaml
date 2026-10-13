@@ -1,0 +1,17 @@
+kind: "type"
+name: "RewardEntry"
+custom:
+  fields:
+    -
+      key: 0
+      name: "itemCode"
+      type: "ItemCode"
+    -
+      key: 1
+      name: "amount"
+      type: "int"
+    -
+      key: 2
+      name: "effects"
+      type: "Effect"
+      array: true

@@ -1,0 +1,7 @@
+kind: "type"
+name: "WorldId"
+valueObject:
+  underlying: "long"
+  conversions:
+    fromUnderlyingImplicit: true
+    toUnderlyingImplicit: true

@@ -1,0 +1,42 @@
+kind: "data"
+table: "reference-case"
+records:
+  -
+    id: 1
+    description: "通常の参照"
+    textId: 1
+    language: "Japanese"
+    optionalTextId: 1
+    optionalLanguage: "English"
+    rarity: "Common"
+    optionalRarity: "Common"
+    itemCode: "bronze-sword"
+    optionalItemCode: "healing-potion"
+    $tags:
+      - "common"
+  -
+    id: 2
+    description: "Nullable参照がすべてnull"
+    textId: 2
+    language: "Japanese"
+    optionalTextId: null
+    optionalLanguage: null
+    rarity: "Rare"
+    optionalRarity: null
+    itemCode: "bronze-sword"
+    optionalItemCode: null
+    $tags:
+      - "common"
+  -
+    id: 3
+    description: "複合副キーと複数行への参照"
+    textId: 3
+    language: "Japanese"
+    optionalTextId: 3
+    optionalLanguage: "English"
+    rarity: "Rare"
+    optionalRarity: "Common"
+    itemCode: "bronze-sword"
+    optionalItemCode: "healing-potion"
+    $tags:
+      - "common"

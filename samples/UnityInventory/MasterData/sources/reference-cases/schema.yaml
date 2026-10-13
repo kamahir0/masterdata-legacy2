@@ -1,0 +1,105 @@
+kind: "schema"
+table: "reference-case"
+csharpName: "ReferenceCase"
+fields:
+  -
+    key: 0
+    name: "id"
+    type: "int"
+  -
+    key: 1
+    name: "description"
+    type: "string"
+  -
+    key: 2
+    name: "textId"
+    type: "TextId"
+  -
+    key: 3
+    name: "language"
+    type: "Language"
+  -
+    key: 4
+    name: "optionalTextId"
+    type: "TextId"
+    nullable: true
+  -
+    key: 5
+    name: "optionalLanguage"
+    type: "Language"
+    nullable: true
+  -
+    key: 6
+    name: "rarity"
+    type: "Rarity"
+  -
+    key: 7
+    name: "optionalRarity"
+    type: "Rarity"
+    nullable: true
+  -
+    key: 8
+    name: "itemCode"
+    type: "ItemCode"
+  -
+    key: 9
+    name: "optionalItemCode"
+    type: "ItemCode"
+    nullable: true
+primaryKey:
+  fields:
+    - "id"
+references:
+  -
+    name: "title"
+    csharpName: "ResolveTitle"
+    fields:
+      - "textId"
+      - "language"
+    target:
+      table: "localized-text"
+      fields:
+        - "textId"
+        - "language"
+  -
+    name: "optionalTitle"
+    fields:
+      - "optionalLanguage"
+      - "optionalTextId"
+    target:
+      table: "localized-text"
+      fields:
+        - "language"
+        - "textId"
+  -
+    name: "rarityItems"
+    fields:
+      - "rarity"
+    target:
+      table: "item"
+      fields:
+        - "rarity"
+  -
+    name: "optionalRarityItems"
+    fields:
+      - "optionalRarity"
+    target:
+      table: "item"
+      fields:
+        - "rarity"
+  -
+    name: "item"
+    fields:
+      - "itemCode"
+    target:
+      table: "item"
+      fields:
+        - "code"
+  -
+    name: "optionalItem"
+    fields:
+      - "optionalItemCode"
+    target:
+      table: "item"
+      fields:
+        - "code"

@@ -1,0 +1,333 @@
+kind: "schema"
+table: "model-case"
+csharpName: "ModelCase"
+fields:
+  -
+    key: 0
+    name: "id"
+    type: "int"
+  -
+    key: 1
+    name: "boolValue"
+    type: "bool"
+  -
+    key: 2
+    name: "boolOptional"
+    type: "bool"
+    nullable: true
+  -
+    key: 3
+    name: "boolValues"
+    type: "bool"
+    array: true
+  -
+    key: 4
+    name: "intValue"
+    type: "int"
+  -
+    key: 5
+    name: "intOptional"
+    type: "int"
+    nullable: true
+  -
+    key: 6
+    name: "intValues"
+    type: "int"
+    array: true
+  -
+    key: 7
+    name: "uintValue"
+    type: "uint"
+  -
+    key: 8
+    name: "uintOptional"
+    type: "uint"
+    nullable: true
+  -
+    key: 9
+    name: "uintValues"
+    type: "uint"
+    array: true
+  -
+    key: 10
+    name: "longValue"
+    type: "long"
+  -
+    key: 11
+    name: "longOptional"
+    type: "long"
+    nullable: true
+  -
+    key: 12
+    name: "longValues"
+    type: "long"
+    array: true
+  -
+    key: 13
+    name: "ulongValue"
+    type: "ulong"
+  -
+    key: 14
+    name: "ulongOptional"
+    type: "ulong"
+    nullable: true
+  -
+    key: 15
+    name: "ulongValues"
+    type: "ulong"
+    array: true
+  -
+    key: 16
+    name: "floatValue"
+    type: "float"
+  -
+    key: 17
+    name: "floatOptional"
+    type: "float"
+    nullable: true
+  -
+    key: 18
+    name: "floatValues"
+    type: "float"
+    array: true
+  -
+    key: 19
+    name: "doubleValue"
+    type: "double"
+  -
+    key: 20
+    name: "doubleOptional"
+    type: "double"
+    nullable: true
+  -
+    key: 21
+    name: "doubleValues"
+    type: "double"
+    array: true
+  -
+    key: 22
+    name: "stringValue"
+    type: "string"
+  -
+    key: 23
+    name: "stringOptional"
+    type: "string"
+    nullable: true
+  -
+    key: 24
+    name: "stringValues"
+    type: "string"
+    array: true
+  -
+    key: 25
+    name: "itemCodeValue"
+    type: "ItemCode"
+  -
+    key: 26
+    name: "itemCodeOptional"
+    type: "ItemCode"
+    nullable: true
+  -
+    key: 27
+    name: "itemCodeValues"
+    type: "ItemCode"
+    array: true
+  -
+    key: 28
+    name: "playerIdValue"
+    type: "PlayerId"
+  -
+    key: 29
+    name: "playerIdOptional"
+    type: "PlayerId"
+    nullable: true
+  -
+    key: 30
+    name: "playerIdValues"
+    type: "PlayerId"
+    array: true
+  -
+    key: 31
+    name: "textIdValue"
+    type: "TextId"
+  -
+    key: 32
+    name: "textIdOptional"
+    type: "TextId"
+    nullable: true
+  -
+    key: 33
+    name: "textIdValues"
+    type: "TextId"
+    array: true
+  -
+    key: 34
+    name: "worldIdValue"
+    type: "WorldId"
+  -
+    key: 35
+    name: "worldIdOptional"
+    type: "WorldId"
+    nullable: true
+  -
+    key: 36
+    name: "worldIdValues"
+    type: "WorldId"
+    array: true
+  -
+    key: 37
+    name: "sessionIdValue"
+    type: "SessionId"
+  -
+    key: 38
+    name: "sessionIdOptional"
+    type: "SessionId"
+    nullable: true
+  -
+    key: 39
+    name: "sessionIdValues"
+    type: "SessionId"
+    array: true
+  -
+    key: 40
+    name: "rarityValue"
+    type: "Rarity"
+  -
+    key: 41
+    name: "rarityOptional"
+    type: "Rarity"
+    nullable: true
+  -
+    key: 42
+    name: "rarityValues"
+    type: "Rarity"
+    array: true
+  -
+    key: 43
+    name: "unsignedStateValue"
+    type: "UnsignedState"
+  -
+    key: 44
+    name: "unsignedStateOptional"
+    type: "UnsignedState"
+    nullable: true
+  -
+    key: 45
+    name: "unsignedStateValues"
+    type: "UnsignedState"
+    array: true
+  -
+    key: 46
+    name: "worldPhaseValue"
+    type: "WorldPhase"
+  -
+    key: 47
+    name: "worldPhaseOptional"
+    type: "WorldPhase"
+    nullable: true
+  -
+    key: 48
+    name: "worldPhaseValues"
+    type: "WorldPhase"
+    array: true
+  -
+    key: 49
+    name: "sessionStateValue"
+    type: "SessionState"
+  -
+    key: 50
+    name: "sessionStateOptional"
+    type: "SessionState"
+    nullable: true
+  -
+    key: 51
+    name: "sessionStateValues"
+    type: "SessionState"
+    array: true
+  -
+    key: 52
+    name: "itemTagsValue"
+    type: "ItemTags"
+  -
+    key: 53
+    name: "itemTagsOptional"
+    type: "ItemTags"
+    nullable: true
+  -
+    key: 54
+    name: "itemTagsValues"
+    type: "ItemTags"
+    array: true
+  -
+    key: 55
+    name: "characterFlagsValue"
+    type: "CharacterFlags"
+  -
+    key: 56
+    name: "characterFlagsOptional"
+    type: "CharacterFlags"
+    nullable: true
+  -
+    key: 57
+    name: "characterFlagsValues"
+    type: "CharacterFlags"
+    array: true
+  -
+    key: 58
+    name: "worldFlagsValue"
+    type: "WorldFlags"
+  -
+    key: 59
+    name: "worldFlagsOptional"
+    type: "WorldFlags"
+    nullable: true
+  -
+    key: 60
+    name: "worldFlagsValues"
+    type: "WorldFlags"
+    array: true
+  -
+    key: 61
+    name: "sessionFlagsValue"
+    type: "SessionFlags"
+  -
+    key: 62
+    name: "sessionFlagsOptional"
+    type: "SessionFlags"
+    nullable: true
+  -
+    key: 63
+    name: "sessionFlagsValues"
+    type: "SessionFlags"
+    array: true
+  -
+    key: 64
+    name: "combatStatsValue"
+    type: "CombatStats"
+  -
+    key: 65
+    name: "combatStatsOptional"
+    type: "CombatStats"
+    nullable: true
+  -
+    key: 66
+    name: "combatStatsValues"
+    type: "CombatStats"
+    array: true
+  -
+    key: 67
+    name: "rewardBundleValue"
+    type: "RewardBundle"
+  -
+    key: 68
+    name: "rewardBundleOptional"
+    type: "RewardBundle"
+    nullable: true
+  -
+    key: 69
+    name: "rewardBundleValues"
+    type: "RewardBundle"
+    array: true
+primaryKey:
+  fields:
+    - "id"

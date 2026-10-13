@@ -1,0 +1,9 @@
+kind: "data"
+table: "announcement"
+records:
+  -
+    id: 3
+    title: "イベントのお知らせ"
+    message: "event Profileでは共通レコードと一緒に含まれます。"
+    $tags:
+      - "event"

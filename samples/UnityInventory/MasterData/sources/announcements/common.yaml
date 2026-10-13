@@ -1,0 +1,9 @@
+kind: "data"
+table: "announcement"
+records:
+  -
+    id: 1
+    title: "通常のお知らせ"
+    message: "すべてのProfileに含まれる共通レコードです。"
+    $tags:
+      - "common"

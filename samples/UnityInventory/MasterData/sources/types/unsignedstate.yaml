@@ -1,0 +1,11 @@
+kind: "type"
+name: "UnsignedState"
+enum:
+  underlying: "uint"
+  members:
+    -
+      name: "Ready"
+      value: 0
+    -
+      name: "Boundary"
+      value: 4294967295

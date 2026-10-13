@@ -1,0 +1,7 @@
+kind: "type"
+name: "PlayerId"
+valueObject:
+  underlying: "int"
+  conversions:
+    fromUnderlyingImplicit: true
+    toUnderlyingImplicit: false

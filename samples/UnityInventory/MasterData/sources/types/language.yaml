@@ -1,0 +1,11 @@
+kind: "type"
+name: "Language"
+enum:
+  underlying: "int"
+  members:
+    -
+      name: "Japanese"
+      value: 0
+    -
+      name: "English"
+      value: 1

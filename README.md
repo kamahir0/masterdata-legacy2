@@ -6,7 +6,7 @@ Rustの共有coreを使うCLI / Desktopと、生成したデータを読むUnity
 
 ## Unity込みのsample
 
-[Unity Inventory Sample](samples/UnityInventory/README.md)に、編集用MasterData Project、Unity Project、表示シーン、生成済みC#とバイナリがあります。アイテム、クエスト、Enum / Flags / 構造体 / リスト / nullable / テーブル参照を試せます。
+[Unityモデルケース](samples/UnityInventory/README.md)に、編集用MasterData Project、Unity Project、日本語の表示シーン、生成済みC#とバイナリがあります。128行・70列の表、対応する型とmodifier、カスタム型の配列と多段ネスト、複合キー・参照、タグとBuild Profileを試せます。
 
 ## 開発
 

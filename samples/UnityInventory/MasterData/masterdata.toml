@@ -1,6 +1,6 @@
 [project]
 id = "sample.unity-inventory"
-name = "Unity Inventory Sample"
+name = "Unity モデルケース"
 version = "0.1.0"
 
 [build]
@@ -14,3 +14,15 @@ path = "../Unity/Assets/MasterData/Generated"
 [[publish.targets]]
 kind = "binary"
 path = "../Unity/Assets/StreamingAssets/masterdata.bytes"
+
+[build.profiles.production]
+exclude_tags = ["debug", "event"]
+
+[build.profiles.development]
+exclude_tags = ["event"]
+
+[build.profiles.event]
+include_tags = ["common", "event"]
+
+[build.profiles.empty]
+include_tags = ["empty-demo"]

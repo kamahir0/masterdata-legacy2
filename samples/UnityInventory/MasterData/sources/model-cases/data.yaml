@@ -1,0 +1,590 @@
+kind: data
+table: model-case
+records:
+- id: 1
+  $tags:
+  - common
+  boolValue: true
+  boolOptional: true
+  boolValues:
+  - true
+  - false
+  intValue: 42
+  intOptional: 42
+  intValues:
+  - 42
+  - 2147483647
+  uintValue: 42
+  uintOptional: 42
+  uintValues:
+  - 42
+  - 4294967295
+  longValue: 4200000000
+  longOptional: 4200000000
+  longValues:
+  - 4200000000
+  - 9223372036854775807
+  ulongValue: 4200000000
+  ulongOptional: 4200000000
+  ulongValues:
+  - 4200000000
+  - 18446744073709551615
+  floatValue: 1.25
+  floatOptional: 1.25
+  floatValues:
+  - 1.25
+  - 3.4028234e+38
+  doubleValue: 0.125
+  doubleOptional: 0.125
+  doubleValues:
+  - 0.125
+  - 1.7976931348623157e+308
+  stringValue: 日本語の文字列
+  stringOptional: 日本語の文字列
+  stringValues:
+  - 日本語の文字列
+  - '長い文章の見本です。横スクロールと詳細表示、改行を確認します。
+
+    漢字・ひらがな・カタカナ・英数字 ABC 123'
+  itemCodeValue: bronze-sword
+  itemCodeOptional: bronze-sword
+  itemCodeValues:
+  - bronze-sword
+  - dawnbringer
+  playerIdValue: 1
+  playerIdOptional: 1
+  playerIdValues:
+  - 1
+  - 2147483647
+  textIdValue: 1
+  textIdOptional: 1
+  textIdValues:
+  - 1
+  - 4294967295
+  worldIdValue: 100
+  worldIdOptional: 100
+  worldIdValues:
+  - 100
+  - 9223372036854775807
+  sessionIdValue: 1
+  sessionIdOptional: 1
+  sessionIdValues:
+  - 1
+  - 18446744073709551615
+  rarityValue: Common
+  rarityOptional: Common
+  rarityValues:
+  - Common
+  - Epic
+  unsignedStateValue: Ready
+  unsignedStateOptional: Ready
+  unsignedStateValues:
+  - Ready
+  - Boundary
+  worldPhaseValue: Ready
+  worldPhaseOptional: Ready
+  worldPhaseValues:
+  - Ready
+  - Boundary
+  sessionStateValue: Ready
+  sessionStateOptional: Ready
+  sessionStateValues:
+  - Ready
+  - Boundary
+  itemTagsValue:
+  - Weapon
+  itemTagsOptional:
+  - Weapon
+  itemTagsValues:
+  - - Weapon
+  - - Weapon
+    - Crafting
+  characterFlagsValue:
+  - Active
+  characterFlagsOptional:
+  - Active
+  characterFlagsValues:
+  - - Active
+  - - Active
+    - HighBit
+  worldFlagsValue:
+  - Active
+  worldFlagsOptional:
+  - Active
+  worldFlagsValues:
+  - - Active
+  - - Active
+    - HighBit
+  sessionFlagsValue:
+  - Active
+  sessionFlagsOptional:
+  - Active
+  sessionFlagsValues:
+  - - Active
+  - - Active
+    - HighBit
+  combatStatsValue:
+    attack: 12
+    defense: 8
+    health: 50
+  combatStatsOptional:
+    attack: 12
+    defense: 8
+    health: 50
+  combatStatsValues:
+  - attack: 12
+    defense: 8
+    health: 50
+  - attack: 80
+    defense: 12
+    health: 40
+  rewardBundleValue:
+    description: ネストした報酬セット
+    bonus:
+      attack: 12
+      defense: 8
+      health: 50
+    entries:
+    - itemCode: frost-blade
+      amount: 2
+      effects:
+      - code: healing-potion
+        rarity: Rare
+        tags:
+        - Weapon
+        - Crafting
+        stats:
+          attack: 12
+          defense: 8
+          health: 50
+        coefficients:
+        - 0.5
+        - 1.25
+        - 2.0
+        labels:
+        - 攻撃補正
+        - 回復効果
+        range:
+          meters: 2.5
+      - code: bronze-sword
+        rarity: Common
+        tags:
+        - None
+        stats: null
+        coefficients: []
+        labels: []
+        range:
+          meters: 2.5
+    checkpoints:
+    - 100
+    - 200
+    - 300
+  rewardBundleOptional:
+    description: ネストした報酬セット
+    bonus:
+      attack: 12
+      defense: 8
+      health: 50
+    entries:
+    - itemCode: frost-blade
+      amount: 2
+      effects:
+      - code: healing-potion
+        rarity: Rare
+        tags:
+        - Weapon
+        - Crafting
+        stats:
+          attack: 12
+          defense: 8
+          health: 50
+        coefficients:
+        - 0.5
+        - 1.25
+        - 2.0
+        labels:
+        - 攻撃補正
+        - 回復効果
+        range:
+          meters: 2.5
+      - code: bronze-sword
+        rarity: Common
+        tags:
+        - None
+        stats: null
+        coefficients: []
+        labels: []
+        range:
+          meters: 2.5
+    checkpoints:
+    - 100
+    - 200
+    - 300
+  rewardBundleValues:
+  - description: ネストした報酬セット
+    bonus:
+      attack: 12
+      defense: 8
+      health: 50
+    entries:
+    - itemCode: frost-blade
+      amount: 2
+      effects:
+      - code: healing-potion
+        rarity: Rare
+        tags:
+        - Weapon
+        - Crafting
+        stats:
+          attack: 12
+          defense: 8
+          health: 50
+        coefficients:
+        - 0.5
+        - 1.25
+        - 2.0
+        labels:
+        - 攻撃補正
+        - 回復効果
+        range:
+          meters: 2.5
+      - code: bronze-sword
+        rarity: Common
+        tags:
+        - None
+        stats: null
+        coefficients: []
+        labels: []
+        range:
+          meters: 2.5
+    checkpoints:
+    - 100
+    - 200
+    - 300
+  - description: null
+    bonus: null
+    entries: []
+    checkpoints: []
+- id: 2
+  $tags:
+  - common
+  boolValue: true
+  boolOptional: null
+  boolValues: []
+  intValue: 42
+  intOptional: null
+  intValues: []
+  uintValue: 42
+  uintOptional: null
+  uintValues: []
+  longValue: 4200000000
+  longOptional: null
+  longValues: []
+  ulongValue: 4200000000
+  ulongOptional: null
+  ulongValues: []
+  floatValue: 1.25
+  floatOptional: null
+  floatValues: []
+  doubleValue: 0.125
+  doubleOptional: null
+  doubleValues: []
+  stringValue: ''
+  stringOptional: null
+  stringValues: []
+  itemCodeValue: bronze-sword
+  itemCodeOptional: null
+  itemCodeValues: []
+  playerIdValue: 1
+  playerIdOptional: null
+  playerIdValues: []
+  textIdValue: 1
+  textIdOptional: null
+  textIdValues: []
+  worldIdValue: 100
+  worldIdOptional: null
+  worldIdValues: []
+  sessionIdValue: 1
+  sessionIdOptional: null
+  sessionIdValues: []
+  rarityValue: Common
+  rarityOptional: null
+  rarityValues: []
+  unsignedStateValue: Ready
+  unsignedStateOptional: null
+  unsignedStateValues: []
+  worldPhaseValue: Ready
+  worldPhaseOptional: null
+  worldPhaseValues: []
+  sessionStateValue: Ready
+  sessionStateOptional: null
+  sessionStateValues: []
+  itemTagsValue:
+  - None
+  itemTagsOptional: null
+  itemTagsValues: []
+  characterFlagsValue:
+  - None
+  characterFlagsOptional: null
+  characterFlagsValues: []
+  worldFlagsValue:
+  - None
+  worldFlagsOptional: null
+  worldFlagsValues: []
+  sessionFlagsValue:
+  - None
+  sessionFlagsOptional: null
+  sessionFlagsValues: []
+  combatStatsValue:
+    attack: 12
+    defense: 8
+    health: 50
+  combatStatsOptional: null
+  combatStatsValues: []
+  rewardBundleValue:
+    description: ネストした報酬セット
+    bonus:
+      attack: 12
+      defense: 8
+      health: 50
+    entries:
+    - itemCode: frost-blade
+      amount: 2
+      effects:
+      - code: healing-potion
+        rarity: Rare
+        tags:
+        - Weapon
+        - Crafting
+        stats:
+          attack: 12
+          defense: 8
+          health: 50
+        coefficients:
+        - 0.5
+        - 1.25
+        - 2.0
+        labels:
+        - 攻撃補正
+        - 回復効果
+        range:
+          meters: 2.5
+      - code: bronze-sword
+        rarity: Common
+        tags:
+        - None
+        stats: null
+        coefficients: []
+        labels: []
+        range:
+          meters: 2.5
+    checkpoints:
+    - 100
+    - 200
+    - 300
+  rewardBundleOptional: null
+  rewardBundleValues: []
+- id: 3
+  $tags:
+  - common
+  boolValue: false
+  boolOptional: false
+  boolValues:
+  - true
+  - false
+  intValue: 2147483647
+  intOptional: 2147483647
+  intValues:
+  - 42
+  - 2147483647
+  uintValue: 4294967295
+  uintOptional: 4294967295
+  uintValues:
+  - 42
+  - 4294967295
+  longValue: 9223372036854775807
+  longOptional: 9223372036854775807
+  longValues:
+  - 4200000000
+  - 9223372036854775807
+  ulongValue: 18446744073709551615
+  ulongOptional: 18446744073709551615
+  ulongValues:
+  - 4200000000
+  - 18446744073709551615
+  floatValue: 3.4028234e+38
+  floatOptional: 3.4028234e+38
+  floatValues:
+  - 1.25
+  - 3.4028234e+38
+  doubleValue: 1.7976931348623157e+308
+  doubleOptional: 1.7976931348623157e+308
+  doubleValues:
+  - 0.125
+  - 1.7976931348623157e+308
+  stringValue: '長い文章の見本です。横スクロールと詳細表示、改行を確認します。
+
+    漢字・ひらがな・カタカナ・英数字 ABC 123'
+  stringOptional: '長い文章の見本です。横スクロールと詳細表示、改行を確認します。
+
+    漢字・ひらがな・カタカナ・英数字 ABC 123'
+  stringValues:
+  - 日本語の文字列
+  - '長い文章の見本です。横スクロールと詳細表示、改行を確認します。
+
+    漢字・ひらがな・カタカナ・英数字 ABC 123'
+  itemCodeValue: dawnbringer
+  itemCodeOptional: dawnbringer
+  itemCodeValues:
+  - bronze-sword
+  - dawnbringer
+  playerIdValue: 2147483647
+  playerIdOptional: 2147483647
+  playerIdValues:
+  - 1
+  - 2147483647
+  textIdValue: 4294967295
+  textIdOptional: 4294967295
+  textIdValues:
+  - 1
+  - 4294967295
+  worldIdValue: 9223372036854775807
+  worldIdOptional: 9223372036854775807
+  worldIdValues:
+  - 100
+  - 9223372036854775807
+  sessionIdValue: 18446744073709551615
+  sessionIdOptional: 18446744073709551615
+  sessionIdValues:
+  - 1
+  - 18446744073709551615
+  rarityValue: Epic
+  rarityOptional: Epic
+  rarityValues:
+  - Common
+  - Epic
+  unsignedStateValue: Boundary
+  unsignedStateOptional: Boundary
+  unsignedStateValues:
+  - Ready
+  - Boundary
+  worldPhaseValue: Boundary
+  worldPhaseOptional: Boundary
+  worldPhaseValues:
+  - Ready
+  - Boundary
+  sessionStateValue: Boundary
+  sessionStateOptional: Boundary
+  sessionStateValues:
+  - Ready
+  - Boundary
+  itemTagsValue:
+  - Weapon
+  - Crafting
+  itemTagsOptional:
+  - Weapon
+  - Crafting
+  itemTagsValues:
+  - - Weapon
+  - - Weapon
+    - Crafting
+  characterFlagsValue:
+  - Active
+  - HighBit
+  characterFlagsOptional:
+  - Active
+  - HighBit
+  characterFlagsValues:
+  - - Active
+  - - Active
+    - HighBit
+  worldFlagsValue:
+  - Active
+  - HighBit
+  worldFlagsOptional:
+  - Active
+  - HighBit
+  worldFlagsValues:
+  - - Active
+  - - Active
+    - HighBit
+  sessionFlagsValue:
+  - Active
+  - HighBit
+  sessionFlagsOptional:
+  - Active
+  - HighBit
+  sessionFlagsValues:
+  - - Active
+  - - Active
+    - HighBit
+  combatStatsValue:
+    attack: 80
+    defense: 12
+    health: 40
+  combatStatsOptional:
+    attack: 80
+    defense: 12
+    health: 40
+  combatStatsValues:
+  - attack: 12
+    defense: 8
+    health: 50
+  - attack: 80
+    defense: 12
+    health: 40
+  rewardBundleValue:
+    description: null
+    bonus: null
+    entries: []
+    checkpoints: []
+  rewardBundleOptional:
+    description: null
+    bonus: null
+    entries: []
+    checkpoints: []
+  rewardBundleValues:
+  - description: ネストした報酬セット
+    bonus:
+      attack: 12
+      defense: 8
+      health: 50
+    entries:
+    - itemCode: frost-blade
+      amount: 2
+      effects:
+      - code: healing-potion
+        rarity: Rare
+        tags:
+        - Weapon
+        - Crafting
+        stats:
+          attack: 12
+          defense: 8
+          health: 50
+        coefficients:
+        - 0.5
+        - 1.25
+        - 2.0
+        labels:
+        - 攻撃補正
+        - 回復効果
+        range:
+          meters: 2.5
+      - code: bronze-sword
+        rarity: Common
+        tags:
+        - None
+        stats: null
+        coefficients: []
+        labels: []
+        range:
+          meters: 2.5
+    checkpoints:
+    - 100
+    - 200
+    - 300
+  - description: null
+    bonus: null
+    entries: []
+    checkpoints: []

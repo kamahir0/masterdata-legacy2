@@ -1,0 +1,14 @@
+kind: "type"
+name: "WorldFlags"
+flags:
+  underlying: "long"
+  members:
+    -
+      name: "None"
+      value: 0
+    -
+      name: "Active"
+      value: 1
+    -
+      name: "HighBit"
+      value: -9223372036854775808

@@ -1,0 +1,52 @@
+kind: "schema"
+table: "player"
+csharpName: "Player"
+fields:
+  -
+    key: 0
+    name: "id"
+    type: "PlayerId"
+  -
+    key: 1
+    name: "name"
+    type: "string"
+  -
+    key: 2
+    name: "level"
+    type: "int"
+  -
+    key: 3
+    name: "rarity"
+    type: "Rarity"
+  -
+    key: 4
+    name: "stats"
+    type: "CombatStats"
+  -
+    key: 5
+    name: "favoriteItemCode"
+    type: "ItemCode"
+    nullable: true
+  -
+    key: 6
+    name: "aliases"
+    type: "string"
+    array: true
+primaryKey:
+  fields:
+    - "id"
+secondaryKeys:
+  -
+    fields:
+      - "rarity"
+      - "level"
+    nonUnique: true
+references:
+  -
+    name: "favoriteItem"
+    fields:
+      - "favoriteItemCode"
+    target:
+      table: "item"
+      fields:
+        - "code"

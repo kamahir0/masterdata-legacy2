@@ -1,0 +1,35 @@
+kind: "type"
+name: "Effect"
+custom:
+  fields:
+    -
+      key: 0
+      name: "code"
+      type: "ItemCode"
+    -
+      key: 1
+      name: "rarity"
+      type: "Rarity"
+    -
+      key: 2
+      name: "tags"
+      type: "ItemTags"
+    -
+      key: 3
+      name: "stats"
+      type: "CombatStats"
+      nullable: true
+    -
+      key: 4
+      name: "coefficients"
+      type: "float"
+      array: true
+    -
+      key: 5
+      name: "labels"
+      type: "string"
+      array: true
+    -
+      key: 6
+      name: "range"
+      type: "Distance"

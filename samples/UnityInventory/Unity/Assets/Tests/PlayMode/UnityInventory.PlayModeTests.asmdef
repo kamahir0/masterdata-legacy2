@@ -2,6 +2,7 @@
   "name": "UnityInventory.PlayModeTests",
   "references": [
     "UnityInventory.Generated",
+    "Unity.TextMeshPro",
     "UnityInventory.Demo",
     "UnityEngine.UI",
     "MasterData.UnityRuntime"

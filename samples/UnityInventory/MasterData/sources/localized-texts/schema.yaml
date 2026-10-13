@@ -1,0 +1,29 @@
+kind: "schema"
+table: "localized-text"
+csharpName: "LocalizedText"
+fields:
+  -
+    key: 0
+    name: "textId"
+    type: "TextId"
+  -
+    key: 1
+    name: "language"
+    type: "Language"
+  -
+    key: 2
+    name: "text"
+    type: "string"
+primaryKey:
+  fields:
+    - "textId"
+    - "language"
+secondaryKeys:
+  -
+    fields:
+      - "language"
+      - "textId"
+  -
+    fields:
+      - "language"
+    nonUnique: true

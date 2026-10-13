@@ -1,0 +1,39 @@
+kind: "data"
+table: "localized-text"
+records:
+  -
+    textId: 1
+    language: "Japanese"
+    text: "銅の剣"
+    $tags:
+      - "common"
+  -
+    textId: 1
+    language: "English"
+    text: "Bronze Sword"
+    $tags:
+      - "common"
+  -
+    textId: 2
+    language: "Japanese"
+    text: "回復薬"
+    $tags:
+      - "common"
+  -
+    textId: 2
+    language: "English"
+    text: "Healing Potion"
+    $tags:
+      - "common"
+  -
+    textId: 3
+    language: "Japanese"
+    text: "夜明けの剣"
+    $tags:
+      - "common"
+  -
+    textId: 3
+    language: "English"
+    text: "Dawnbringer"
+    $tags:
+      - "common"

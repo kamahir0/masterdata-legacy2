@@ -1,0 +1,7 @@
+kind: "type"
+name: "TextId"
+valueObject:
+  underlying: "uint"
+  conversions:
+    fromUnderlyingImplicit: false
+    toUnderlyingImplicit: true

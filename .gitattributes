@@ -12,4 +12,6 @@ samples/UnityInventory/Unity/**/*.meta whitespace=-blank-at-eol
 samples/UnityInventory/Unity/**/*.asset whitespace=-blank-at-eol
 samples/UnityInventory/Unity/**/*.unity whitespace=-blank-at-eol
 "samples/UnityInventory/Unity/Assets/TextMesh Pro/**" whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+# Preserve the upstream font license verbatim.
+samples/UnityInventory/Unity/Assets/Fonts/OFL.txt whitespace=-blank-at-eol
 unity/Packages/com.kamahir0.masterdata/**/*.meta whitespace=-blank-at-eol

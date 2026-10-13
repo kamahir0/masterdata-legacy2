@@ -1,0 +1,14 @@
+kind: "type"
+name: "CharacterFlags"
+flags:
+  underlying: "int"
+  members:
+    -
+      name: "None"
+      value: 0
+    -
+      name: "Active"
+      value: 1
+    -
+      name: "HighBit"
+      value: -2147483648

@@ -142,7 +142,15 @@ fn unity_inventory_sample_artifacts_match_a_fresh_native_build() {
     let plan = BuildPlan::capture(project.path(), None).unwrap();
     assert_eq!(
         plan.row_counts(),
-        BTreeMap::from([("item".to_owned(), 6), ("quest".to_owned(), 3)])
+        BTreeMap::from([
+            ("announcement".to_owned(), 3),
+            ("item".to_owned(), 6),
+            ("localized-text".to_owned(), 6),
+            ("model-case".to_owned(), 3),
+            ("player".to_owned(), 128),
+            ("quest".to_owned(), 3),
+            ("reference-case".to_owned(), 3),
+        ])
     );
     let generated = sample.join("Unity/Assets/MasterData/Generated");
     let checked_in: BTreeMap<String, String> = fs::read_dir(generated)
@@ -166,6 +174,23 @@ fn unity_inventory_sample_artifacts_match_a_fresh_native_build() {
         fs::read(sample.join("Unity/Assets/StreamingAssets/masterdata.bytes")).unwrap(),
         "sample binary is stale; run prepare.py"
     );
+}
+
+#[test]
+fn unity_inventory_profiles_select_announcements_without_breaking_references() {
+    let project =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../samples/UnityInventory/MasterData");
+    let all = BuildPlan::capture(&project, None).unwrap();
+    for (profile, announcement_count) in [("production", 1), ("development", 2), ("event", 2)] {
+        let selected = BuildPlan::capture(&project, Some(profile)).unwrap();
+        let mut expected = all.row_counts().clone();
+        expected.insert("announcement".to_owned(), announcement_count);
+        assert_eq!(selected.row_counts(), expected, "profile: {profile}");
+        assert_eq!(selected.csharp(), all.csharp());
+    }
+    let empty = BuildPlan::capture(&project, Some("empty")).unwrap();
+    assert!(empty.row_counts().values().all(|count| *count == 0));
+    assert_eq!(empty.csharp(), all.csharp());
 }
 
 const MINIMAL_API: &str = r#"

@@ -1,0 +1,11 @@
+kind: "type"
+name: "WorldPhase"
+enum:
+  underlying: "long"
+  members:
+    -
+      name: "Ready"
+      value: 0
+    -
+      name: "Boundary"
+      value: -9223372036854775808

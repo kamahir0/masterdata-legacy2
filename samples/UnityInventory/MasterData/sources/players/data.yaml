@@ -1,0 +1,1839 @@
+kind: "data"
+table: "player"
+records:
+  -
+    id: 1
+    name: "冒険者001"
+    level: 1
+    rarity: "Common"
+    stats:
+      attack: 1
+      defense: 0
+      health: 101
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第1班"
+    $tags:
+      - "common"
+  -
+    id: 2
+    name: "冒険者002"
+    level: 2
+    rarity: "Rare"
+    stats:
+      attack: 2
+      defense: 1
+      health: 102
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第2班"
+    $tags:
+      - "common"
+  -
+    id: 3
+    name: "冒険者003"
+    level: 3
+    rarity: "Epic"
+    stats:
+      attack: 3
+      defense: 1
+      health: 103
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 4
+    name: "冒険者004"
+    level: 4
+    rarity: "Common"
+    stats:
+      attack: 4
+      defense: 2
+      health: 104
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第4班"
+    $tags:
+      - "common"
+  -
+    id: 5
+    name: "冒険者005"
+    level: 5
+    rarity: "Rare"
+    stats:
+      attack: 5
+      defense: 2
+      health: 105
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第5班"
+    $tags:
+      - "common"
+  -
+    id: 6
+    name: "冒険者006"
+    level: 6
+    rarity: "Epic"
+    stats:
+      attack: 6
+      defense: 3
+      health: 106
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 7
+    name: "冒険者007"
+    level: 7
+    rarity: "Common"
+    stats:
+      attack: 7
+      defense: 3
+      health: 107
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第7班"
+    $tags:
+      - "common"
+  -
+    id: 8
+    name: "冒険者008"
+    level: 8
+    rarity: "Rare"
+    stats:
+      attack: 8
+      defense: 4
+      health: 108
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第8班"
+    $tags:
+      - "common"
+  -
+    id: 9
+    name: "冒険者009"
+    level: 9
+    rarity: "Epic"
+    stats:
+      attack: 9
+      defense: 4
+      health: 109
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 10
+    name: "冒険者010"
+    level: 10
+    rarity: "Common"
+    stats:
+      attack: 10
+      defense: 5
+      health: 110
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第10班"
+    $tags:
+      - "common"
+  -
+    id: 11
+    name: "冒険者011"
+    level: 11
+    rarity: "Rare"
+    stats:
+      attack: 11
+      defense: 5
+      health: 111
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第11班"
+    $tags:
+      - "common"
+  -
+    id: 12
+    name: "冒険者012"
+    level: 12
+    rarity: "Epic"
+    stats:
+      attack: 12
+      defense: 6
+      health: 112
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 13
+    name: "冒険者013"
+    level: 13
+    rarity: "Common"
+    stats:
+      attack: 13
+      defense: 6
+      health: 113
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第13班"
+    $tags:
+      - "common"
+  -
+    id: 14
+    name: "冒険者014"
+    level: 14
+    rarity: "Rare"
+    stats:
+      attack: 14
+      defense: 7
+      health: 114
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第14班"
+    $tags:
+      - "common"
+  -
+    id: 15
+    name: "冒険者015"
+    level: 15
+    rarity: "Epic"
+    stats:
+      attack: 15
+      defense: 7
+      health: 115
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 16
+    name: "冒険者016"
+    level: 16
+    rarity: "Common"
+    stats:
+      attack: 16
+      defense: 8
+      health: 116
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第16班"
+    $tags:
+      - "common"
+  -
+    id: 17
+    name: "冒険者017"
+    level: 17
+    rarity: "Rare"
+    stats:
+      attack: 17
+      defense: 8
+      health: 117
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第17班"
+    $tags:
+      - "common"
+  -
+    id: 18
+    name: "冒険者018"
+    level: 18
+    rarity: "Epic"
+    stats:
+      attack: 18
+      defense: 9
+      health: 118
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 19
+    name: "冒険者019"
+    level: 19
+    rarity: "Common"
+    stats:
+      attack: 19
+      defense: 9
+      health: 119
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第19班"
+    $tags:
+      - "common"
+  -
+    id: 20
+    name: "冒険者020"
+    level: 20
+    rarity: "Rare"
+    stats:
+      attack: 20
+      defense: 10
+      health: 120
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第20班"
+    $tags:
+      - "common"
+  -
+    id: 21
+    name: "冒険者021"
+    level: 1
+    rarity: "Epic"
+    stats:
+      attack: 21
+      defense: 10
+      health: 121
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 22
+    name: "冒険者022"
+    level: 2
+    rarity: "Common"
+    stats:
+      attack: 22
+      defense: 11
+      health: 122
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第22班"
+    $tags:
+      - "common"
+  -
+    id: 23
+    name: "冒険者023"
+    level: 3
+    rarity: "Rare"
+    stats:
+      attack: 23
+      defense: 11
+      health: 123
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第23班"
+    $tags:
+      - "common"
+  -
+    id: 24
+    name: "冒険者024"
+    level: 4
+    rarity: "Epic"
+    stats:
+      attack: 24
+      defense: 12
+      health: 124
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 25
+    name: "冒険者025"
+    level: 5
+    rarity: "Common"
+    stats:
+      attack: 25
+      defense: 12
+      health: 125
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第25班"
+    $tags:
+      - "common"
+  -
+    id: 26
+    name: "冒険者026"
+    level: 6
+    rarity: "Rare"
+    stats:
+      attack: 26
+      defense: 13
+      health: 126
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第26班"
+    $tags:
+      - "common"
+  -
+    id: 27
+    name: "冒険者027"
+    level: 7
+    rarity: "Epic"
+    stats:
+      attack: 27
+      defense: 13
+      health: 127
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 28
+    name: "冒険者028"
+    level: 8
+    rarity: "Common"
+    stats:
+      attack: 28
+      defense: 14
+      health: 128
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第28班"
+    $tags:
+      - "common"
+  -
+    id: 29
+    name: "冒険者029"
+    level: 9
+    rarity: "Rare"
+    stats:
+      attack: 29
+      defense: 14
+      health: 129
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第29班"
+    $tags:
+      - "common"
+  -
+    id: 30
+    name: "冒険者030"
+    level: 10
+    rarity: "Epic"
+    stats:
+      attack: 30
+      defense: 15
+      health: 130
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 31
+    name: "冒険者031"
+    level: 11
+    rarity: "Common"
+    stats:
+      attack: 31
+      defense: 15
+      health: 131
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第31班"
+    $tags:
+      - "common"
+  -
+    id: 32
+    name: "冒険者032"
+    level: 12
+    rarity: "Rare"
+    stats:
+      attack: 32
+      defense: 16
+      health: 132
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第32班"
+    $tags:
+      - "common"
+  -
+    id: 33
+    name: "冒険者033"
+    level: 13
+    rarity: "Epic"
+    stats:
+      attack: 33
+      defense: 16
+      health: 133
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 34
+    name: "冒険者034"
+    level: 14
+    rarity: "Common"
+    stats:
+      attack: 34
+      defense: 17
+      health: 134
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第34班"
+    $tags:
+      - "common"
+  -
+    id: 35
+    name: "冒険者035"
+    level: 15
+    rarity: "Rare"
+    stats:
+      attack: 35
+      defense: 17
+      health: 135
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第35班"
+    $tags:
+      - "common"
+  -
+    id: 36
+    name: "冒険者036"
+    level: 16
+    rarity: "Epic"
+    stats:
+      attack: 36
+      defense: 18
+      health: 136
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 37
+    name: "冒険者037"
+    level: 17
+    rarity: "Common"
+    stats:
+      attack: 37
+      defense: 18
+      health: 137
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第37班"
+    $tags:
+      - "common"
+  -
+    id: 38
+    name: "冒険者038"
+    level: 18
+    rarity: "Rare"
+    stats:
+      attack: 38
+      defense: 19
+      health: 138
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第38班"
+    $tags:
+      - "common"
+  -
+    id: 39
+    name: "冒険者039"
+    level: 19
+    rarity: "Epic"
+    stats:
+      attack: 39
+      defense: 19
+      health: 139
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 40
+    name: "冒険者040"
+    level: 20
+    rarity: "Common"
+    stats:
+      attack: 40
+      defense: 20
+      health: 140
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第40班"
+    $tags:
+      - "common"
+  -
+    id: 41
+    name: "冒険者041"
+    level: 1
+    rarity: "Rare"
+    stats:
+      attack: 41
+      defense: 20
+      health: 141
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第41班"
+    $tags:
+      - "common"
+  -
+    id: 42
+    name: "冒険者042"
+    level: 2
+    rarity: "Epic"
+    stats:
+      attack: 42
+      defense: 21
+      health: 142
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 43
+    name: "冒険者043"
+    level: 3
+    rarity: "Common"
+    stats:
+      attack: 43
+      defense: 21
+      health: 143
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第43班"
+    $tags:
+      - "common"
+  -
+    id: 44
+    name: "冒険者044"
+    level: 4
+    rarity: "Rare"
+    stats:
+      attack: 44
+      defense: 22
+      health: 144
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第44班"
+    $tags:
+      - "common"
+  -
+    id: 45
+    name: "冒険者045"
+    level: 5
+    rarity: "Epic"
+    stats:
+      attack: 45
+      defense: 22
+      health: 145
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 46
+    name: "冒険者046"
+    level: 6
+    rarity: "Common"
+    stats:
+      attack: 46
+      defense: 23
+      health: 146
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第46班"
+    $tags:
+      - "common"
+  -
+    id: 47
+    name: "冒険者047"
+    level: 7
+    rarity: "Rare"
+    stats:
+      attack: 47
+      defense: 23
+      health: 147
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第47班"
+    $tags:
+      - "common"
+  -
+    id: 48
+    name: "冒険者048"
+    level: 8
+    rarity: "Epic"
+    stats:
+      attack: 48
+      defense: 24
+      health: 148
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 49
+    name: "冒険者049"
+    level: 9
+    rarity: "Common"
+    stats:
+      attack: 49
+      defense: 24
+      health: 149
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第49班"
+    $tags:
+      - "common"
+  -
+    id: 50
+    name: "冒険者050"
+    level: 10
+    rarity: "Rare"
+    stats:
+      attack: 50
+      defense: 25
+      health: 150
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第50班"
+    $tags:
+      - "common"
+  -
+    id: 51
+    name: "冒険者051"
+    level: 11
+    rarity: "Epic"
+    stats:
+      attack: 51
+      defense: 25
+      health: 151
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 52
+    name: "冒険者052"
+    level: 12
+    rarity: "Common"
+    stats:
+      attack: 52
+      defense: 26
+      health: 152
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第52班"
+    $tags:
+      - "common"
+  -
+    id: 53
+    name: "冒険者053"
+    level: 13
+    rarity: "Rare"
+    stats:
+      attack: 53
+      defense: 26
+      health: 153
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第53班"
+    $tags:
+      - "common"
+  -
+    id: 54
+    name: "冒険者054"
+    level: 14
+    rarity: "Epic"
+    stats:
+      attack: 54
+      defense: 27
+      health: 154
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 55
+    name: "冒険者055"
+    level: 15
+    rarity: "Common"
+    stats:
+      attack: 55
+      defense: 27
+      health: 155
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第55班"
+    $tags:
+      - "common"
+  -
+    id: 56
+    name: "冒険者056"
+    level: 16
+    rarity: "Rare"
+    stats:
+      attack: 56
+      defense: 28
+      health: 156
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第56班"
+    $tags:
+      - "common"
+  -
+    id: 57
+    name: "冒険者057"
+    level: 17
+    rarity: "Epic"
+    stats:
+      attack: 57
+      defense: 28
+      health: 157
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 58
+    name: "冒険者058"
+    level: 18
+    rarity: "Common"
+    stats:
+      attack: 58
+      defense: 29
+      health: 158
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第58班"
+    $tags:
+      - "common"
+  -
+    id: 59
+    name: "冒険者059"
+    level: 19
+    rarity: "Rare"
+    stats:
+      attack: 59
+      defense: 29
+      health: 159
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第59班"
+    $tags:
+      - "common"
+  -
+    id: 60
+    name: "冒険者060"
+    level: 20
+    rarity: "Epic"
+    stats:
+      attack: 60
+      defense: 30
+      health: 160
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 61
+    name: "冒険者061"
+    level: 1
+    rarity: "Common"
+    stats:
+      attack: 61
+      defense: 30
+      health: 161
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第61班"
+    $tags:
+      - "common"
+  -
+    id: 62
+    name: "冒険者062"
+    level: 2
+    rarity: "Rare"
+    stats:
+      attack: 62
+      defense: 31
+      health: 162
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第62班"
+    $tags:
+      - "common"
+  -
+    id: 63
+    name: "冒険者063"
+    level: 3
+    rarity: "Epic"
+    stats:
+      attack: 63
+      defense: 31
+      health: 163
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 64
+    name: "冒険者064"
+    level: 4
+    rarity: "Common"
+    stats:
+      attack: 64
+      defense: 32
+      health: 164
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第64班"
+    $tags:
+      - "common"
+  -
+    id: 65
+    name: "冒険者065"
+    level: 5
+    rarity: "Rare"
+    stats:
+      attack: 65
+      defense: 32
+      health: 165
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第65班"
+    $tags:
+      - "common"
+  -
+    id: 66
+    name: "冒険者066"
+    level: 6
+    rarity: "Epic"
+    stats:
+      attack: 66
+      defense: 33
+      health: 166
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 67
+    name: "冒険者067"
+    level: 7
+    rarity: "Common"
+    stats:
+      attack: 67
+      defense: 33
+      health: 167
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第67班"
+    $tags:
+      - "common"
+  -
+    id: 68
+    name: "冒険者068"
+    level: 8
+    rarity: "Rare"
+    stats:
+      attack: 68
+      defense: 34
+      health: 168
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第68班"
+    $tags:
+      - "common"
+  -
+    id: 69
+    name: "冒険者069"
+    level: 9
+    rarity: "Epic"
+    stats:
+      attack: 69
+      defense: 34
+      health: 169
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 70
+    name: "冒険者070"
+    level: 10
+    rarity: "Common"
+    stats:
+      attack: 70
+      defense: 35
+      health: 170
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第70班"
+    $tags:
+      - "common"
+  -
+    id: 71
+    name: "冒険者071"
+    level: 11
+    rarity: "Rare"
+    stats:
+      attack: 71
+      defense: 35
+      health: 171
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第71班"
+    $tags:
+      - "common"
+  -
+    id: 72
+    name: "冒険者072"
+    level: 12
+    rarity: "Epic"
+    stats:
+      attack: 72
+      defense: 36
+      health: 172
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 73
+    name: "冒険者073"
+    level: 13
+    rarity: "Common"
+    stats:
+      attack: 73
+      defense: 36
+      health: 173
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第73班"
+    $tags:
+      - "common"
+  -
+    id: 74
+    name: "冒険者074"
+    level: 14
+    rarity: "Rare"
+    stats:
+      attack: 74
+      defense: 37
+      health: 174
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第74班"
+    $tags:
+      - "common"
+  -
+    id: 75
+    name: "冒険者075"
+    level: 15
+    rarity: "Epic"
+    stats:
+      attack: 75
+      defense: 37
+      health: 175
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 76
+    name: "冒険者076"
+    level: 16
+    rarity: "Common"
+    stats:
+      attack: 76
+      defense: 38
+      health: 176
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第76班"
+    $tags:
+      - "common"
+  -
+    id: 77
+    name: "冒険者077"
+    level: 17
+    rarity: "Rare"
+    stats:
+      attack: 77
+      defense: 38
+      health: 177
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第77班"
+    $tags:
+      - "common"
+  -
+    id: 78
+    name: "冒険者078"
+    level: 18
+    rarity: "Epic"
+    stats:
+      attack: 78
+      defense: 39
+      health: 178
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 79
+    name: "冒険者079"
+    level: 19
+    rarity: "Common"
+    stats:
+      attack: 79
+      defense: 39
+      health: 179
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第79班"
+    $tags:
+      - "common"
+  -
+    id: 80
+    name: "冒険者080"
+    level: 20
+    rarity: "Rare"
+    stats:
+      attack: 80
+      defense: 40
+      health: 180
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第80班"
+    $tags:
+      - "common"
+  -
+    id: 81
+    name: "冒険者081"
+    level: 1
+    rarity: "Epic"
+    stats:
+      attack: 81
+      defense: 40
+      health: 181
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 82
+    name: "冒険者082"
+    level: 2
+    rarity: "Common"
+    stats:
+      attack: 82
+      defense: 41
+      health: 182
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第82班"
+    $tags:
+      - "common"
+  -
+    id: 83
+    name: "冒険者083"
+    level: 3
+    rarity: "Rare"
+    stats:
+      attack: 83
+      defense: 41
+      health: 183
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第83班"
+    $tags:
+      - "common"
+  -
+    id: 84
+    name: "冒険者084"
+    level: 4
+    rarity: "Epic"
+    stats:
+      attack: 84
+      defense: 42
+      health: 184
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 85
+    name: "冒険者085"
+    level: 5
+    rarity: "Common"
+    stats:
+      attack: 85
+      defense: 42
+      health: 185
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第85班"
+    $tags:
+      - "common"
+  -
+    id: 86
+    name: "冒険者086"
+    level: 6
+    rarity: "Rare"
+    stats:
+      attack: 86
+      defense: 43
+      health: 186
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第86班"
+    $tags:
+      - "common"
+  -
+    id: 87
+    name: "冒険者087"
+    level: 7
+    rarity: "Epic"
+    stats:
+      attack: 87
+      defense: 43
+      health: 187
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 88
+    name: "冒険者088"
+    level: 8
+    rarity: "Common"
+    stats:
+      attack: 88
+      defense: 44
+      health: 188
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第88班"
+    $tags:
+      - "common"
+  -
+    id: 89
+    name: "冒険者089"
+    level: 9
+    rarity: "Rare"
+    stats:
+      attack: 89
+      defense: 44
+      health: 189
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第89班"
+    $tags:
+      - "common"
+  -
+    id: 90
+    name: "冒険者090"
+    level: 10
+    rarity: "Epic"
+    stats:
+      attack: 90
+      defense: 45
+      health: 190
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 91
+    name: "冒険者091"
+    level: 11
+    rarity: "Common"
+    stats:
+      attack: 91
+      defense: 45
+      health: 191
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第91班"
+    $tags:
+      - "common"
+  -
+    id: 92
+    name: "冒険者092"
+    level: 12
+    rarity: "Rare"
+    stats:
+      attack: 92
+      defense: 46
+      health: 192
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第92班"
+    $tags:
+      - "common"
+  -
+    id: 93
+    name: "冒険者093"
+    level: 13
+    rarity: "Epic"
+    stats:
+      attack: 93
+      defense: 46
+      health: 193
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 94
+    name: "冒険者094"
+    level: 14
+    rarity: "Common"
+    stats:
+      attack: 94
+      defense: 47
+      health: 194
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第94班"
+    $tags:
+      - "common"
+  -
+    id: 95
+    name: "冒険者095"
+    level: 15
+    rarity: "Rare"
+    stats:
+      attack: 95
+      defense: 47
+      health: 195
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第95班"
+    $tags:
+      - "common"
+  -
+    id: 96
+    name: "冒険者096"
+    level: 16
+    rarity: "Epic"
+    stats:
+      attack: 96
+      defense: 48
+      health: 196
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 97
+    name: "冒険者097"
+    level: 17
+    rarity: "Common"
+    stats:
+      attack: 97
+      defense: 48
+      health: 197
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第97班"
+    $tags:
+      - "common"
+  -
+    id: 98
+    name: "冒険者098"
+    level: 18
+    rarity: "Rare"
+    stats:
+      attack: 98
+      defense: 49
+      health: 198
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第98班"
+    $tags:
+      - "common"
+  -
+    id: 99
+    name: "冒険者099"
+    level: 19
+    rarity: "Epic"
+    stats:
+      attack: 99
+      defense: 49
+      health: 199
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 100
+    name: "冒険者100"
+    level: 20
+    rarity: "Common"
+    stats:
+      attack: 100
+      defense: 50
+      health: 200
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第100班"
+    $tags:
+      - "common"
+  -
+    id: 101
+    name: "冒険者101"
+    level: 1
+    rarity: "Rare"
+    stats:
+      attack: 101
+      defense: 50
+      health: 201
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第101班"
+    $tags:
+      - "common"
+  -
+    id: 102
+    name: "冒険者102"
+    level: 2
+    rarity: "Epic"
+    stats:
+      attack: 102
+      defense: 51
+      health: 202
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 103
+    name: "冒険者103"
+    level: 3
+    rarity: "Common"
+    stats:
+      attack: 103
+      defense: 51
+      health: 203
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第103班"
+    $tags:
+      - "common"
+  -
+    id: 104
+    name: "冒険者104"
+    level: 4
+    rarity: "Rare"
+    stats:
+      attack: 104
+      defense: 52
+      health: 204
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第104班"
+    $tags:
+      - "common"
+  -
+    id: 105
+    name: "冒険者105"
+    level: 5
+    rarity: "Epic"
+    stats:
+      attack: 105
+      defense: 52
+      health: 205
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 106
+    name: "冒険者106"
+    level: 6
+    rarity: "Common"
+    stats:
+      attack: 106
+      defense: 53
+      health: 206
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第106班"
+    $tags:
+      - "common"
+  -
+    id: 107
+    name: "冒険者107"
+    level: 7
+    rarity: "Rare"
+    stats:
+      attack: 107
+      defense: 53
+      health: 207
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第107班"
+    $tags:
+      - "common"
+  -
+    id: 108
+    name: "冒険者108"
+    level: 8
+    rarity: "Epic"
+    stats:
+      attack: 108
+      defense: 54
+      health: 208
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 109
+    name: "冒険者109"
+    level: 9
+    rarity: "Common"
+    stats:
+      attack: 109
+      defense: 54
+      health: 209
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第109班"
+    $tags:
+      - "common"
+  -
+    id: 110
+    name: "冒険者110"
+    level: 10
+    rarity: "Rare"
+    stats:
+      attack: 110
+      defense: 55
+      health: 210
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第110班"
+    $tags:
+      - "common"
+  -
+    id: 111
+    name: "冒険者111"
+    level: 11
+    rarity: "Epic"
+    stats:
+      attack: 111
+      defense: 55
+      health: 211
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 112
+    name: "冒険者112"
+    level: 12
+    rarity: "Common"
+    stats:
+      attack: 112
+      defense: 56
+      health: 212
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第112班"
+    $tags:
+      - "common"
+  -
+    id: 113
+    name: "冒険者113"
+    level: 13
+    rarity: "Rare"
+    stats:
+      attack: 113
+      defense: 56
+      health: 213
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第113班"
+    $tags:
+      - "common"
+  -
+    id: 114
+    name: "冒険者114"
+    level: 14
+    rarity: "Epic"
+    stats:
+      attack: 114
+      defense: 57
+      health: 214
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 115
+    name: "冒険者115"
+    level: 15
+    rarity: "Common"
+    stats:
+      attack: 115
+      defense: 57
+      health: 215
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第115班"
+    $tags:
+      - "common"
+  -
+    id: 116
+    name: "冒険者116"
+    level: 16
+    rarity: "Rare"
+    stats:
+      attack: 116
+      defense: 58
+      health: 216
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第116班"
+    $tags:
+      - "common"
+  -
+    id: 117
+    name: "冒険者117"
+    level: 17
+    rarity: "Epic"
+    stats:
+      attack: 117
+      defense: 58
+      health: 217
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 118
+    name: "冒険者118"
+    level: 18
+    rarity: "Common"
+    stats:
+      attack: 118
+      defense: 59
+      health: 218
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第118班"
+    $tags:
+      - "common"
+  -
+    id: 119
+    name: "冒険者119"
+    level: 19
+    rarity: "Rare"
+    stats:
+      attack: 119
+      defense: 59
+      health: 219
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第119班"
+    $tags:
+      - "common"
+  -
+    id: 120
+    name: "冒険者120"
+    level: 20
+    rarity: "Epic"
+    stats:
+      attack: 120
+      defense: 60
+      health: 220
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 121
+    name: "冒険者121"
+    level: 1
+    rarity: "Common"
+    stats:
+      attack: 121
+      defense: 60
+      health: 221
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第121班"
+    $tags:
+      - "common"
+  -
+    id: 122
+    name: "冒険者122"
+    level: 2
+    rarity: "Rare"
+    stats:
+      attack: 122
+      defense: 61
+      health: 222
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第122班"
+    $tags:
+      - "common"
+  -
+    id: 123
+    name: "冒険者123"
+    level: 3
+    rarity: "Epic"
+    stats:
+      attack: 123
+      defense: 61
+      health: 223
+    favoriteItemCode: "bronze-sword"
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 124
+    name: "冒険者124"
+    level: 4
+    rarity: "Common"
+    stats:
+      attack: 124
+      defense: 62
+      health: 224
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第124班"
+    $tags:
+      - "common"
+  -
+    id: 125
+    name: "冒険者125"
+    level: 5
+    rarity: "Rare"
+    stats:
+      attack: 125
+      defense: 62
+      health: 225
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第125班"
+    $tags:
+      - "common"
+  -
+    id: 126
+    name: "冒険者126"
+    level: 6
+    rarity: "Epic"
+    stats:
+      attack: 126
+      defense: 63
+      health: 226
+    favoriteItemCode: null
+    aliases: []
+    $tags:
+      - "common"
+  -
+    id: 127
+    name: "冒険者127"
+    level: 7
+    rarity: "Common"
+    stats:
+      attack: 127
+      defense: 63
+      health: 227
+    favoriteItemCode: "bronze-sword"
+    aliases:
+      - "探索者"
+      - "第127班"
+    $tags:
+      - "common"
+  -
+    id: 128
+    name: "冒険者128"
+    level: 8
+    rarity: "Rare"
+    stats:
+      attack: 128
+      defense: 64
+      health: 228
+    favoriteItemCode: null
+    aliases:
+      - "探索者"
+      - "第128班"
+    $tags:
+      - "common"

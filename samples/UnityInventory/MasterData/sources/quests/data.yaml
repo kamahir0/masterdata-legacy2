@@ -1,18 +1,21 @@
 kind: data
 table: quest
 records:
-  - id: 1
-    name: A Helping Hand
+  - $tags: [common]
+    id: 1
+    name: 助け合い
     recommendedLevel: 1
     rewardItemId: 1003
     rewardAmount: 3
-  - id: 2
-    name: The Frozen Pass
+  - $tags: [common]
+    id: 2
+    name: 凍てつく峠
     recommendedLevel: 10
     rewardItemId: 2001
     rewardAmount: 1
-  - id: 3
-    name: The Last Watch
+  - $tags: [common]
+    id: 3
+    name: 最後の見張り
     recommendedLevel: 25
     rewardItemId: 3001
     rewardAmount: 1

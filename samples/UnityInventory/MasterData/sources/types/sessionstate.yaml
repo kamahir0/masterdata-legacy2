@@ -1,0 +1,11 @@
+kind: "type"
+name: "SessionState"
+enum:
+  underlying: "ulong"
+  members:
+    -
+      name: "Ready"
+      value: 0
+    -
+      name: "Boundary"
+      value: 18446744073709551615

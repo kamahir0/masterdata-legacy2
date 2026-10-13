@@ -1,0 +1,7 @@
+kind: type
+name: Distance
+custom:
+  fields:
+    - key: 0
+      name: meters
+      type: float

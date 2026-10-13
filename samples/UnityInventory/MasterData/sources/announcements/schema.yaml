@@ -1,0 +1,19 @@
+kind: "schema"
+table: "announcement"
+csharpName: "Announcement"
+fields:
+  -
+    key: 0
+    name: "id"
+    type: "int"
+  -
+    key: 1
+    name: "title"
+    type: "string"
+  -
+    key: 2
+    name: "message"
+    type: "string"
+primaryKey:
+  fields:
+    - "id"

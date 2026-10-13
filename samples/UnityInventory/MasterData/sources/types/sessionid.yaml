@@ -1,0 +1,7 @@
+kind: "type"
+name: "SessionId"
+valueObject:
+  underlying: "ulong"
+  conversions:
+    fromUnderlyingImplicit: false
+    toUnderlyingImplicit: false

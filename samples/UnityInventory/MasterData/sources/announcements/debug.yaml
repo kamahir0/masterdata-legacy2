@@ -1,0 +1,9 @@
+kind: "data"
+table: "announcement"
+records:
+  -
+    id: 2
+    title: "開発用のお知らせ"
+    message: "productionでは除外されます。"
+    $tags:
+      - "debug"
