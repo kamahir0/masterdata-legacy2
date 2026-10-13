@@ -16,15 +16,25 @@ record data YAMLを選択した場合、中央は[Data Editor](data-editor/spec.
 
 validation diagnosticsはData Editorが定義する下部`Problems` panelへ表示できなければならず（MUST）、unsaved candidate / Conflict / Migrationのcompareへ必要文脈から到達できなければならない（MUST）。常設right inspectorを初期sliceの必須要件にはしない。
 
+開閉buttonは左ペイン上端の近くに置き、閉じた状態でも同じ側から開ける。
+
 ### GUI-SHELL-LAYOUT-002
 
 Save、Validate、Build、Project Reload等の主要commandは、現在のselectionやcapabilityに応じて到達可能なcommand surfaceから実行できなければならない（MUST）。exact button placement、icon、spacing、themeはnormative contractとして固定しない。 window上部はcompactなsingle-row command surfaceとし、macOSではnative titlebarと統合してnative window controlsとheader controlsを重ねない。window drag / maximize、Project identity、commandとdirty / operation status、keyboard到達を維持する。 正常なSaved / Valid等を各editorで常時同じ視覚的強度のcommandとして表示せず、編集対象を主要な視覚領域にしなければならない（MUST）。failure / Conflict / Recovery Requiredは対象とrecovery actionを識別可能にする。
+
+headerの空白・製品名・project名からwindowをdragでき、button操作はdragへ流さない。
 
 ### GUI-SHELL-NAV-001
 
 Projectが開いている間、DesktopはProject名とcurrent selectionを識別可能にしなければならない（MUST）。左ペインの常設navigationはconfigured source rootとそのfile / folder hierarchyだけで構成し、Table / Type / Project areaの並列groupを置いてはならない（MUST NOT）。metadataがinvalid / unavailableなfileもsource treeから失ってはならない（MUST NOT）。
 
 Project Settings / Delivery / Build等のProject areaは上部Project command surfaceから、Tableのsource構成 / Build inclusionは関連Table / Build文脈から理解できなければならない（MUST）。Build、Validate、Project Reload、Saveへの到達を失ってはならない（MUST NOT）。file / area間の移動だけでdirty bufferを保存・破棄・確認してはならない（MUST NOT）。navigationとcommandはkeyboardで到達・実行でき、選択対象と展開状態をassistive technologyから識別できなければならない（MUST）。
+
+### GUI-SHELL-INPUT-001
+
+一時的な単項目入力はEnter / Tab / outside clickで確定し、Escapeで未確定入力を取消す。空の新規入力または必須name/pathを空にした入力は元stateへ戻す。既存stringの空文字への変更は値編集として扱う。IME確定key / composition中にsubmitせず、outside clickの確定でクリック先focus / 最新navigationを奪わない。validation failureでは入力とdiagnosticを保持し、pending時は最新validationを待って二重submitを防ぐ。
+
+複数項目form内のfocus移動はsubmitではない。Settings、Project / Advanced creation、Move、destructive操作、値に影響するMigrationの明示確認は対応ownerを維持する。inline入力の確定をdisk Saveへ結合しない。
 
 ## Presentation quality
 

@@ -9,10 +9,10 @@ function findButton(label:string) {return [...document.querySelectorAll<HTMLButt
 function button(label:string) {const value=findButton(label);assert(value,`missing button ${label}`);return value;}
 function input() {const value=document.querySelector<HTMLInputElement>("input[aria-label=\"移動後のソースファイル名\"]");assert(value,"Move filename missing");return value;}
 function text(value:string) {const field=input();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(field,value);field.dispatchEvent(new Event('input',{bubbles:true}));}
-async function begin(choice?:string) {
-  button("ソースの操作").click();
-  await until(()=>[...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].some(item=>item.textContent==="ソースの名前変更・移動"),"Source menu missing");
-  [...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].find(item=>item.textContent==="ソースの名前変更・移動")!.click();
+async function begin(choice?:string,source=desktop.surface.target) {
+  button(`${source.split("/").at(-1)} の操作`).click();
+  await until(()=>[...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].some(item=>item.textContent==="名前変更・移動…"),"Source menu missing");
+  [...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].find(item=>item.textContent==="名前変更・移動…")!.click();
   if(choice) {
     await until(()=>!!desktop.surface.choice&&!!findButton(choice),"rendered scoped guard missing");
     button(choice).click();
@@ -38,6 +38,13 @@ export async function run({startup}:{startup:Record<string,unknown>}) {
     await desktop.rpc({kind:'schema',source:SCHEMA,revision:p.schemaRevision,generation:p.generation,field:'name',nullable:true,array:false,typeName:'string'});
     await desktop.selectTarget(SOURCE,'path-setup',false);
     const gridTop=desktop.viewport!.getBoundingClientRect().top;
+    await desktop.selectTarget(SCHEMA,'path-other-editor',false);
+    await begin(undefined,SOURCE);
+    assert(document.querySelector('.source-path-origin')?.textContent===SOURCE,"file menu followed the editor selection instead of its own path");
+    button("キャンセル").click();await until(()=>!document.querySelector('input[aria-label="移動後のソースファイル名"]'),"fixed-target menu Cancel did not close");
+    await desktop.selectTarget(SOURCE,'path-return',false);
+    checks.push('file-menu-target-independent-of-editor');
+
     await begin();text('cancelled.yaml');
     input().dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',isComposing:true,bubbles:true}));await frame();
     assert(desktop.surface.target===SOURCE,"composition Enter moved source");

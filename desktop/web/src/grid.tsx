@@ -678,7 +678,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
     return ()=>viewport?.removeEventListener('scroll',position);
   }, []);
   const commit = useCallback(() => {
-    if (cancelled.current) return Promise.resolve(true);
+    if (cancelled.current || desktop.interaction.editor!==editor) return Promise.resolve(true);
     if (composing.current) return Promise.resolve(false);
     if (committing.current) return committing.current;
     committing.current = desktop.edit(editor, value.current).finally(() => {
@@ -698,6 +698,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
     return unbind;
   }, [commit, cancel]);
   const shape = desktop.surface.projection?.columns[editor.column]?.shape;
+  const nullBoolean=editor.isNull&&shape&&!shape.array&&(shape.typeName==="bool"||shape.underlying==="bool");
   const boolean = shape && !shape.array && (shape.typeName === "bool" || shape.underlying === "bool") && ["true", "false"].includes(text);
   return (
     <div
@@ -705,6 +706,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
       className={`active-cell-editor${shape?.nullable ? " nullable-editor" : ""}`}
       aria-hidden={pending}
       inert={pending}
+      onBlurCapture={e=>{if(!desktop.surface.externalPending&&!e.relatedTarget?.closest('.active-cell-editor'))void commit();}}
       style={{
         visibility: pending ? "hidden" : undefined,
         top: GRID.header + editor.rowIndex * GRID.row,
@@ -713,7 +715,9 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
         height: GRID.row,
       }}
     >
-      {boolean ? <span onKeyDown={e => { if(e.key === "Escape") {e.preventDefault();e.stopPropagation();cancel();desktop.viewport?.focus();} }}><Switch autoFocus aria-label={`${editor.field} 行 ${editor.rowIndex + 1}`} checked={text === "true"} checkedChildren="true" unCheckedChildren="false"
+      {nullBoolean ? <div className="null-bool-editor" role="group" aria-label={`${editor.field} 行 ${editor.rowIndex+1}`} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();cancel();desktop.viewport?.focus();}}}>
+        {["true","false"].map((choice,index)=><Button key={choice} autoFocus={index===0} onPointerDown={e=>{e.stopPropagation();e.preventDefault();}} aria-label={`${editor.field} 行 ${editor.rowIndex+1} を${choice}にする`} disabled={desktop.surface.busy} onClick={()=>{value.current=choice;setText(choice);void commit();}}>{choice}</Button>)}
+      </div> : boolean ? <span onKeyDown={e => { if(e.key === "Escape") {e.preventDefault();e.stopPropagation();cancel();desktop.viewport?.focus();} }}><Switch autoFocus aria-label={`${editor.field} 行 ${editor.rowIndex + 1}`} checked={text === "true"} checkedChildren="true" unCheckedChildren="false"
         onChange={checked => { value.current = checked ? "true" : "false"; setText(value.current); void commit().then(ok => {if(ok)desktop.viewport?.focus({preventScroll:true});}); }}
         /></span> : <Input
         ref={input}
@@ -729,7 +733,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
         onCompositionEnd={() => {
           composing.current = false;
         }}
-        onBlur={() => { if (!desktop.surface.externalPending) void commit(); }}
+        onBlur={e => { if (!desktop.surface.externalPending&&!e.relatedTarget?.closest('.active-cell-editor')) void commit(); }}
         onKeyDown={(e) => {
           if (
             (e.metaKey || e.ctrlKey) &&
@@ -768,6 +772,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
           }
         }}
       />}
+      {editor.isNull&&(shape?.typeName==="string"||shape?.underlying==="string")&&<button className="explicit-empty" aria-label="空文字にする" title="空文字にする" onPointerDown={e=>e.preventDefault()} onClick={()=>void desktop.edit(editor,"",true)}>""</button>}
     </div>
   );
 }
@@ -775,10 +780,10 @@ function HeaderName({field,active,editing,busy,change}:{field:Field;active:boole
   const input=useRef<InputRef>(null), text=useRef(field.name), origin=useRef<Projection|null>(null), running=useRef<Promise<boolean>|null>(null), composing=useRef(false);
   const [value,setValue]=useState(field.name),[reason,setReason]=useState<string|null>(null);
   const cancel=useCallback(()=>{text.current=field.name;setValue(field.name);setReason(null);void change(null);},[field.name,change]);
-  const commit=useCallback(():Promise<boolean>=>{
+  const commit=useCallback((restore=true):Promise<boolean>=>{
     if(composing.current)return Promise.resolve(false);
     if(running.current) return running.current;
-    if(text.current===field.name){void change(null);return Promise.resolve(true);}
+    if(!text.current.trim()||text.current===field.name){void change(null);return Promise.resolve(true);}
     const previous=origin.current,current=desktop.surface.projection;
     if(!previous || !current || current.clicked!==previous.clicked || current.sessionEpoch!==previous.sessionEpoch)return Promise.resolve(false);
     const expected=current;
@@ -789,11 +794,11 @@ function HeaderName({field,active,editing,busy,change}:{field:Field;active:boole
         if(!review)return false;
         void change(null);
         const name=review.command.newName;
-        if(name && desktop.surface.target===expected.clicked && intent===desktop.inputIntent) requestAnimationFrame(()=>{if(desktop.surface.target===expected.clicked && intent===desktop.inputIntent)desktop.viewport?.querySelector<HTMLButtonElement>(`.column[data-field="${CSS.escape(name)}"] .field-name-button`)?.focus();});
+        if(restore && name && desktop.surface.target===expected.clicked && intent===desktop.inputIntent) requestAnimationFrame(()=>{if(desktop.surface.target===expected.clicked && intent===desktop.inputIntent)desktop.viewport?.querySelector<HTMLButtonElement>(`.column[data-field="${CSS.escape(name)}"] .field-name-button`)?.focus();});
         return true;
       } catch(e) {
         setReason(typeof e==="object" && e && "message" in e ? String(e.message) : String(e));
-        if(desktop.surface.target===expected.clicked && intent===desktop.inputIntent)requestAnimationFrame(()=>{if(desktop.surface.target===expected.clicked && intent===desktop.inputIntent)input.current?.focus({preventScroll:true});});
+        if(restore && desktop.surface.target===expected.clicked && intent===desktop.inputIntent)requestAnimationFrame(()=>{if(desktop.surface.target===expected.clicked && intent===desktop.inputIntent)input.current?.focus({preventScroll:true});});
         return false;
       }
       finally {running.current=null;}
@@ -807,7 +812,7 @@ function HeaderName({field,active,editing,busy,change}:{field:Field;active:boole
   },[editing,field.name]);
   useEffect(()=>{
     if(!editing)return;
-    return desktop.bindEditor(commit,()=>{
+    return desktop.bindEditor(()=>commit(false),()=>{
       const p=origin.current;
       return p ? {source:p.table.source,revision:p.schemaRevision,generation:p.generation,label:`${field.name} 名前`,text:text.current,dirty:text.current!==field.name,cancel} : null;
     });
@@ -815,7 +820,7 @@ function HeaderName({field,active,editing,busy,change}:{field:Field;active:boole
   // Keep the Input and suffix DOM stable during pending/error feedback: replacing
   // Ant's affix structure or disabling the input loses the user's keyboard focus.
   return <span className="field-name" title={field.name}>
-    {editing ? <Tooltip title={uiMessage(reason)}><Input ref={input} aria-label={`名前を変更: ${field.name}`} aria-invalid={!!reason} aria-busy={busy} status={reason ? "error" : undefined} value={value} readOnly={busy} suffix={<span>{reason && <WarningOutlined aria-hidden="true"/>}</span>} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} onChange={e=>{text.current=e.target.value;setValue(e.target.value);setReason(null);}} onKeyDown={e=>{
+    {editing ? <Tooltip title={uiMessage(reason)}><Input ref={input} aria-label={`名前を変更: ${field.name}`} aria-invalid={!!reason} aria-busy={busy} status={reason ? "error" : undefined} value={value} readOnly={busy} suffix={<span>{reason && <WarningOutlined aria-hidden="true"/>}</span>} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} onChange={e=>{text.current=e.target.value;setValue(e.target.value);setReason(null);}} onBlur={()=>{if(!desktop.surface.externalPending)void commit(false);}} onKeyDown={e=>{
       if(e.nativeEvent.isComposing || e.keyCode===229)return;
       if(e.key==="Escape"){e.preventDefault();e.stopPropagation();const clicked=origin.current?.clicked,intent=desktop.inputIntent;cancel();requestAnimationFrame(()=>{if(desktop.surface.target===clicked&&!desktop.surface.pending&&intent===desktop.inputIntent)desktop.viewport?.querySelector<HTMLButtonElement>(`.column[data-field="${CSS.escape(field.name)}"] .field-name-button`)?.focus();});}
       else if(e.key==="Enter" || e.key==="Tab"){e.preventDefault();e.stopPropagation();void commit();}

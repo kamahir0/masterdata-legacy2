@@ -74,7 +74,7 @@ def check_authoring(report):
     assert [item['name'] for item in report['checks']] == [
         'scalar-composition', 'pointer-range', 'row-drag-cancel', 'row-drag-drop',
         'bidirectional-row-motion', 'between-frame-row-drop', 'column-drag-drop', 'bidirectional-column-motion', 'array-drag-drop', 'complex-typing-add', 'complex-focus-intent', 'nested-problem-focus', 'complex-navigation', 'readable-table-context', 'inline-enum-choice-and-undo', 'boolean-direct-toggle-one-undo', 'boolean-active-control',
-        'nearby-flags-direct-operation', 'nullable-direct-null-and-undo', 'nearby-custom-open-is-read-only', 'nearby-array-and-nested-continuity',
+        'nearby-flags-direct-operation', 'nullable-direct-null-and-undo', 'null-scalar-inline-empty-outside-and-explicit-string', 'added-null-boolean-inline-choice-and-exact-undo', 'near-editor-zero-gap-scroll-and-stable-surface', 'nearby-custom-open-is-read-only', 'nearby-array-and-nested-continuity',
     ], report['checks']
     assert report['source']['before'] == report['source']['after']
     assert report['schema']['before'] == report['schema']['after']
@@ -98,7 +98,7 @@ def check_external(report):
 def check_creation(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
-    assert report['checks'] == ['inline-cancel-composition', 'inline-table-exclusive-create',
+    assert report['checks'] == ['inline-cancel-composition', 'outside-empty-cancel-filled-create-focus', 'lost-create-reply-outside-no-retry-explicit-recheck', 'inline-table-exclusive-create',
                                'empty-folder-selection', 'explicit-data-binding-yml',
                                'advanced-lossless-member', 'dirty-revisit-after-creation']
     assert report['dirty'] == ['sources/catalog-data.yaml']
@@ -108,7 +108,7 @@ def check_creation(report):
 def check_path(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
-    assert report['checks'] == ['path-cancel-composition', 'target-dirty-cancel', 'target-only-save-rename',
+    assert report['checks'] == ['file-menu-target-independent-of-editor', 'path-cancel-composition', 'target-dirty-cancel', 'target-only-save-rename',
                                 'case-only-rename', 'target-only-discard-move', 'destination-conflict-no-overwrite']
     assert report['dirty'] == ['sources/catalog-schema.yaml']
     assert report['destination'] == 'sources/moved/Renamed-data.yml'
@@ -131,7 +131,7 @@ def check_type(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
     assert report['checks'] == ['resolved-type-selection-warm-zero', 'type-keyboard-menu-cancel-focus', 'value-object-plan-diff-apply',
-                               'flags-none-protected', 'flags-explicit-bit-candidate-no-write', 'external-stale-plan-explicit-replan', 'enum-ulong-lossless-add',
+                               'flags-none-protected', 'exhausted-flags-reason-and-no-write', 'one-click-enum-flags-add-outside-name-and-cancel', 'one-click-add-late-reply-preserves-newer-focus', 'flags-explicit-bit-candidate-no-write', 'external-stale-plan-explicit-replan', 'enum-ulong-lossless-add',
                                'enum-rename-preserves-number', 'unused-member-authorized-drop',
                                'custom-long-min-guided-initializer', 'custom-rename-occurrences',
                                'custom-authorized-drop', 'affected-dirty-plan-apply-gate', 'unrelated-draft-history-survives-apply']
@@ -264,6 +264,9 @@ def run(binary: Path, output: Path, case: str):
             if case == 'path':
                 (project / 'sources/moved').mkdir()
             if case == 'type':
+                full = 'kind: type\nname: FullFlags\nflags:\n  underlying: int\n  members:\n    - name: None\n      value: 0\n'
+                full += ''.join(f'    - name: Bit{bit}\n      value: {-(1 << bit) if bit == 31 else 1 << bit}\n' for bit in range(32))
+                (project / 'sources/full-flags.yaml').write_text(full, encoding='utf-8')
                 (project / 'sources/ranges.yaml').write_text('kind: type\nname: Range\nenum:\n  underlying: ulong\n  members:\n    - name: Zero\n      value: 0\n', encoding='utf-8')
                 (project / 'sources/independent.yaml').write_text('kind: schema\ntable: independent\nfields:\n  - key: 0\n    name: id\n    type: int\nprimaryKey:\n  fields: [id]\nrecords:\n  - id: 1\n', encoding='utf-8')
             if case == 'declaration':

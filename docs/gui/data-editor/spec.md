@@ -118,6 +118,8 @@ Array element等の各itemに共通のmove / remove action群を値より強い�
 
 ### GUI-DATA-EDIT-004
 
+primitive / Value Objectのnullはcell内、Enumはcell内selectorで編集する。nullを開くだけで値を作らず、空のnull inputを離れたらnullへ戻す。明示的な空string入力は維持する。小さいArray / Custom / Flagsはcell下端に接して開き、scroll / resizeに追従する。下側の空間が足りないときはcell上端へ接して反転する。originが画面外ならviewportへclampし対象名を保持し、再表示時は元cellへ戻す。大型 / deep値だけDrawerを使い、loading中のDrawerから別surfaceへ交換しない。一つの操作中にeditorをremountしない。
+
 Complex editorのcheckbox、member選択、materialize、null切替、Array add/move/remove、明示repair等の意味あるcontrol操作は、値が実際に変わる時点で対象physical sourceのlocal bufferへ一操作ずつ確定し、`GUI-GRID-004`のUndo/Redo単位としなければならない（MUST）。editor close、outside click、Escapeは確定済み操作を取り消してはならない（MUST NOT）。no-opとeditorを開くだけの行為はhistoryやdirtyを増やさない。
 
 nested scalarのtypingはcontrol内で一時保持し、Enter / Tab / blurで一回確定する。Escapeは未確定typingを破棄し、未確定typingがなければeditorを閉じる（MUST）。Cmd/Ctrl+Sは未確定typingを先に確定し、`GUI-UNIFIED-004`の通常Saveを行う（MUST）。text control内のnative Undoをfile historyが横取りしてはならない（MUST NOT）。transactionalな`Apply to buffer` / `Cancel`をcomplex editor全体の通常確定経路として要求してはならない（MUST NOT）。

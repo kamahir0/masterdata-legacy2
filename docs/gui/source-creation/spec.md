@@ -32,6 +32,8 @@ defaultで表現できない初期declarationはAdvanced creationから指定で
 
 ### GUI-CREATE-LAYOUT-003
 
+作成先はフォルダーだけを選ぶ。複数configured rootsは候補pathで区別し、rootはshared choicesから導く。単一rootに冗長なroot selectorを出さず、作成先folderの候補が1個ならpathを表示するだけにする。通常inline filenameは[GUI-SHELL-INPUT-001](../app-shell.md#gui-shell-input-001)の確定 / 取消を使う。
+
 複数source rootがconfiguredされている場合、target rootを明示的に識別できなければならない（MUST）。filenameは変更できなければならず（MUST）、仮nodeのfilename変更中だけApplicationが提案するdomain identity候補を更新してよい（MAY）。候補identityは作成されるcanonical sourceに明示され、作成後のfilename変更 / moveはdomain identityを変更してはならない（MUST NOT）。human-facing default extensionは`.yaml`とする。
 
 ## 状態（States）

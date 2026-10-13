@@ -26,6 +26,8 @@ Table schema sourceとそのTableのData sourceは[Unified Table Editor](../tabl
 
 初期record authoring sliceでは、record Data documentを選択した場合に[Data Editor](../data-editor/spec.md)を開かなければならない（MUST）。現在のObjectiveで専用editorを持たないdocument kindまたは非Masterdata fileを、別kindとして誤解釈して編集可能にしてはならない（MUST NOT）。
 
+省略した単一rootのインデントとleafの空の展開markerは残さない。source kind/categoryをshared inventoryから異なるiconとaccessibleな種別で識別し、未解決fileの種別を推測しない。
+
 ## 状態（States）
 
 ### GUI-EXPLORER-STATE-001
@@ -67,6 +69,8 @@ folderはexpand / collapseできなければならず（MUST）、file / folder 
 Project切替、Project Reload、window close等、dirty bufferを失う可能性がある上位操作はData Editor specificationの`Save All` / `Don't Save` / `Cancel` lifecycleに従わなければならない（MUST）。Explorer独自の別unsaved-changes policyを実装してはならない（MUST NOT）。
 
 ### GUI-EXPLORER-INT-004
+
+Explorer上端は全体操作だけを持つ。Rename / Moveはfile行のmenu / context menu / F2から、対象pathを固定して開始する。別fileのeditor selectionでmenuの対象を変えない。
 
 Workspace Explorerはexisting Masterdata source fileに対するRename / Move actionを提供しなければならない（MUST）。destinationはsame configured source root内のfolder / filenameとして指定できなければならず（MUST）、source root間moveを実行可能にしてはならない（MUST NOT）。
 

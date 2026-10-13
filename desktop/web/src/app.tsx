@@ -6,6 +6,7 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
+  type MouseEvent,
   type ComponentRef,
 } from "react";
 import {
@@ -38,7 +39,13 @@ import {
   DatabaseOutlined,
   DesktopOutlined,
   FileOutlined,
+  TableOutlined,
+  BarsOutlined,
+  FlagOutlined,
+  ApartmentOutlined,
+  NumberOutlined,
   FolderOpenOutlined,
+  FolderOutlined,
   MoreOutlined,
   MoonOutlined,
   ReloadOutlined,
@@ -69,6 +76,8 @@ import { delivery } from "./delivery-state";
 import { ProjectSettings } from "./settings";
 import { CreateProjectModal } from "./project";
 import { useTableDeclaration } from "./table-declaration";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { PhysicalPosition } from "@tauri-apps/api/dpi";
 import jaJP from "antd/locale/ja_JP";
 import { actionLabel, uiMessage, statusLabel, sourceCategoryLabel, uiTerms } from "./language";
 
@@ -148,6 +157,37 @@ export function Application({ platform }: { platform: string }) {
 function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
   const { token } = theme.useToken();
   const [recoveryOpen,setRecoveryOpen]=useState(false);
+  const doubleClick=useRef<{x:number;y:number}|null>(null);
+  const dragVersion=useRef(0);
+  const windowDrag=useRef<{version:number;x:number;y:number;base:Promise<[PhysicalPosition,number]>;native:Promise<void>}|null>(null);
+  const windowBackground=(event:MouseEvent)=>event.target instanceof Element&&!event.target.closest('button,a,input,select,textarea,[contenteditable=true],[role=button],[role=menuitem]');
+  const dragWindow=(event:MouseEvent)=>{
+    if(event.button!==0||!windowBackground(event))return;
+    if(event.detail===2){doubleClick.current={x:event.clientX,y:event.clientY};return;}
+    event.preventDefault();
+    const window=getCurrentWindow();
+    windowDrag.current={version:dragVersion.current,x:event.screenX,y:event.screenY,base:Promise.all([window.outerPosition(),window.scaleFactor()]),native:window.startDragging().catch(desktop.showError)};
+  };
+  useEffect(()=>{
+    // Native dragging can consume mouseup. A later gesture must not finish
+    // that stale drag, including an IPC fallback still awaiting its position.
+    const begin=()=>{dragVersion.current++;windowDrag.current=null;doubleClick.current=null;};
+    const finish=(event:globalThis.MouseEvent)=>{
+      const drag=windowDrag.current;if(!drag||event.button!==0)return;windowDrag.current=null;
+      const x=event.screenX-drag.x,y=event.screenY-drag.y;
+      if(Math.abs(x)+Math.abs(y)<3)return;
+      // On macOS the WebView IPC may be handled after a short mouse gesture's
+      // mouseup; AppKit then reports success without moving. Preserve native
+      // dragging/snapping when it worked and finish only an unchanged window.
+      void Promise.all([drag.base,drag.native]).then(async([[base,scale]])=>{
+        const window=getCurrentWindow(),current=await window.outerPosition();
+        if(drag.version===dragVersion.current&&current.x===base.x&&current.y===base.y)await window.setPosition(new PhysicalPosition(Math.round(base.x+x*scale),Math.round(base.y+y*scale)));
+      }).catch(desktop.showError);
+    };
+    document.addEventListener('mousedown',begin,true);
+    document.addEventListener('mouseup',finish,true);
+    return()=>{dragVersion.current++;windowDrag.current=null;document.removeEventListener('mousedown',begin,true);document.removeEventListener('mouseup',finish,true);};
+  },[]);
   const [explorerOpen,setExplorerOpen]=useState(true);
   const explorerVisible=useRef(true),explorerFocus=useRef<number|null>(null);
   useEffect(()=>()=>{if(explorerFocus.current!==null)cancelAnimationFrame(explorerFocus.current);},[]);
@@ -238,20 +278,20 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
         if(!explorerOpen||!tree||!editor||editor.closest('[inert]'))return;
         event.preventDefault();
         if(tree.contains(document.activeElement)) {
-          const target=!desktop.surface.pending?editor.querySelector<HTMLElement>('#viewport:not([inert]),.type-body'):null;
+          const target=!desktop.surface.pending?[...editor.querySelectorAll<HTMLElement>('#viewport:not([inert]),.type-body')].find(element=>element.getClientRects().length):null;
           (target??editor).focus({preventScroll:true});
         } else tree.focus({preventScroll:true});
       }}
     >
-      <header id="titlebar">
-        <div id="drag-region" data-tauri-drag-region>
+      <header id="titlebar" onMouseDown={dragWindow} onDoubleClick={event=>{if(windowBackground(event)&&doubleClick.current?.x===event.clientX&&doubleClick.current.y===event.clientY)void getCurrentWindow().toggleMaximize().catch(desktop.showError);}}>
+        {s.inventory&&<Tooltip title="エクスプローラーを切り替え（⌘/Ctrl+B）"><Button className="explorer-toggle" type="text" icon={explorerOpen?<MenuFoldOutlined aria-hidden="true"/>:<MenuUnfoldOutlined aria-hidden="true"/>} aria-label={explorerOpen?"エクスプローラーを閉じる":"エクスプローラーを開く"} aria-expanded={explorerOpen} aria-controls="explorer" onClick={toggleExplorer}/></Tooltip>}
+        <div id="drag-region">
           <DatabaseOutlined aria-hidden="true" />
           <strong>MasterData</strong>
           <span id="project-name">{s.inventory?.project.name ?? ""}</span>
         </div>
         <nav aria-label="プロジェクトの操作">
           <Space size={2}>
-            {s.inventory&&<Tooltip title="エクスプローラーを切り替え（⌘/Ctrl+B）"><Button type="text" icon={explorerOpen?<MenuFoldOutlined aria-hidden="true"/>:<MenuUnfoldOutlined aria-hidden="true"/>} aria-label={explorerOpen?"エクスプローラーを閉じる":"エクスプローラーを開く"} aria-expanded={explorerOpen} aria-controls="explorer" onClick={toggleExplorer}/></Tooltip>}
             <Button
               type="text"
               icon={<FolderOpenOutlined aria-hidden="true" />}
@@ -325,6 +365,9 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
           <Explorer s={s} reveal={()=>{explorerVisible.current=true;setExplorerOpen(true);}} />
         </div>}
         <main id="editor-pane" aria-label="エディター" tabIndex={-1}>
+          {/* A captured Type Plan can outlive navigation to a Data file. Keep
+              its owner mounted; only its current editor body follows selection. */}
+          {s.inventory&&<div className="type-surface" hidden={!(s.typeProjection?.clicked===s.target||s.inventory.sources.find(source=>source.path===s.target)?.kind==="type")}><TypeSurface s={s} footer={(s.typeProjection?.clicked===s.target||s.inventory.sources.find(source=>source.path===s.target)?.kind==="type")?<ProblemsBar s={s}/>:null}/></div>}
           {!s.inventory ? (
             <section id="welcome">
               <DatabaseOutlined className="welcome-mark" aria-hidden="true" />
@@ -357,7 +400,7 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
               )}
             </section>
           ) : s.target ? (
-            (s.typeProjection?.clicked===s.target||s.inventory.sources.find(source=>source.path===s.target)?.kind==="type") ? <TypeSurface s={s} footer={<ProblemsBar s={s}/>}/> : <TableSurface s={s} />
+            (s.typeProjection?.clicked===s.target||s.inventory.sources.find(source=>source.path===s.target)?.kind==="type") ? null : <TableSurface s={s} />
           ) : (
             <div className="select-source">
               {s.status.environmentError?<Alert type="warning" showIcon title="プロジェクトを利用できません"
@@ -439,14 +482,17 @@ function Explorer({ s, reveal }: { s: Surface; reveal:()=>void }) {
     setSelected(old=>old===source?destination:old);
     activate(destination);setFocusRequest({key:destination,intent:inputIntent});
   });
-  const selectedSource=selected;
+  const selectedSource=activeItem.current??selected;
   const sourceItems:MenuProps={items:[
     {key:"find",label:"テーブル・型を検索…",icon:<SearchOutlined aria-hidden="true"/>,disabled:!findOptions.length||!!creation.draft||pathMutation.open},
-    {key:"move",label:"ソースの名前変更・移動",icon:<EditOutlined aria-hidden="true"/>,disabled:!selectedSource||selectedSource.startsWith("folder:")||!!creation.draft||pathMutation.open||s.status.recoveryRequired||s.status.uncertain.includes(selectedSource)},
+    {key:"refresh",label:"一覧を更新",icon:<ReloadOutlined aria-hidden="true"/>},
+    {key:"collapse",label:"フォルダーを折りたたむ",icon:<MenuFoldOutlined aria-hidden="true"/>},
   ],onClick:({key})=>{
     if(key==="find"){findRestore.current=null;setFindEpoch(s.status.epoch);}
-    else void pathMutation.begin(selectedSource);
+    else if(key==="collapse")setKeys([]);
+    else void desktop.refreshInventory().catch(desktop.showError);
   }};
+  const fileMenu=(path:string):MenuProps=>({items:[{key:"move",label:"名前変更・移動…",icon:<EditOutlined aria-hidden="true"/>,disabled:!!creation.draft||pathMutation.open||s.busy||s.status.recoveryRequired||s.status.uncertain.includes(path)}],onClick:()=>void pathMutation.begin(path)});
   useLayoutEffect(()=>{
     if(!focusRequest)return;
     const frame=requestAnimationFrame(()=>{
@@ -469,7 +515,7 @@ function Explorer({ s, reveal }: { s: Surface; reveal:()=>void }) {
       for(const part of (logical||".").split("/")) {
         path=path?`${path}/${part}`:part;
         let folder=folders.get(path);
-        if(!folder){folder={key:`folder:${path}`,title:part,icon:<FolderOpenOutlined aria-hidden="true"/>,children:[]};folders.set(path,folder);children.push(folder);}
+        if(!folder){folder={key:`folder:${path}`,title:part,icon:props=>props.expanded?<FolderOpenOutlined aria-hidden="true"/>:<FolderOutlined aria-hidden="true"/>,children:[]};folders.set(path,folder);children.push(folder);}
         children=folder.children!;
       }
       return children;
@@ -481,7 +527,9 @@ function Explorer({ s, reveal }: { s: Surface; reveal:()=>void }) {
       children.push({
         key: source.path,
         title: basename(source.path),
-        icon: source.error ? <WarningOutlined aria-hidden="true" /> : <FileOutlined aria-hidden="true" />,
+        icon: <span className={`source-kind kind-${source.category??"file"}`} role="img" aria-label={source.error?"ソースエラー":source.category?sourceCategoryLabel(source.category):"ファイル"}>
+          {source.error?<WarningOutlined aria-hidden="true"/>:source.category==="table"?<TableOutlined aria-hidden="true"/>:source.category==="data"?<DatabaseOutlined aria-hidden="true"/>:source.category==="enum"?<BarsOutlined aria-hidden="true"/>:source.category==="flags"?<FlagOutlined aria-hidden="true"/>:source.category==="custom"?<ApartmentOutlined aria-hidden="true"/>:source.category==="valueObject"?<NumberOutlined aria-hidden="true"/>:<FileOutlined aria-hidden="true"/>}
+        </span>,
         isLeaf: true,
       });
     }
@@ -513,7 +561,6 @@ function Explorer({ s, reveal }: { s: Surface; reveal:()=>void }) {
           <Dropdown menu={sourceItems} trigger={["click"]}><Tooltip title="ソースの操作"><Button type="text" icon={<MoreOutlined aria-hidden="true"/>} aria-label="ソースの操作"/></Tooltip></Dropdown>
         </Space>
       </div>
-        <Dropdown menu={sourceItems} trigger={["contextMenu"]}>
         <Tree
           ref={tree}
           aria-label="ソース"
@@ -537,12 +584,14 @@ function Explorer({ s, reveal }: { s: Surface; reveal:()=>void }) {
               (source!==s.target||s.pending||(!s.projection&&!s.typeProjection)))void desktop.selectTarget(source).catch(desktop.showError);
           }}
           titleRender={(node) => node.key==="creation:temporary"?creation.inline:(
+            <Dropdown menu={String(node.key).startsWith("folder:")?{...creation.menu,onClick:({key})=>creation.begin(key as Parameters<typeof creation.begin>[0],String(node.key))}:fileMenu(String(node.key))} trigger={["contextMenu"]}>
             <span
               className="source"
               title={String(node.key)}
               data-path={node.key}
             >
-              {String(node.title)}
+              <span className="source-name">{String(node.title)}</span>
+              {!String(node.key).startsWith("folder:")&&<Dropdown menu={fileMenu(String(node.key))} trigger={["click"]}><Button className="source-actions" type="text" size="small" icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${basename(String(node.key))} の操作`} title="ファイルの操作" onPointerDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}/></Dropdown>}
               <span
                 className="source-dirty"
                 role="img"
@@ -556,9 +605,9 @@ function Explorer({ s, reveal }: { s: Surface; reveal:()=>void }) {
                 {s.status.dirty.includes(String(node.key)) ? "●" : ""}
               </span>
             </span>
+            </Dropdown>
           )}
         />
-        </Dropdown>
       <Modal title="テーブル・型を検索" open={findEpoch===s.status.epoch} onCancel={closeFind}
         footer={null} width={640} destroyOnHidden focusable={{focusTriggerAfterClose:false}}
         afterOpenChange={open=>{
@@ -676,7 +725,7 @@ function TableSurface({ s }: { s: Surface }) {
             aria-label="現在のソースを検索"
             value={s.query}
             onChange={(e) => desktop.search(e.target.value)}
-            disabled={s.pending || !p?.source}
+            disabled={s.pending&&!s.externalPending&&!s.queryPending || !p?.source}
             allowClear
           />
           <Dropdown

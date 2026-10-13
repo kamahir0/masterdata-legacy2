@@ -87,6 +87,69 @@ fn precondition(message: impl Into<String>) -> Error {
     Error::new("E-TYPE-MIGRATION-PRECONDITION", message)
 }
 
+/// GUI-TYPE-INT-011: an explicit command suggestion, never implicit numbering
+/// in source interpretation. The normal Plan must still validate this command.
+pub fn suggest_enum_member(type_name: &str, declaration: &Type) -> Result<Command> {
+    let Type::Enum {
+        underlying,
+        flags,
+        members,
+    } = declaration
+    else {
+        return Err(precondition("Enum declaration required"));
+    };
+    semantic::integer_value("0", underlying).map_err(|e| precondition(e.message))?;
+    let used: BTreeSet<i128> = members
+        .iter()
+        .map(|(_, value)| {
+            semantic::integer_value(value, underlying).map_err(|e| precondition(e.message))
+        })
+        .collect::<Result<_>>()?;
+    let value = if *flags {
+        let width = if matches!(underlying.as_str(), "int" | "uint") {
+            32
+        } else {
+            64
+        };
+        let signed = matches!(underlying.as_str(), "int" | "long");
+        (0..width)
+            .map(|bit| {
+                if signed && bit == width - 1 {
+                    -(1_i128 << bit)
+                } else {
+                    1_i128 << bit
+                }
+            })
+            .find(|value| !used.contains(value))
+            .ok_or_else(|| precondition("Flags has no unused atomic bit"))?
+    } else {
+        let mut value = 0_i128;
+        while used.contains(&value) {
+            value += 1;
+        }
+        semantic::integer_value(&value.to_string(), underlying)
+            .map_err(|e| precondition(e.message))?
+    };
+    let used_names: BTreeSet<&str> = members.iter().map(|(name, _)| name.as_str()).collect();
+    let mut suffix = 1;
+    let name = loop {
+        let name = if suffix == 1 {
+            "NewMember".into()
+        } else {
+            format!("NewMember{suffix}")
+        };
+        if name != type_name && !used_names.contains(name.as_str()) {
+            break name;
+        }
+        suffix += 1;
+    };
+    Ok(Command::AddEnumMember {
+        type_name: type_name.into(),
+        name,
+        value: value.to_string(),
+    })
+}
+
 struct Closure {
     source: String,
     // Reverse reachability is classification, not a second type system. Actual

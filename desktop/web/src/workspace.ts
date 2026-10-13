@@ -95,6 +95,7 @@ export interface ComplexTarget {
   inputIntent?: number;
 }
 export interface Editor {
+  isNull: boolean;
   epoch: number;
   source: string;
   revision: number;
@@ -1006,7 +1007,6 @@ class Desktop {
     if (!r || !cell?.editable || !column?.shape) return;
     if (
       column.shape.array ||
-      cell.isNull ||
       ["custom", "flags", "enum"].includes(column.shape.category)
     ) {
       this.interact({
@@ -1033,14 +1033,15 @@ class Desktop {
           column: s.column,
           initial: cell.value && "value" in cell.value && typeof cell.value.value === "string" ? cell.value.value : "",
           display: cell.display,
+          isNull: cell.isNull,
         },
         complex: null,
       });
   };
   closeEditor = () => this.interact({ editor: null });
   collapseRange = () => this.interact({ anchor: null });
-  async edit(editor: Editor, text: string) {
-    if (text === editor.initial) {
+  async edit(editor: Editor, text: string, explicitEmpty=false) {
+    if ((!explicitEmpty && text === editor.initial) || (editor.isNull && !text && !explicitEmpty)) {
       this.closeEditor();
       return true;
     }

@@ -38,6 +38,8 @@ html[data-theme="dark"] body {
 .mac #titlebar {
   padding-left: 82px;
 }
+#drag-region > * { pointer-events: none; }
+.explorer-toggle { flex: none; }
 #drag-region strong { font-weight: 650; letter-spacing: -.015em; }
 #titlebar .ant-btn { transition: color var(--md-motion) var(--md-ease), background var(--md-motion) var(--md-ease), opacity var(--md-motion) var(--md-ease); }
 #titlebar .ant-btn:disabled { opacity: .65; }
@@ -104,6 +106,7 @@ html[data-theme="dark"] body {
   z-index: 2;
   height: 42px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
   background: var(--md-app);
   color: var(--md-muted);
@@ -873,17 +876,11 @@ main {
 .active-cell-editor:has(.ant-switch) { display: flex; align-items: center; padding-inline: 10px; background: var(--md-bg); }
 
 .value-anchor { z-index: 9; }
-.near-value-body { width: 300px; max-width: calc(100vw - 80px); max-height: min(480px, 60vh); overflow: auto; }
-.near-value-popover { z-index: 20; }
-/* The editor accepts input while opening. Ant's scale motion moves its grip
-   between pointerdown and pointerup; retain its short motion with opacity only. */
-.near-value-popover[class*="ant-zoom-big"] { transform:none !important; }
-.near-value-popover[class*="-appear"],.near-value-popover[class*="-enter"] { animation-name:md-value-enter !important; }
-.near-value-popover[class*="-leave"] { animation-name:md-value-leave !important; }
-@keyframes md-value-enter { from {opacity:0;} to {opacity:1;} }
-@keyframes md-value-leave { from {opacity:1;} to {opacity:0;} }
-.value-spatial-clip { z-index:30; }
-.near-value-body .flags-members { gap: 8px; }
+.near-value-popover { z-index:20; background:var(--md-elevated); border:1px solid var(--md-border); border-radius:var(--md-radius); box-shadow:var(--md-shadow); animation:md-value-enter var(--md-motion) var(--md-ease); }
+.near-value-title { padding:8px 10px; border-bottom:1px solid var(--md-border); font-weight:600; }
+.near-value-body { padding:10px; width:100%; max-height:min(420px,50vh); overflow:auto; }
+@keyframes md-value-enter { from { opacity:0; } to { opacity:1; } }
+.near-value-body .flags-members { gap:8px; }
 .inline-enum-surface { z-index: 9; background: var(--md-bg); padding: 0; border: 1px solid var(--md-accent); box-shadow: var(--md-shadow-light); }
 .inline-enum-surface .complex-enum { width: 100%; height: var(--row-height,32px); }
 .inline-enum-surface .complex-control { min-height: 0; }
@@ -894,7 +891,25 @@ main {
 .near-type-input .ant-form-item { margin-bottom:12px; }
 .type-input-actions { display:flex; justify-content:flex-end; }
 .type-body { position:relative; }
+.type-surface { display:contents; }
+.type-surface[hidden] { display:none; }
 .type-inline-actions { position:absolute; bottom:14px; right:16px; max-width:calc(100% - 32px); display:flex; flex-direction:column; align-items:flex-end; gap:8px; padding:8px; border:1px solid var(--md-border); border-radius:var(--md-radius); background:var(--md-elevated); box-shadow:var(--md-shadow-light); z-index:3; }
 
 .nullable-cell { padding-inline-start: 26px; }
 .active-cell-editor.nullable-editor .ant-input { padding-inline-start: 25px; }
+
+#explorer .ant-tree-switcher-noop { display: none; }
+.source-name { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.source-actions { flex:none; opacity:0; margin-left:auto; }
+#explorer .ant-tree-treenode:hover .source-actions,
+#explorer .ant-tree-treenode:focus-within .source-actions,
+#explorer .ant-tree-treenode-active .source-actions { opacity:1; }
+.source-kind { color:var(--md-muted); }
+.source-kind.kind-table, .source-kind.kind-data { color:var(--md-accent); }
+.source-kind.kind-enum, .source-kind.kind-flags { color:var(--md-warning); }
+
+.explicit-empty { position:absolute; right:2px; top:3px; height:24px; border:0; border-radius:3px; background:var(--md-panel); color:var(--md-muted); cursor:pointer; }
+.active-cell-editor:has(.explicit-empty) .ant-input { padding-right:30px; }
+
+.null-bool-editor { display:flex; gap:2px; height:100%; padding:2px; }
+.null-bool-editor .ant-btn { flex:1; height:100%; padding:0; }

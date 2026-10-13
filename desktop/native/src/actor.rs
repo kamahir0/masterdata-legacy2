@@ -110,6 +110,9 @@ pub enum Intent {
     RecheckCreation {
         path: String,
     },
+    RecheckCreationRequest {
+        request: masterdata_engine::creation::Request,
+    },
     PathMoveChoices {
         source: String,
     },
@@ -138,6 +141,13 @@ pub enum Intent {
     },
     TableDeclarationPlan {
         command: masterdata_engine::table_declaration::Command,
+    },
+    DefaultEnumMember {
+        source: String,
+        identity: String,
+    },
+    TypeView {
+        source: String,
     },
     TypeMigrationPlan {
         source: String,
@@ -753,7 +763,7 @@ fn inventory(w: &Workspace) -> Value {
         // engine. Keep its configured identity rather than panicking while
         // deriving display paths; source provenance remains engine-owned.
         "sourceRootPaths":w.read.roots.iter().zip(&w.read.config.sources.roots).map(|(root,configured)|root.strip_prefix(&w.read.root).map(|p|p.to_string_lossy().replace('\\',"/")).unwrap_or_else(|_|configured.clone())).collect::<Vec<_>>(),"folders":w.read.folders,
-        "sources":w.read.sources.values().map(|s|json!({"path":s.path,"kind":s.kind,"binding":s.binding,"error":s.error})).collect::<Vec<_>>(),
+        "sources":w.read.sources.values().map(|s|json!({"path":s.path,"kind":s.kind,"category":s.category(),"binding":s.binding,"error":s.error})).collect::<Vec<_>>(),
         "logicalTables":w.read.tables.values().map(|table|json!({"name":table.name,"source":table.source})).collect::<Vec<_>>(),
         "logicalTypes":w.read.type_sources.iter().map(|(name,source)|json!({"name":name,"source":source})).collect::<Vec<_>>(),
         "types":w.read.types.keys().collect::<Vec<_>>(),"dirty":w.dirty_paths(),"configDirty":w.config_dirty(),"configUncertain":w.config_uncertain(),"configIdentity":w.configuration.base.content,"uncertain":w.uncertain_paths(),"recoveryRequired":w.recovery_required,"recovery":w.recovery_information,"generation":w.generation,"externalVersion":w.external_version,"environmentError":w.environment_error.as_ref().map(ToString::to_string)})
@@ -905,6 +915,9 @@ fn execute(
         }
         Intent::Create { request } => convert(w.create_source(&request)?),
         Intent::RecheckCreation { path } => convert(w.recheck_creation(&path)?),
+        Intent::RecheckCreationRequest { request } => {
+            convert(w.recheck_creation_request(&request)?)
+        }
         Intent::PathMoveChoices { source } => Ok(w.path_move_choices(&source)?),
         Intent::PathMovePreview {
             source,
@@ -917,6 +930,17 @@ fn execute(
             convert(w.table_declaration_detail(&source, &table)?)
         }
         Intent::TableDeclarationPlan { command } => convert(w.prepare_table_declaration(command)?),
+        Intent::DefaultEnumMember { source, identity } => {
+            convert(w.default_enum_member(&source, &identity)?)
+        }
+        Intent::TypeView { source } => {
+            let mut value = convert(w.select_view(&source, 0, 32)?)?;
+            value
+                .as_object_mut()
+                .unwrap()
+                .insert("sessionEpoch".into(), json!(*epoch));
+            Ok(value)
+        }
         Intent::TypeMigrationPlan {
             source,
             identity,

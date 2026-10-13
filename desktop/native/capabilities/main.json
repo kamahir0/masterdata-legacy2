@@ -1,1 +1,1 @@
-{"identifier":"main","windows":["main"],"permissions":["core:default","core:window:allow-close","core:window:allow-is-visible"]}
+{"identifier":"main","windows":["main"],"permissions":["core:default","core:window:allow-close","core:window:allow-is-visible","core:window:allow-start-dragging","core:window:allow-toggle-maximize","core:window:allow-set-position"]}

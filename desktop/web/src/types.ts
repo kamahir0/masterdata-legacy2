@@ -119,6 +119,7 @@ export interface Inventory {
   sources: {
     path: string;
     kind: string | null;
+    category: string | null;
     binding: string | null;
     error: string | null;
   }[];

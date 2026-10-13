@@ -39,6 +39,33 @@ fn request(w: &Workspace, category: &str, file: &str) -> Request {
     }
 }
 #[test]
+fn lost_success_reply_recheck_compares_exact_request_and_never_recreates_or_overwrites() {
+    let temp = fixture();
+    let mut w = Workspace::open(temp.path()).unwrap();
+    let request = request(&w, "enum", "lost-reply.yaml");
+    assert_eq!(w.create_source(&request).unwrap().outcome, Outcome::Success);
+    let path = temp.path().join(&request.path);
+    let created = fs::read(&path).unwrap();
+    assert_eq!(
+        w.recheck_creation_request(&request).unwrap().outcome,
+        Outcome::Success
+    );
+    assert_eq!(fs::read(&path).unwrap(), created);
+    let changed = [created.as_slice(), b"\n# external bytes\n"].concat();
+    fs::write(&path, &changed).unwrap();
+    assert_eq!(
+        w.recheck_creation_request(&request).unwrap().outcome,
+        Outcome::Conflict
+    );
+    assert_eq!(fs::read(&path).unwrap(), changed);
+    fs::remove_file(&path).unwrap();
+    assert_eq!(
+        w.recheck_creation_request(&request).unwrap().outcome,
+        Outcome::Failure
+    );
+    assert!(!path.exists());
+}
+#[test]
 fn minimal_creation_proposals_avoid_members_colliding_with_their_own_type_name() {
     let temp = fixture();
     let w = Workspace::open(temp.path()).unwrap();

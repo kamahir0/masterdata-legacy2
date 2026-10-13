@@ -135,6 +135,25 @@ impl Workspace {
     ) -> Result<MigrationReview> {
         self.prepare_type_migration_input(source, identity, command, None)
     }
+    pub fn default_enum_member(
+        &self,
+        source: &str,
+        identity: &str,
+    ) -> Result<crate::type_migration::Command> {
+        let project = self.type_input_project(source, identity)?;
+        let document = project
+            .sources
+            .get(source)
+            .and_then(|s| s.document.as_ref())
+            .ok_or_else(|| {
+                Error::new(
+                    "E-TYPE-MIGRATION-TARGET",
+                    "current type source is unavailable",
+                )
+            })?;
+        let (name, declaration) = semantic::parse_type(document)?;
+        crate::type_migration::suggest_enum_member(&name, &declaration)
+    }
     pub fn type_initializer_shape(
         &mut self,
         source: &str,

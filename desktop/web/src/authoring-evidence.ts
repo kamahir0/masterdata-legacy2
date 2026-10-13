@@ -393,6 +393,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
       () => document.querySelectorAll(".complex-item").length === 3,
       "Array reopen missing",
     );
+    await until(()=>!!document.querySelector(':is(.near-value-body,.ant-drawer-body) > [aria-busy="false"]'),"Complex values did not become interactive");
     find(".complex-item .element-value button").click();
     await until(
       () => !!document.querySelector(".complex-input input"),
@@ -526,6 +527,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
       () => document.querySelectorAll(".complex-item").length === 3,
       "Array reopen missing for navigation",
     );
+    await until(()=>!!document.querySelector(':is(.near-value-body,.ant-drawer-body) > [aria-busy="false"]'),"Complex values did not become interactive");
     find(".complex-item .element-value button").click();
     await until(
       () => !!document.querySelector(".complex-input input"),
@@ -608,8 +610,41 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     await settle();await undo();
     assert((await bytes()).after===base.after,"null Undo did not restore lexical source");
     record("nullable-direct-null-and-undo");
+    await focusCell(0,col("optionalCode"));key(desktop.viewport!,"Enter");
+    await until(()=>!!document.querySelector('.active-cell-editor input'),"null scalar did not edit inside its cell");
+    assert(!desktop.interaction.complex&&!document.querySelector('.ant-drawer'),"null scalar opened a drawer");
+    const nullInput=find('.active-cell-editor input') as HTMLInputElement;
+    const nullOutside=find('#search') as HTMLInputElement;nullOutside.focus();
+    await until(()=>!desktop.interaction.editor,"empty null input did not cancel on blur");
+    assert((await bytes()).after===base.after,"empty null input replaced null");
+    await focusCell(0,col("optionalCode"));key(desktop.viewport!,"Enter");await until(()=>!!document.querySelector('.active-cell-editor input'),"null scalar reopen failed");
+    text(find('.active-cell-editor input') as HTMLInputElement,"outside value");nullOutside.focus();
+    await until(()=>desktop.surface.projection!.rows[0].cells[col("optionalCode")].display==="outside value"&&!desktop.interaction.editor,"filled null scalar was not committed on blur");
+    assert(document.activeElement===nullOutside,"null edit stole outside focus");await settle();await undo();
+    assert((await bytes()).after===base.after,"outside null edit was not one Undo");
+    await focusCell(0,col("optionalCode"));key(desktop.viewport!,"Enter");await until(()=>!!document.querySelector('[aria-label="空文字にする"]'),"explicit empty string missing");find('[aria-label="空文字にする"]').click();await settle();
+    assert(!desktop.surface.projection!.rows[0].cells[col("optionalCode")].isNull,"explicit empty string remained null");await undo();assert((await bytes()).after===base.after,"empty string Undo lost null");
+    record("null-scalar-inline-empty-outside-and-explicit-string");
+    await desktop.addRow();await until(()=>desktop.surface.projection!.totalRows===3&&!desktop.surface.busy,"Added row missing");
+    await focusCell(2,col("enabled"));key(desktop.viewport!,"Enter");await until(()=>!!document.querySelector('.null-bool-editor'),"null bool did not expose inline choices");
+    assert(desktop.surface.projection!.rows[2].cells[col("enabled")].isNull&&!desktop.interaction.complex,"opening null bool materialized a default or opened a pane");
+    find('[aria-label="enabled 行 3 をfalseにする"]').click();await until(()=>desktop.surface.projection!.rows[2].cells[col("enabled")].display==="false"&&!desktop.surface.busy,"explicit bool choice failed");await settle();await undo();
+    assert(desktop.surface.projection!.rows[2].cells[col("enabled")].isNull,"bool choice was not one Undo");await undo();assert((await bytes()).after===base.after,"Added-row bool workflow changed the restored source");
+    record("added-null-boolean-inline-choice-and-exact-undo");
+
+
     await focusCell(0,col("reward"));key(desktop.viewport!,"Enter");
     await until(()=>!!document.querySelector('.near-value-body .custom-fields'),"small Custom not near cell");
+    const near=find('.near-value-popover');
+    const cellElement=find(`#cell-0-${col("reward")}`),view=desktop.viewport!;
+    view.scrollLeft=Math.max(0,col("reward")*GRID.column-180);await frame();await frame();
+    const beforeAnchor=cellElement.getBoundingClientRect(),beforePopup=near.getBoundingClientRect();
+    assert(Math.abs(beforePopup.top-beforeAnchor.bottom)<=1,"near editor has a gap below its cell");
+    const startScroll=view.scrollLeft;view.scrollLeft=Math.max(0,startScroll-40);await frame();await frame();
+    const afterAnchor=cellElement.getBoundingClientRect(),afterPopup=near.getBoundingClientRect();
+    assert(Math.abs(afterPopup.top-afterAnchor.bottom)<=1&&Math.abs((afterPopup.left-beforePopup.left)-(afterAnchor.left-beforeAnchor.left))<=1,"near editor did not follow horizontal scrolling");
+    assert(document.querySelector('.near-value-popover')===near,"scroll remounted the near editor");
+    record("near-editor-zero-gap-scroll-and-stable-surface");
     const customField=find(`.near-value-body [data-value-path='["reward","itemId"]'] button`);
     customField.click();
     await until(()=>!!document.querySelector('.near-value-body .complex-input input'),"nearby scalar editor missing");

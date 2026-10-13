@@ -16,7 +16,6 @@ import {
   Dropdown,
   Empty,
   Input,
-  Popover,
   Select,
   Switch,
   Space,
@@ -49,19 +48,19 @@ function ValueSurface({target, root, title, open, onClose, children}: {
   target: ReturnType<typeof useInteraction>["complex"];
   root?: EditorNode; title: ReactNode; open: boolean; onClose: () => void; children: ReactNode;
 }) {
-  const anchor = useRef<HTMLSpanElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
   const occurrence = useRef<{row:string;index:number;column:number}|null>(null);
   const [position, setPosition] = useState<{left:number;top:number;width:number;height:number}|null>(null);
   const surface = useRef<{key:string;mode:"inline"|"near"|"drawer"}|null>(null);
   const projection = desktop.surface.projection;
-  const shape = root?.shape ?? projection?.columns.find(c=>c.field.name===target?.root)?.shape;
+  const shape = projection?.columns.find(c=>c.field.name===target?.root)?.shape;
   const key=target?JSON.stringify([target.epoch,target.source,target.row,target.root]):"";
   if(surface.current?.key!==key)surface.current=null;
   if(target && root && !surface.current) {
     const small=target.path.length===1 && shape && (shape.array?root.totalChildren<=6:
       shape.category==="enum" || shape.category==="flags" || shape.category==="custom"&&(shape.fields?.length??0)<=6);
-    // Keep the same mounted surface through nested navigation / Add. Changing
-    // the root size cannot remount a live typing session or create popup stacks.
+    // Resolve once before mounting. Loading must not open a drawer that is
+    // replaced by an anchored editor, and nested navigation keeps its DOM.
     surface.current={key,mode:small?(shape?.category==="enum"&&!shape.array?"inline":"near"):"drawer"};
   }
   const near=!!surface.current && surface.current.mode!=="drawer";
@@ -75,37 +74,46 @@ function ValueSurface({target, root, title, open, onClose, children}: {
       if(row && column>=0)occurrence.current={row:target.row,index:row.viewIndex,column};
       const saved=occurrence.current;
       if(saved?.row!==target.row || !viewport || !area)return;
-      // Virtual scrolling can remove the anchor cell. Keep the same mounted
-      // editor and clamp its anchor to the viewport, so typing never remounts.
-      const left=GRID.identity+saved.column*GRID.column-viewport.scrollLeft;
-      const top=GRID.header+saved.index*GRID.row-viewport.scrollTop;
-      setPosition({left:Math.max(GRID.identity,Math.min(left,area.clientWidth-GRID.column)),top:Math.max(GRID.header,Math.min(top,area.clientHeight-GRID.row)),width:GRID.column,height:GRID.row});
+      const cell=document.getElementById(`cell-${saved.index}-${saved.column}`)?.getBoundingClientRect();
+      const bounds=area.getBoundingClientRect(),view=viewport.getBoundingClientRect();
+      const cellLeft=cell?cell.left-bounds.left:view.left-bounds.left+GRID.identity+saved.column*GRID.column-viewport.scrollLeft;
+      const cellTop=cell?cell.top-bounds.top:view.top-bounds.top+GRID.header+saved.index*GRID.row-viewport.scrollTop;
+      const width=inline?GRID.column:Math.min(324,area.clientWidth-GRID.identity);
+      const height=inline?GRID.row:Math.min(popup.current?.offsetHeight??240,area.clientHeight-GRID.header);
+      const anchorTop=Math.max(GRID.header,Math.min(cellTop,area.clientHeight-GRID.row));
+      const top=inline?anchorTop:anchorTop+GRID.row+height<=area.clientHeight?anchorTop+GRID.row:Math.max(GRID.header,anchorTop-height);
+      const next={left:Math.max(GRID.identity,Math.min(cellLeft,area.clientWidth-width)),top,width,height:GRID.row};
+      // A moving reference element does not make Ant's popup realign. Place
+      // the single editor directly in the grid area and move it in this scroll
+      // event; the virtualizer's later React commit must not leave it behind.
+      if(popup.current){popup.current.style.left=`${next.left}px`;popup.current.style.top=`${next.top}px`;}
+      setPosition(next);
     };
-    update(); viewport?.addEventListener("scroll",update,{passive:true});
-    const resize=new ResizeObserver(update);if(area)resize.observe(area);
+    update();viewport?.addEventListener("scroll",update,{passive:true});
+    const resize=new ResizeObserver(update);if(area)resize.observe(area);if(popup.current)resize.observe(popup.current);
     return()=>{viewport?.removeEventListener("scroll",update);resize.disconnect();};
-  },[target,near,projection?.revision,projection?.rowStart]);
+  },[target,near,projection?.revision,projection?.rowStart,!!position]);
   useEffect(()=>{
-    if(!inline || !open)return;
+    if(!near || !open)return;
     const outside=(event:PointerEvent)=>{
-      const element=event.target as Element;
-      if(!element.closest(".inline-enum-surface,.ant-select-dropdown"))onClose();
+      const element=event.target;
+      if(element instanceof Element&&!element.closest(".inline-enum-surface,.near-value-popover,.ant-select-dropdown,.ant-dropdown"))onClose();
     };
     document.addEventListener("pointerdown",outside);
     return()=>document.removeEventListener("pointerdown",outside);
-  },[inline,open,onClose]);
-  if(!near || !position)
+  },[near,open,onClose]);
+  if(!target||!surface.current)return null;
+  if(!near)
     return <Drawer title={title} open={open} onClose={onClose} keyboard={false} mask={false} size={400}
       getContainer={()=>document.getElementById("grid-area")!} rootStyle={{position:"absolute"}}
       classNames={{body:"complex-body"}} destroyOnHidden autoFocus={false}>{children}</Drawer>;
+  if(!open||!position)return null;
   if(inline)
-    return open ? <div className="inline-enum-surface" style={{position:"absolute",...position}}>{children}</div> : null;
-  return <Popover open={open} onOpenChange={visible=>{if(!visible)onClose();}} trigger="click" placement="bottomLeft"
-    title={title} content={<div className="near-value-body">{children}</div>}
-    getPopupContainer={()=>document.getElementById("grid-area")!} destroyOnHidden
-    classNames={{root:"near-value-popover"}}>
-    <span ref={anchor} className="value-anchor" aria-hidden="true" style={{position:"absolute",pointerEvents:"none",...position}} />
-  </Popover>;
+    return <div ref={popup} className="inline-enum-surface" style={{position:"absolute",...position}}>{children}</div>;
+  return <div ref={popup} className="near-value-popover" role="dialog" aria-label={`${target.root} の値を編集`}
+    style={{position:"absolute",left:position.left,top:position.top,width:position.width}}>
+    <div className="near-value-title">{title}</div><div className="near-value-body">{children}</div>
+  </div>;
 }
 type Typing = {
   authority: ComplexView;
@@ -361,12 +369,11 @@ export function ComplexPanel() {
       );
     if (!node.shape.array && node.kind !== "null" && (node.shape.typeName === "bool" || node.shape.underlying === "bool") && ["true", "false"].includes(node.input ?? ""))
       return <Switch aria-label={node.label} checked={node.input === "true"} checkedChildren="true" unCheckedChildren="false" onChange={checked => void change(node.path, {kind:"text",text:checked ? "true" : "false"})} />;
-    if (!node.shape.array && node.shape.category === "enum" && node.kind !== "null")
+    if (!node.shape.array && node.shape.category === "enum")
       return <Select aria-label={node.label} showSearch value={node.input ?? undefined} options={node.shape.members?.map(value=>({value,label:value}))} status={node.valid?undefined:"error"} onChange={symbol=>void change(node.path,{kind:"enum",symbol})} className="complex-enum" />;
     if (
       node.shape.array ||
-      ["custom", "flags"].includes(node.shape.category) ||
-      node.kind === "null"
+      ["custom", "flags"].includes(node.shape.category)
     )
       return (
         <Button
@@ -384,6 +391,7 @@ export function ComplexPanel() {
       return (
         <LeafInput
           node={node}
+          nonNull={node.kind==="null"}
           authority={view!}
           update={(value) => {
             typing.current = value;
@@ -440,6 +448,13 @@ export function ComplexPanel() {
       return;
     const container = body.current;
     if (!container) return;
+    // The anchored surface mounts before its deferred initial focus callback.
+    // A leaf can already own focus by then; initial focus must not replace it
+    // with the first handle and blur/commit the user's composing input.
+    if (!validRestore && !target.focusPath && container.contains(document.activeElement)) {
+      focusedTarget.current = target;
+      return;
+    }
     if (focusedTarget.current === target && !validRestore && container.contains(document.activeElement)) return;
     const focusPath =
       validRestore && restore.path
@@ -472,8 +487,8 @@ export function ComplexPanel() {
     }
   };
   useLayoutEffect(()=>focusCurrent.current(),[target,root,loading,stale,blocked]);
-  // Popover content commits after its parent and can replace an initial loading
-  // surface. Publish focus from the mounted body, with the same latest-intent gate.
+  // The anchored body mounts after its cell position is known. Publish initial
+  // focus from that mount, guarded against newer input and existing leaf focus.
   const bindBody=useCallback((element:HTMLDivElement|null)=>{
     body.current=element;
     if(element)requestAnimationFrame(()=>focusCurrent.current());
@@ -605,7 +620,7 @@ export function ComplexPanel() {
         ) : (
           root && (
             <>
-              {root.problem && (
+              {root.problem && !(root.shape?.category==="enum"&&!root.shape.array&&target?.path.length===1) && (
                 <Alert
                   type="warning"
                   showIcon
@@ -613,7 +628,7 @@ export function ComplexPanel() {
                   className="value-problem"
                 />
               )}
-              {root.shape?.nullable && (
+              {root.shape?.nullable && !(root.shape.category==="enum"&&!root.shape.array&&target?.path.length===1) && (
                 <Checkbox
                   aria-label={`${root.label} null`}
                   disabled={!root.editable}
@@ -738,7 +753,7 @@ export function ComplexPanel() {
                       ? "Flagsの値を作成"
                       : "Custom Typeの値を作成"}
                 </Button>
-              ) : root.kind !== "null" || nonNull || !root.shape.nullable ? (
+              ) : (
                 <div
                   className="complex-control"
                   data-value-path={JSON.stringify(root.path)}
@@ -748,7 +763,7 @@ export function ComplexPanel() {
                     key={JSON.stringify(root.path)}
                     node={root}
                     authority={view!}
-                    nonNull={nonNull}
+                    nonNull={root.kind==="null"}
                     update={(value) => {
                       typing.current = value;
                     }}
@@ -758,7 +773,7 @@ export function ComplexPanel() {
                     }
                   />
                 </div>
-              ) : null}
+              )}
               {root.totalChildren > 64 && (
                 <div className="complex-pages">
                   <Button
@@ -927,7 +942,7 @@ function LeafInput({
           } else if (e.key === "Tab") void commit();
         }}
       />
-      {nonNull && (
+      {nonNull && (node.shape?.typeName==="string"||node.shape?.underlying==="string") && (
         <Button
           onClick={() => {
             report(true);

@@ -199,6 +199,7 @@ const messages: Record<string, string> = {
   "generated declaration name already exists or is reserved": "生成される宣言名が既存の名前または予約名と重なっています",
   "unknown artifact category": "ソースの種類が不明です",
   "no unused MessagePack key": "未使用のMessagePackキーがありません",
+  "Flags has no unused atomic bit": "未使用のBitがないため、メンバーを追加できません",
   "dry run compiled and reloaded the candidate; no artifacts were changed": "変更候補をコンパイルして読み直しました。成果物は変更していません",
   "source-set recovery must be established before Build": "Buildの前にソース一式の復旧を完了してください",
   "{path}: source cannot be classified": "{path}: ソースの種類を判定できません",

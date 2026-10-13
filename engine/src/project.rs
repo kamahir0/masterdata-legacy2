@@ -103,6 +103,25 @@ pub struct Source {
     pub kind: Option<String>,
     pub binding: Option<String>,
 }
+impl Source {
+    pub fn category(&self) -> Option<&'static str> {
+        match self.kind.as_deref()? {
+            "schema" => Some("table"),
+            "data" => Some("data"),
+            "type" => self
+                .document
+                .as_ref()
+                .and_then(|d| semantic::parse_type(d).ok())
+                .map(|(_, declaration)| match declaration {
+                    semantic::Type::ValueObject { .. } => "valueObject",
+                    semantic::Type::Enum { flags: true, .. } => "flags",
+                    semantic::Type::Enum { .. } => "enum",
+                    semantic::Type::Custom { .. } => "custom",
+                }),
+            _ => None,
+        }
+    }
+}
 #[derive(Clone, Debug)]
 pub struct Project {
     pub root: PathBuf,

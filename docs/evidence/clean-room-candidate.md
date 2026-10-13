@@ -8,6 +8,22 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 **Not cutover-ready — Windows actual Desktop、Unity actual Editor / runtimeのrequired evidence gaps。** macOSのdense input / held Escapeは下記の修正Candidateで閉じた。`f57102e`の実IME違反は`f7cf90d`で修正し、scalar / nestedのactual IMEとrequired CIで再検証した。2026-10-09にHumanがPR #16をmainへmergeしたが、未取得の外部証拠は免除していない。以下の旧Candidate evidenceは当時の記録として保持する。
 
+## 近接編集と入力確定の統一（2026-10-13）
+
+Scope: Work base `82e6b05`から[0060](../spec-changes/0060-consistent-direct-input.md)のGUI改善。canonical ownersの入力 / navigation / mutation境界を照合し、RustのPlan / native transaction / source authorityを維持した。仕様の直接操作例外もPlan取得自体を省略しない。
+
+実機CUA reviewは専用macOS appとfixture copyだけを使用した。Enum追加→生成名の選択編集→outside Renameを`Gamma = 2`の保存済みsourceで確認。null stringの空入力取消 / 入力後outside確定 / 新focus維持、null boolのfalse選択、Array / Customのcell接続、vertical scroll追従、左ペイン開閉、種別icon / 左余白を確認した。Cuaの実mouseで見つかったboolのfocus-before-click failureを修正し再確認。短いheader dragでnative位置`(378,83) → (498,163)`、errorなしを観測した。binaryと観測時点はrawごとに保持し、後続SHAへ読み替えない。
+
+focused engine testsはEnum defaultのname / number collision、ulong exact値 / signed sign bit / bit exhaustion、saved Planのstale拒否、Createのreply喪失後のexact-byte Recheck / external bytes保持 / deleted targetを再作成しないことを確認。TypeScript / 表示境界4 tests、Rust workspace全tests、fmt / clippy、clean-slate integrityはPASS。
+
+Native Desktopのcontrolled DOM検証とactual OS操作は区別する。10カテゴリのinitial passは全PASS（Type15 / authoring24 / creation8 / path7 / geometry9 / project14 / migration6 / tags6 / focus6、navigation n300 / dirty・rapid各100）。final focused passはType17 / authoring24 / geometry9 / project14 / focus6 / creation8 / path7とnavigationがPASS。最終evidence binaryは`9e2b1e7983cf2d03ec83f2fdbb1678e2739c2e7d4c22a9a0f6cf07c4d5d8711a`で、CUAの短いdragと`Delta = 3`のoutside確定、別fileのmenu targetも再確認。normal Quit後に専用review process0、既存Legacy appを維持し、Unityは起動していない。required CI / production installの結果は確認後に追記する。失敗runを成功へ改称せず、[machine evidence](clean-room-candidate-data.json.gz)の`consistentDirectInput20261013`へrawを保持する。
+
+final correctionでは、write後のview刷新前に旧Add inputが戻るtransitionを閉じ、古いfocus復帰を新operation開始で無効化した。captured Type PlanはDataへのnavigationでもownerを維持し、明示Re-planは選択を変えずcaptured sourceからshared Type viewを読む。hidden Type bodyをF6の候補から除外した。満杯Flagsの日本語reasonとno-writeも17 checksで確認した。失敗rawにはforeground / paint timeout、旧transition、hidden pane、補助fixtureのflagsキー配置誤りを残す。timeout値 / assertionを弱めず、fixtureをcanonical syntaxへ修正した。
+
+final controlled warm accepted p95はrevisit75 / same81 / cross79 / schema82 / dirty76 / rapid63ms（前4カテゴリn300、後2カテゴリn100）。warm project-wide discovery / enumeration / YAML parse / validationは0。actual OS <150msの再測定と呼ばない。
+
+Self-review: Specification Conformance: Pass。Tests / Regression Evidence: 上記のsource bytes・focus・stale / uncertainty境界。Rationale Freshness: Fresh（root surface lifetime、moving popup placement、遅延focus、短いmacOS dragのIPC、二重blur / navigation commit、型write後のview刷新とcaptured Planのcomponent lifetime）。Evidence Integrity: canonical Requirement / regression参照を照合、64-bitとshared ownerを維持。Architecture: boundary violationなし。Findings: selected scopeの製品Blockingなし。Verdict: selected scopeはReady to merge: Yes、required CI reconciliation中。既存Windows actual Desktop / Unity actual Editor-runtime gatesは保持する。
+
 ## macOS helper permission / rapid correction（2026-10-12）
 
 Product correction: `bd9ae8034fc8cdc426a96444cdb4779a8f9ba774`。Review Candidate: `5dbd3dc83e8177ec50ebeab100215fc04d86830b`。後者はWindows検証用ack publication / regression / CIだけのcorrectionで、desktop / engine / command / unityの全product treesは前者と同一。macOS rawは撮影・測定時のHEAD / binary hashを維持し、新SHAへ書き換えない。

@@ -8,7 +8,8 @@ function assert(test:unknown,message:string):asserts test {if(!test)throw new Er
 function key(e:HTMLElement,key:string,extra:KeyboardEventInit={}) {e.dispatchEvent(new KeyboardEvent("keydown",{key,bubbles:true,...extra}));}
 function input(label:string) {const e=document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);assert(e,`missing input: ${label}`);return e;}
 function text(e:HTMLInputElement,value:string) {Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(e,value);e.dispatchEvent(new Event("input",{bubbles:true}));}
-function button(label:string) {const e=[...document.querySelectorAll<HTMLButtonElement>("button")].find(e=>e.getAttribute("aria-label")===label||e.textContent===label);assert(e,`missing action: ${label}`);return e;}
+function findButton(label:string){return [...document.querySelectorAll<HTMLButtonElement>("button")].find(e=>e.getAttribute("aria-label")===label||e.textContent===label);}
+function button(label:string){const e=findButton(label);assert(e,`missing action: ${label}`);return e;}
 async function begin(category:string,filename:string) {
   await until(()=>!button("ソースを作成").disabled,"New remained unavailable");
   button("ソースを作成").click();
@@ -51,6 +52,32 @@ export async function run({startup}:{startup:Record<string,unknown>}) {
     assert(desktop.surface.status.dirty.includes(SOURCE),"cancel discarded existing draft");
     assert(!desktop.surface.inventory!.sources.some(s=>s.path==='sources/cancelled.yaml'),"cancel created source");
     checks.push("inline-cancel-composition");
+    await begin("テーブル","outside-created.yaml");
+    text(input("新しいソースのファイル名"),"");
+    const outside=document.querySelector<HTMLInputElement>('#search')!;outside.focus();outside.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}));
+    await until(()=>!document.querySelector('.creation-inline'),"empty outside input was not cancelled");
+    assert(!desktop.surface.inventory!.sources.some(source=>source.path==='sources/outside-created.yaml'),"empty outside input created a source");
+    await begin("テーブル","outside-created.yaml");
+    outside.focus();outside.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}));
+    await until(()=>desktop.surface.inventory!.sources.some(source=>source.path==='sources/outside-created.yaml')&&!document.querySelector('.creation-inline'),"filled outside input was not created");
+    created.push('sources/outside-created.yaml');
+    await until(()=>!desktop.surface.pending&&document.activeElement===outside,"outside creation stole the new focus");
+    assert(desktop.surface.target===SOURCE,"outside creation changed the latest selection");
+    checks.push("outside-empty-cancel-filled-create-focus");
+    await begin("テーブル","lost-create.yaml");
+    const actualRpc=desktop.rpc.bind(desktop);let createCount=0;
+    desktop.rpc=async function<T>(intent:Record<string,unknown>){const reply=await actualRpc<T>(intent);if(intent.kind==="create"){createCount++;throw new Error("lost creation reply");}return reply;};
+    try {
+      key(input("新しいソースのファイル名"),"Enter");
+      await until(()=>!!findButton("保存先を再確認"),"lost reply did not expose read-only Recheck");
+      outside.focus();outside.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}));await frame();await frame();
+      assert(createCount===1&&input("新しいソースのファイル名").disabled,"outside click retried an uncertain write");
+      button("保存先を再確認").click();await until(()=>desktop.surface.target==='sources/lost-create.yaml'&&!desktop.surface.pending&&!document.querySelector('.creation-inline'),"Recheck did not recover the successful native Create");
+      assert(createCount===1,"Recheck performed a second write");created.push('sources/lost-create.yaml');
+    } finally {desktop.rpc=actualRpc;}
+    checks.push("lost-create-reply-outside-no-retry-explicit-recheck");
+
+
 
     await begin("テーブル","fresh-table.yaml");key(input("新しいソースのファイル名"),"Enter");
     await until(()=>desktop.surface.target==='sources/fresh-table.yaml'&&!desktop.surface.pending&&!!desktop.surface.projection,"created Table not selected");
@@ -77,6 +104,7 @@ export async function run({startup}:{startup:Record<string,unknown>}) {
 
     await begin("Enum","huge-token.yaml");button("作成内容の詳細").click();
     await until(()=>!!document.querySelector("[role=\"dialog\"] input[aria-label=\"ソースの識別子\"]"),"Advanced dialog missing");
+    assert(!document.querySelector('input[aria-label="作成先のソースルート"]')&&!!document.querySelector('input[aria-label="作成先のフォルダー"]'),"creation kept a redundant root selector");
     text(input("ソースの識別子"),"HugeToken");
     await choose("基になる型","ulong");
     text(input("メンバー 1 名前"),"Maximum");text(input("メンバー 1 値"),"18446744073709551615");

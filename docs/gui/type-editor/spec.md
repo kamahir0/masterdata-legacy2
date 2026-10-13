@@ -22,7 +22,7 @@ Value Objectではunderlying primitiveと`fromUnderlyingImplicit` / `toUnderlyin
 
 Flagsの既存numeric declarationにはatomic bitの位置と式を補助表示する。数値をJS Numberへ変換せず、None=0の保護と既存mutation範囲を維持する。
 
-Flags Addではunderlying幅内の未使用atomic bitをshared Rustからexact numeric valueと共に提示し、選択でexplicit numeric入力を補助する。既存member numeric変更やimplicit numberingではない。候補取得・開閉はsourceを変更せず、Plan / Applyが現在のsourceで検証する。
+Flagsの詳細Addではunderlying幅内の未使用atomic bitをshared Rustからexact numeric valueと共に提示し、選択でexplicit numeric入力を補助する。既存member numeric変更やimplicit numberingではない。候補取得・開閉はsourceを変更せず、Plan / Applyが現在のsourceで検証する。
 
 v1非対象のdeclaration name、underlying、member numeric value、field type/modifier/key/reorder等をdirect-edit可能なcontrolとして表示してはならない（MUST NOT）。read-onlyとして表示することはできる（MAY）。
 
@@ -38,9 +38,9 @@ Type category conversion、type rename、underlying変更、member numeric value
 
 ### GUI-TYPE-LAYOUT-004
 
-member / field listは選択radio列と常時並ぶAdd / Rename / Drop clusterを持たず、listまたは対象行からactionを開始できなければならない（MUST）。operation input、Plan / Diff / Applyは必要時だけ開く一時的な面へ置き、閉じるとlistと開始元focusへ戻れるようにしなければならない（MUST）。 Add / Rename / Dropは対象member / fieldの文脈で開始し、入力確定時にPlanを自動生成して一時面のApplyへ進めなければならない（MUST）。既存のshared Plan、Diff、stale判定、dirty-file gate、destructive authorizationを維持しなければならない（MUST）。
+member / field listは選択radio列と常時並ぶAdd / Rename / Drop clusterを持たず、listまたは対象行からactionを開始できなければならない（MUST）。operation input、Plan / Diff / Applyは必要時だけ開く一時的な面へ置き、閉じるとlistと開始元focusへ戻れるようにしなければならない（MUST）。 Add / Rename / Dropは対象member / fieldの文脈で開始し、通常は入力確定時にPlanを自動生成して一時面のApplyへ進む。Enumの通常追加とinline RenameはGUI-TYPE-INT-011を使う。既存のshared Plan、Diff、stale判定、dirty-file gate、destructive authorizationを維持しなければならない（MUST）。
 
-member / field名からinline Renameを開始でき、Enum / Flags Addの入力はlist付近に置く。入力確定後のPlan / Diff / explicit Applyは維持し、source mutationを通常typingやblurへ結合しない。
+member / field名からinline Renameを開始でき、Enum / Flagsの詳細Add入力はlist付近に置く。GUI-SHELL-INPUT-001の入力確定後はPlan / Diff / explicit Applyへ進む。GUI-TYPE-INT-011の宣言だけの変更を除き、source mutationを通常typingやblurへ結合しない。
 
 ## 状態（States）
 
@@ -50,7 +50,7 @@ Type Editorは少なくともtype loading、ready、operation input editing、Pl
 
 ### GUI-TYPE-STATE-002
 
-Type Migration operation inputやPlanをData Editorのsource dirty bufferと同一conceptとして扱ってはならない（MUST NOT）。Type Editorの`Apply`だけがType Migration source mutationを開始し、Cmd+S / Ctrl+SをMigration Applyのshortcutへ暗黙に割り当ててはならない（MUST NOT）。Plan / Apply failureだけを理由にoperation inputを不必要に失ってはならない（MUST NOT）。
+Type Migration operation inputやPlanをData Editorのsource dirty bufferと同一conceptとして扱ってはならない（MUST NOT）。Type Editorの明示`Apply`またはGUI-TYPE-INT-011の直接操作がType Migration source mutationを開始し、Cmd+S / Ctrl+SをMigration Applyのshortcutへ暗黙に割り当ててはならない（MUST NOT）。Plan / Apply failureだけを理由にoperation inputを不必要に失ってはならない（MUST NOT）。
 
 ### GUI-TYPE-STATE-003
 
@@ -70,7 +70,7 @@ Value Objectのconversion editingは`SetValueObjectConversions` semantic command
 
 ### GUI-TYPE-INT-002
 
-Normal Enum / Flags Enumは`AddEnumMember`、`RenameEnumMember`、`DropEnumMember`のguided inputを提供しなければならない（MUST）。Addはexplicit nameとnumeric valueを入力できなければならず（MUST）、frontendがimplicit numberingを生成してsemantic defaultとして扱ってはならない（MUST NOT）。Renameはcurrent member nameをselectorとしてshared Type Migration boundaryへ渡し、numeric valueを編集してはならない（MUST NOT）。
+Normal Enum / Flags Enumは`AddEnumMember`、`RenameEnumMember`、`DropEnumMember`のguided inputを提供しなければならない（MUST）。詳細Addはexplicit nameとnumeric valueを入力できなければならない（MUST）。通常AddはGUI-TYPE-INT-011を使い、frontendがimplicit numberingを生成してsemantic defaultとして扱ってはならない（MUST NOT）。Renameはcurrent member nameをselectorとしてshared Type Migration boundaryへ渡し、numeric valueを編集してはならない（MUST NOT）。
 
 Dropはdestructive actionとして明示しなければならない（MUST）。Flagsの`None = 0`はRename / Drop actionの対象として提供してはならない（MUST NOT）。
 
@@ -82,7 +82,7 @@ Renameはcurrent field nameをselectorとしてshared Type Migration boundaryへ
 
 ### GUI-TYPE-INT-004
 
-source mutation前に必ずcurrent semantic commandに対応するType Migration Planを取得しなければならない（MUST）。Plan surfaceは少なくともoperation / target、destructive state、affected source files、affected value occurrence count、migration validation / diagnosticsを表示しなければならない（MUST）。Plan作成・表示はsourceを変更してはならない（MUST NOT）。
+source mutation前に必ずcurrent semantic commandに対応するType Migration Planを取得しなければならない（MUST）。GUI-TYPE-INT-011の直接操作を除き、Plan surfaceは少なくともoperation / target、destructive state、affected source files、affected value occurrence count、migration validation / diagnosticsを表示しなければならない（MUST）。Plan作成・表示はsourceを変更してはならない（MUST NOT）。
 
 ### GUI-TYPE-INT-005
 
@@ -93,6 +93,8 @@ Planからaffected fileごとのbefore / after Diffへ移動できなければ�
 Applyはcurrent UIが示しているsemantic commandとbase snapshotに対応するcurrent Planだけを対象にしなければならない（MUST）。Plan作成後にoperation inputを変更した場合、old PlanをcurrentとしてApplyしてはならない（MUST NOT）。
 
 commit preflightがproject config、source membership、resolutionへ使用したsource bytesのstale stateを検出した場合はsource mutationを開始せず、stale planとして表示し、re-plan actionを提供しなければならない（MUST）。silent retry / silent overwriteを行ってはならない（MUST NOT）。
+
+inline入力の確定で別fileへ移動した場合も、必要なPlan確認はcaptured target名 / sourceを明示した一時面で行う。Explorer selectionをApplyのtarget authorityにせず、表示中Planのtarget / base / epochだけを使う。成功後は最新navigation先のcurrent viewを更新し、旧targetへ戻さない。
 
 ### GUI-TYPE-INT-007
 
@@ -109,6 +111,12 @@ Type Migration成功をBuild / Publish / Git / generated artifact更新と同一
 Type Editorからshared application boundaryへ渡すsemantic valueは、Approved Type System / YAML subsetが許すexact valueをlosslessに保持しなければならない（MUST）。特にEnum / Flagsの`long` / `ulong`を含むmember numeric value、Custom Type field initializer内の64-bit integerその他のscalar valueを、JavaScriptのsafe-integer rangeへ丸めたり、floating-point `number`へlossy coercionしてはならない（MUST NOT）。
 
 このrequirementはspecific wire encodingを固定しない。string、tagged scalar、BigInt-safe adapter等の具体的transport representationは、round-tripでexact semantic valueを保持し、shared Rust semanticsが最終validationを行う限りimplementation detailとしてよい（MAY）。
+
+### GUI-TYPE-INT-011
+
+Enum / Flagsの通常Addはshared Rustが未使用の有効nameとexact numericを提案し、現行Plan / stale preflight / dirty gate / native transactionで追加を完了する。normal Enumは最小の未使用非負整数、Flagsは最小の未使用atomic bit（signed sign bitを含む）。候補がなければ理由を示しmutationしない。追加成功後だけそのmember名をinline選択編集する。Escape / 空入力は生成済み名へ戻し、追加そのものを取消さない。
+
+member / fieldのinline Renameはcurrent Planが宣言fileだけを変更し既存値への影響がゼロの場合に直接適用できる。他source/valueへ影響する場合は既存Plan / Diff / explicit Applyへ戻す。任意name/numericの明示追加は詳細actionから提供する。候補の取得自体はwrite authorityではなく、64-bitをJS Numberへ変換しない。
 
 ## キーボード（Keyboard）
 

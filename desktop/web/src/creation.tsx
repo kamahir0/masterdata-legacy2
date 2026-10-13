@@ -39,7 +39,8 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
   const live=useRef(draft); live.current=draft;
   const revision=useRef(0),requestId=useRef(0),filename=useRef<HTMLInputElement|null>(null),advancedFilename=useRef<HTMLInputElement|null>(null);
   const focusRequest=useRef<{id:number;advanced:boolean;intent:number;done:boolean}|null>(null);
-  const origin=useRef<HTMLElement|null>(null);
+  const origin=useRef<HTMLElement|null>(null),inlineElement=useRef<HTMLDivElement>(null),composing=useRef(false);
+  const validation=useRef<Promise<void>>(Promise.resolve()),submitting=useRef(false);
   const patch=(change:Partial<Draft>)=>{
     const current=live.current;if(!current)return;
     live.current={...current,...change};setDraft(live.current);
@@ -77,56 +78,75 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
       if(mine===revision.current&&desktop.surface.status.epoch===epoch)patch({artifact,preview:reply.data,pending:false});
     } catch(error) {if(mine===revision.current)patch({pending:false,error:errorText(error)});}
   }
-  function begin(category:Category) {
-    const destination=target(context.startsWith("folder:")?context.slice(7):parent(context));
+  function begin(category:Category,where=context) {
+    const destination=target(where.startsWith("folder:")?where.slice(7):parent(where));
     if(!destination)return;
-    origin.current=document.activeElement as HTMLElement;
+    origin.current=document.activeElement as HTMLElement;composing.current=false;
     const file=category==="folder"?"new-folder":category==="table"?"new-table.yaml":category==="data"?"new-data.yaml":`${category==="valueObject"?"value-object":category==="custom"?"custom-type":category}.yaml`;
     const next:Draft={...destination,id:++requestId.current,filename:file,category,artifact:null,advanced:false,pending:true,preview:null,result:null,error:null};
-    live.current=next;setDraft(next); void validate(next,true);
+    live.current=next;setDraft(next); validation.current=validate(next,true);
   }
-  function cancel() {
+  function cancel(restore=true) {
     if(live.current?.result?.outcome==="OutcomeUnknown"||live.current?.result?.outcome==="RecoveryRequired")return;
     revision.current++;live.current=null;setDraft(null);
-    if(origin.current?.isConnected)origin.current.focus();
+    if(restore&&origin.current?.isConnected)origin.current.focus();
   }
   function change(change:Partial<Draft>,propose=false) {
     if(!live.current)return;
     const next={...live.current,...change,result:null,error:null};
-    live.current=next;setDraft(next); void validate(next,propose);
+    live.current=next;setDraft(next); validation.current=validate(next,propose);
   }
-  async function create(recheck=false) {
+  async function create(recheck=false,follow=true) {
     const d=live.current;
-    if(!d||d.pending||!d.artifact||(!recheck&&!d.preview?.valid))return;
+    if(!d||d.pending||!d.artifact||(!recheck&&(!d.preview?.valid||d.result?.outcome==="OutcomeUnknown"||d.result?.outcome==="RecoveryRequired")))return;
     const request:Request={root:d.root,path:join(d.folder,d.filename),artifact:d.artifact};
     const intent=desktop.inputIntent;
     patch({pending:true,error:null});
     try {
-      const reply=await desktop.rpc<Result>(recheck?{kind:"recheckCreation",epoch,path:request.path}:{kind:"create",epoch,request});
+      const reply=await desktop.rpc<Result>(recheck?{kind:"recheckCreationRequest",epoch,request}:{kind:"create",epoch,request});
       if(desktop.surface.status.epoch!==epoch||live.current?.id!==d.id)return;
       patch({result:reply.data,pending:false});
       await desktop.refreshInventory();
       if(reply.data.outcome==="Success"&&desktop.surface.status.epoch===epoch) {
-        revision.current++;setDraft(null);onCreated(request.path,d.category==="folder",intent);
+        revision.current++;live.current=null;setDraft(null);if(follow)onCreated(request.path,d.category==="folder",intent);
       }
-    } catch(error) {if(desktop.surface.status.epoch===epoch&&live.current?.id===d.id)patch({pending:false,error:errorText(error)});}
+    } catch(error) {if(desktop.surface.status.epoch===epoch&&live.current?.id===d.id){const known=!!error&&typeof error==="object"&&"code" in error;patch({pending:false,error:errorText(error),...(!known?{result:{source:request.path,outcome:"OutcomeUnknown",message:"結果を受信できません。保存先を再確認してください。"}}:{})});}}
   }
+  async function finish(follow=false) {
+    const current=live.current;
+    if(!current||current.advanced||composing.current||submitting.current||current.result?.outcome==="OutcomeUnknown"||current.result?.outcome==="RecoveryRequired")return;
+    if(!current.filename.trim()){cancel(follow);return;}
+    submitting.current=true;
+    try {
+      let pending:Promise<void>;
+      do {pending=validation.current;await pending;}while(pending!==validation.current);
+      if(live.current?.id===current.id&&epoch===desktop.surface.status.epoch)await create(false,follow);
+    }finally{submitting.current=false;}
+  }
+  const finishRef=useRef(finish);finishRef.current=finish;
+  useEffect(()=>{
+    if(!draft||draft.advanced)return;
+    const outside=(event:PointerEvent)=>{if(event.target instanceof Element&&!inlineElement.current?.contains(event.target)&&!event.target.closest('.ant-select-dropdown'))void finishRef.current();};
+    document.addEventListener('pointerdown',outside);
+    return()=>document.removeEventListener('pointerdown',outside);
+  },[draft?.id,draft?.advanced]);
+  const folders=inventory.folders.map(folder=>folder||".").filter(folder=>choices?.roots.some(root=>!root.path||folder===root.path||folder.startsWith(root.path+"/")));
   const uncertain=draft?.result?.outcome==="OutcomeUnknown"||draft?.result?.outcome==="RecoveryRequired";
   const committing=!!draft?.pending&&!!draft.artifact&&!!draft.preview;
-  const content=draft&&<div className="creation-inline" onClick={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}>
-    <Flex justify="space-between" align="center"><Typography.Text type="secondary">{categories.find(([kind])=>kind===draft.category)?.[1]}</Typography.Text><Space size={0}><Tooltip title="作成内容の詳細"><Button type="text" icon={<SettingOutlined aria-hidden="true"/>} aria-label="作成内容の詳細" disabled={committing||uncertain} onClick={()=>patch({advanced:true})}/></Tooltip><Tooltip title="作成をキャンセル"><Button type="text" icon={<CloseOutlined aria-hidden="true"/>} aria-label="作成をキャンセル" disabled={committing||uncertain} onClick={cancel}/></Tooltip></Space></Flex>
+  const content=draft&&<div ref={inlineElement} className="creation-inline" onClick={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}>
+    <Flex justify="space-between" align="center"><Typography.Text type="secondary">{categories.find(([kind])=>kind===draft.category)?.[1]}</Typography.Text><Space size={0}><Tooltip title="作成内容の詳細"><Button type="text" icon={<SettingOutlined aria-hidden="true"/>} aria-label="作成内容の詳細" disabled={committing||uncertain} onClick={()=>patch({advanced:true})}/></Tooltip><Tooltip title="作成をキャンセル"><Button type="text" icon={<CloseOutlined aria-hidden="true"/>} aria-label="作成をキャンセル" disabled={committing||uncertain} onClick={()=>cancel()}/></Tooltip></Space></Flex>
     {/* Ant Input recreates its input when the affix structure changes. Keep the
         suffix mounted so preview completion cannot discard focus or composition. */}
-    <Input ref={r=>{filename.current=r?.input??null;}} aria-label="新しいソースのファイル名" value={draft.filename} disabled={committing||uncertain} suffix={<span className="creation-pending">{draft.pending?<Spin size="small"/>:null}</span>} onChange={e=>change({filename:e.target.value},!draft.advanced)} onKeyDown={e=>{if(e.nativeEvent.isComposing)return;if(e.key==="Escape"){e.preventDefault();cancel();}if(e.key==="Enter"){e.preventDefault();void create();}}}/>
+    <Input ref={r=>{filename.current=r?.input??null;}} aria-label="新しいソースのファイル名" value={draft.filename} disabled={committing||uncertain} suffix={<span className="creation-pending">{draft.pending?<Spin size="small"/>:null}</span>} onChange={e=>change({filename:e.target.value},!draft.advanced)} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} onKeyDown={e=>{if(e.nativeEvent.isComposing||composing.current||e.keyCode===229)return;if(e.key==="Escape"){e.preventDefault();cancel();}if(e.key==="Enter"||e.key==="Tab"){if(e.key==="Enter")e.preventDefault();void finish(e.key==="Enter");}}}/>
     <Typography.Text type="secondary" className="creation-destination" title={`${draft.root} · ${draft.folder}`}>{draft.folder} · {draft.preview?.identity??(draft.category==="folder"?"フォルダー":"…")}</Typography.Text>
     {draft.artifact?.category==="data"&&<Select aria-label="データのテーブル" value={draft.artifact.table||undefined} placeholder="テーブルを選択" options={options(choices?.tables??[])} disabled={committing||uncertain} onChange={table=>change({artifact:{category:"data",table}})}/>}
     {!draft.advanced&&<Feedback draft={draft}/>}
     {uncertain&&<Button onClick={()=>void create(true)} loading={draft.pending}>保存先を再確認</Button>}
   </div>;
   const menu:MenuProps={items:categories.map(([key,label])=>({key,label})),onClick:({key})=>begin(key as Category)};
-  const modal=draft&&<Modal title={`新規: ${categories.find(([kind])=>kind===draft.category)?.[1]}`} open={draft.advanced} afterOpenChange={open=>{if(open)focusFilename();}} width={730} onCancel={()=>{if(!committing&&!uncertain)patch({advanced:false});}} mask={{closable:!committing&&!uncertain}} keyboard={!committing&&!uncertain} footer={<Space><Button disabled={committing||uncertain} onClick={cancel}>キャンセル</Button><Button type="primary" loading={committing} disabled={draft.pending||(!uncertain&&!draft.preview?.valid)} onClick={()=>void create(!!uncertain)}>{uncertain?"保存先を再確認":"作成"}</Button></Space>}>
+  const modal=draft&&<Modal title={`新規: ${categories.find(([kind])=>kind===draft.category)?.[1]}`} open={draft.advanced} afterOpenChange={open=>{if(open)focusFilename();}} width={730} onCancel={()=>{if(!committing&&!uncertain)patch({advanced:false});}} mask={{closable:!committing&&!uncertain}} keyboard={!committing&&!uncertain} footer={<Space><Button disabled={committing||uncertain} onClick={()=>cancel()}>キャンセル</Button><Button type="primary" loading={committing} disabled={draft.pending||(!uncertain&&!draft.preview?.valid)} onClick={()=>void create(!!uncertain)}>{uncertain?"保存先を再確認":"作成"}</Button></Space>}>
     <Form layout="vertical" className="creation-form" disabled={committing||uncertain}>
-      <Flex gap={12}><Form.Item label="ソースルート"><Select aria-label="作成先のソースルート" value={draft.root} options={choices?.roots.map(r=>({value:r.root,label:r.root}))} onChange={root=>{const path=choices!.roots.find(r=>r.root===root)!.path||".";change({root,folder:path});}}/></Form.Item><Form.Item label="フォルダー"><Select aria-label="作成先のフォルダー" value={draft.folder} options={options(inventory.folders.map(f=>f||".").filter(folder=>{const path=choices?.roots.find(r=>r.root===draft.root)?.path;return path!==undefined&&(!path||folder===path||folder.startsWith(path+"/"));}))} onChange={folder=>change({folder})}/></Form.Item></Flex>
+      <Form.Item label="作成先フォルダー">{folders.length>1?<Select aria-label="作成先のフォルダー" value={draft.folder} options={options(folders)} onChange={folder=>{const destination=target(folder);if(destination)change(destination);}}/>:<Typography.Text aria-label="作成先のフォルダー">{draft.folder}</Typography.Text>}</Form.Item>
       <Form.Item label="ファイル名"><Input ref={r=>{advancedFilename.current=r?.input??null;}} aria-label="作成するファイル名" value={draft.filename} onChange={e=>change({filename:e.target.value})} onKeyDown={e=>{if(e.nativeEvent.isComposing)return;if(e.key==="Enter")e.preventDefault();}}/></Form.Item>
       {draft.artifact&&choices&&<Declaration artifact={draft.artifact} choices={choices} disabled={committing||uncertain} update={artifact=>change({artifact})}/>}
     </Form><Feedback draft={draft}/>

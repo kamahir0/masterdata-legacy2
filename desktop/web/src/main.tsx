@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Application } from "./app";
 import { desktop, type Preference } from "./workspace";
 import type { SelectionSample } from "./types";
@@ -56,11 +57,11 @@ document.addEventListener("keydown", (e) => {
     if(e.code==="KeyP"){
       e.preventDefault();
       const p=desktop.surface.projection;
-      void invoke("evidence_write",{report:{format:1,kind:"actual-os-input",startup,samples:desktop.samples,droppedSamples:desktop.droppedSamples,
+      void getCurrentWindow().outerPosition().then(windowPosition=>invoke("evidence_write",{report:{format:1,kind:"actual-os-input",windowPosition,startup,samples:desktop.samples,droppedSamples:desktop.droppedSamples,
         clock:"performance.now at DOM input handler; eventTimestamp is recorded separately",probe:"trusted pointer/keyboard accepted after target paint opportunity; rAF is not GPU presentation",
-        current:{target:desktop.surface.target,source:p?.source,totalRows:p?.totalRows,columns:p?.columns.length,dirty:desktop.surface.status.dirty,
+        current:{error:desktop.surface.error,target:desktop.surface.target,source:p?.source,totalRows:p?.totalRows,columns:p?.columns.length,dirty:desktop.surface.status.dirty,
           mountedRows:desktop.viewport?.querySelectorAll('.grid-row').length,mountedCells:desktop.viewport?.querySelectorAll('[role=gridcell]').length,
-          activeEditors:document.querySelectorAll('.active-cell-editor').length,theme:document.documentElement.dataset.theme,reducedMotion:document.documentElement.dataset.reducedMotion}}}).catch(desktop.showError);
+          activeEditors:document.querySelectorAll('.active-cell-editor').length,theme:document.documentElement.dataset.theme,reducedMotion:document.documentElement.dataset.reducedMotion}}})).catch(desktop.showError);
       return;
     }
   }
@@ -75,6 +76,8 @@ document.addEventListener("keydown", (e) => {
   }
 });
 if(boot.inputCapture){
+  const mouseEvents:Record<string,unknown>[]=[];startup.mouseEvents=mouseEvents;
+  for(const type of ['mousedown','mouseup'])document.addEventListener(type,event=>{const e=event as MouseEvent;if(mouseEvents.length===20)mouseEvents.shift();mouseEvents.push({type,button:e.button,detail:e.detail,x:e.clientX,y:e.clientY,target:(e.target as Element)?.id,tag:(e.target as Element)?.tagName,trusted:e.isTrusted});},true);
   const unavailable=()=>{const sample=desktop.currentSample;if(sample&&!sample.firstAccepted&&!sample.invalid)sample.invalid="measurement unavailable: foreground lost during selection";};
   window.addEventListener("blur",unavailable);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState!=="visible")unavailable();});

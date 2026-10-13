@@ -156,6 +156,52 @@ impl Workspace {
         }
         Ok(())
     }
+    pub fn recheck_creation_request(&mut self, request: &Request) -> Result<WriteResult> {
+        if self.creations.contains_key(&request.path) {
+            return self.recheck_creation(&request.path);
+        }
+        let root = self.creation_root(request)?;
+        let target = native::creation_path(&self.read.root, &root, &request.path)?;
+        match fs::symlink_metadata(&target) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(WriteResult::new(
+                    &request.path,
+                    Outcome::Failure,
+                    "Recheck confirmed no destination; explicit retry is available",
+                ));
+            }
+            Err(e) => return Err(project::io_error(e)),
+            Ok(_) => {}
+        }
+        // A successful native Create can lose only its IPC reply. In that case
+        // no uncertain receipt exists; compare the frozen typed request with
+        // current bytes. Exclude its own declaration only while constructing
+        // the expected artifact, so it cannot conflict with its own identity.
+        let mut project = self.fresh_creation_project()?;
+        project.sources.remove(&request.path);
+        project.rebuild_declarations();
+        let expected = creation::candidate(&project, request)?;
+        let complete = match expected {
+            Some(document) => native::capture(&self.read.root, &[root], &request.path)
+                .is_ok_and(|snapshot| snapshot.bytes == document.bytes),
+            None => native::checked_path(&self.read.root, &[root], &request.path)
+                .is_ok_and(|path| path.is_dir()),
+        };
+        if complete {
+            self.accept_creation(request)?;
+            Ok(WriteResult::new(
+                &request.path,
+                Outcome::Success,
+                "Recheck confirmed complete destination",
+            ))
+        } else {
+            Ok(WriteResult::new(
+                &request.path,
+                Outcome::Conflict,
+                "Recheck found a different destination; existing entry preserved",
+            ))
+        }
+    }
     pub fn recheck_creation(&mut self, path: &str) -> Result<WriteResult> {
         let pending = self.creations.get(path).cloned().ok_or_else(|| {
             Error::new(
