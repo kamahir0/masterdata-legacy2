@@ -6,3 +6,10 @@ fixtures/rewrite-oracle/v1/crlf/** -text whitespace=cr-at-eol
 # Sample artifacts must stay byte-identical to native Build / Publish on Windows too.
 samples/UnityInventory/Unity/Assets/MasterData/Generated/*.g.cs -text
 samples/UnityInventory/Unity/Assets/StreamingAssets/*.bytes binary
+
+# Keep Unity serializer and imported TMP resource bytes in their native format.
+samples/UnityInventory/Unity/**/*.meta whitespace=-blank-at-eol
+samples/UnityInventory/Unity/**/*.asset whitespace=-blank-at-eol
+samples/UnityInventory/Unity/**/*.unity whitespace=-blank-at-eol
+"samples/UnityInventory/Unity/Assets/TextMesh Pro/**" whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+unity/Packages/com.kamahir0.masterdata/**/*.meta whitespace=-blank-at-eol
