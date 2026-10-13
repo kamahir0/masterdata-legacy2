@@ -15,6 +15,7 @@
 - [表の理解と近接編集](spec-changes/0058-contextual-table-authoring.md)（2026-10-11 Human-selected両Pass統合改善scope）。
 - [日常編集の手数と編集距離](spec-changes/0059-direct-authoring-continuity.md)（2026-10-11 Human-selected残り5点の改善scope）。
 - [近接編集と入力確定の統一](spec-changes/0060-consistent-direct-input.md)（2026-10-13 Human-selected GUI違和感の解消scope）。
+- [sources固定・単一化の改善計画](spec-changes/0061-fixed-source-directory.md)（2026-10-13 Human-selected計画scope。互換性方針のdecision後にcanonical適用 / implementationへ進む）。
 - source / schema / type mutation、write safety、Migration、CLI、Build / Publish、native MasterMemory delegationとactual consumer。
 - [independent oracle](../fixtures/rewrite-oracle/v1/README.md)の全category、[acceptance matrix](rewrite-preparation/acceptance-matrix.md)、source exact bytes、100k capacity。
 - [performance contract](gui/performance.md)のdistribution / work counts、macOS arm64 / Windows x64 actual Desktop、fresh Candidate reviewとrequired CI。
