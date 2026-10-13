@@ -1,0 +1,16 @@
+[project]
+id = "sample.unity-inventory"
+name = "Unity Inventory Sample"
+version = "0.1.0"
+
+[build]
+artifact_dir = ".masterdata/output"
+cache = ".masterdata/cache"
+
+[[publish.targets]]
+kind = "csharp"
+path = "../Unity/Assets/MasterData/Generated"
+
+[[publish.targets]]
+kind = "binary"
+path = "../Unity/Assets/StreamingAssets/masterdata.bytes"

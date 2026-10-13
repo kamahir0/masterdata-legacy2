@@ -124,6 +124,50 @@ fn independent_consumers_reload_nested_values_and_sparse_keys() {
         dotnet::verify_consumer(plan.csharp(), &artifact.binary, &consumer, extra).unwrap();
     }
 }
+#[test]
+fn unity_inventory_sample_artifacts_match_a_fresh_native_build() {
+    let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let sample = repository.join("samples/UnityInventory");
+    let project = tempfile::tempdir().unwrap();
+    fs::copy(
+        sample.join("MasterData/masterdata.toml"),
+        project.path().join("masterdata.toml"),
+    )
+    .unwrap();
+    fixture::copy(
+        &sample.join("MasterData/sources"),
+        &project.path().join("sources"),
+    )
+    .unwrap();
+    let plan = BuildPlan::capture(project.path(), None).unwrap();
+    assert_eq!(
+        plan.row_counts(),
+        BTreeMap::from([("item".to_owned(), 6), ("quest".to_owned(), 3)])
+    );
+    let generated = sample.join("Unity/Assets/MasterData/Generated");
+    let checked_in: BTreeMap<String, String> = fs::read_dir(generated)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.to_string_lossy().ends_with(".g.cs"))
+        .map(|path| {
+            (
+                path.file_name().unwrap().to_string_lossy().into_owned(),
+                fs::read_to_string(path).unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        *plan.csharp(),
+        checked_in,
+        "sample C# is stale; run prepare.py"
+    );
+    assert_eq!(
+        dotnet::build(&plan).unwrap().binary,
+        fs::read(sample.join("Unity/Assets/StreamingAssets/masterdata.bytes")).unwrap(),
+        "sample binary is stale; run prepare.py"
+    );
+}
+
 const MINIMAL_API: &str = r#"
 var constructor=typeof(Masterdata.Generated.Reward).GetConstructors()[0];
 var parameters=constructor.GetParameters();

@@ -1,0 +1,19 @@
+{
+  "name": "UnityInventory.PlayModeTests",
+  "references": [
+    "UnityInventory.Generated",
+    "UnityInventory.Demo",
+    "UnityEngine.UI",
+    "MasterData.UnityRuntime"
+  ],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll",
+    "MasterMemory.dll",
+    "MasterMemory.Annotations.dll",
+    "MessagePack.dll",
+    "MessagePack.Annotations.dll",
+    "System.Collections.Immutable.dll"
+  ]
+}

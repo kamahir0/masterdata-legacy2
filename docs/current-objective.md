@@ -16,6 +16,7 @@
 - [日常編集の手数と編集距離](spec-changes/0059-direct-authoring-continuity.md)（2026-10-11 Human-selected残り5点の改善scope）。
 - [近接編集と入力確定の統一](spec-changes/0060-consistent-direct-input.md)（2026-10-13 Human-selected GUI違和感の解消scope）。
 - [sources固定・単一化の改善計画](spec-changes/0061-fixed-source-directory.md)（2026-10-13 Human-selected実装scope。[0062](spec-changes/0062-remove-source-config-compatibility.md)の追加Human decisionで、使用Projectなし / 旧形式保守不要を適用）。
+- [Unity込みのsample Project](../samples/UnityInventory/README.md)（2026-10-14 Human-selected追加scope）。既存Build / Publish / Unity Integrationを使い、編集からruntime利用まで試せるrepository内sampleを用意する。
 - source / schema / type mutation、write safety、Migration、CLI、Build / Publish、native MasterMemory delegationとactual consumer。
 - [independent oracle](../fixtures/rewrite-oracle/v1/README.md)の全category、[acceptance matrix](rewrite-preparation/acceptance-matrix.md)、source exact bytes、100k capacity。
 - [performance contract](gui/performance.md)のdistribution / work counts、macOS arm64 / Windows x64 actual Desktop、fresh Candidate reviewとrequired CI。

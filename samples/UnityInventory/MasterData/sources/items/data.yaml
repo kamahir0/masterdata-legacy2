@@ -1,0 +1,63 @@
+kind: data
+table: item
+records:
+  - id: 1001
+    code: bronze-sword
+    name: Bronze Sword
+    description: A reliable blade for a first adventure.
+    rarity: Common
+    tags: [Weapon, Crafting]
+    price: 120
+    stats: {attack: 12, defense: 0, health: 0}
+    ingredients: [Bronze Ore, Oak Wood]
+    note: null
+  - id: 1002
+    code: leather-shield
+    name: Leather Shield
+    description: Light protection that leaves room to move.
+    rarity: Common
+    tags: [Armor, Crafting]
+    price: 90
+    stats: {attack: 0, defense: 8, health: 10}
+    ingredients: [Leather, Oak Wood]
+    note: null
+  - id: 1003
+    code: healing-potion
+    name: Healing Potion
+    description: Restores health when the road gets rough.
+    rarity: Common
+    tags: [Consumable]
+    price: 35
+    stats: {attack: 0, defense: 0, health: 50}
+    ingredients: []
+    note: Single use
+  - id: 2001
+    code: frost-blade
+    name: Frost Blade
+    description: A rare sword forged from crystal and steel.
+    rarity: Rare
+    tags: [Weapon, Crafting]
+    price: 640
+    stats: {attack: 34, defense: 2, health: 0}
+    ingredients: [Frost Crystal, Steel Ingot]
+    note: Reward from The Frozen Pass
+  - id: 2002
+    code: guardian-mail
+    name: Guardian Mail
+    description: Balanced armor for longer expeditions.
+    rarity: Rare
+    tags: [Armor]
+    price: 520
+    stats: {attack: 0, defense: 28, health: 60}
+    ingredients: []
+    note: null
+  - id: 3001
+    code: dawnbringer
+    name: Dawnbringer
+    description: A legendary blade carried by the valley's guardians.
+    rarity: Epic
+    tags: [Weapon]
+    price: 2400
+    stats: {attack: 80, defense: 12, health: 40}
+    ingredients: []
+    note: Reward from The Last Watch

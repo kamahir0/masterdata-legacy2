@@ -1,0 +1,11 @@
+{
+  "name": "UnityInventory.Demo",
+  "rootNamespace": "UnityInventory",
+  "references": [
+    "UnityInventory.Generated",
+    "MasterData.UnityRuntime",
+    "UnityEngine.UI",
+    "Unity.TextMeshPro",
+    "Unity.InputSystem"
+  ]
+}

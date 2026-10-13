@@ -121,7 +121,8 @@ for rel in set(inventory) - {""}:
     if path.parts[0] == "scripts":
         require(rel in local_app_files, f"unexpected local launcher source: {rel}")
     if path.suffix in {".rs", ".ts", ".tsx", ".js", ".mjs", ".cjs", ".cs", ".css", ".csproj", ".sln", ".py", ".exe", ".dll"}:
-        require(rel in allowed_source or rel in local_app_files or path.parts[0] in source_roots,
+        require(rel in allowed_source or rel in local_app_files or path.parts[0] in source_roots
+                or (implementation and rel.startswith("samples/UnityInventory/")),
                 f"unexpected product/adapter source: {rel}")
 
 oracle = Path("fixtures/rewrite-oracle/v1")

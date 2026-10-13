@@ -1,0 +1,18 @@
+kind: data
+table: quest
+records:
+  - id: 1
+    name: A Helping Hand
+    recommendedLevel: 1
+    rewardItemId: 1003
+    rewardAmount: 3
+  - id: 2
+    name: The Frozen Pass
+    recommendedLevel: 10
+    rewardItemId: 2001
+    rewardAmount: 1
+  - id: 3
+    name: The Last Watch
+    recommendedLevel: 25
+    rewardItemId: 3001
+    rewardAmount: 1

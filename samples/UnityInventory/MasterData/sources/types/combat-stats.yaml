@@ -1,0 +1,13 @@
+kind: type
+name: CombatStats
+custom:
+  fields:
+    - key: 0
+      name: attack
+      type: int
+    - key: 1
+      name: defense
+      type: int
+    - key: 2
+      name: health
+      type: int

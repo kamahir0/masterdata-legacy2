@@ -18,3 +18,17 @@ __pycache__/
 **/obj/
 /verification/results/
 /desktop/native/gen/
+
+# Unity sample caches and local build products
+/samples/UnityInventory/.tools/
+/samples/UnityInventory/MasterData/.masterdata/
+/samples/UnityInventory/Unity/Library/
+/samples/UnityInventory/Unity/Temp/
+/samples/UnityInventory/Unity/Logs/
+/samples/UnityInventory/Unity/UserSettings/
+/samples/UnityInventory/Unity/Builds/
+/samples/UnityInventory/Unity/*.csproj
+/samples/UnityInventory/Unity/*.sln
+/samples/UnityInventory/Unity/*.slnx
+/samples/UnityInventory/Unity/Assets/Packages/
+/samples/UnityInventory/Unity/Assets/Packages.meta

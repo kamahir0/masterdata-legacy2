@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "files": [
+    "CombatStats.g.cs",
+    "Item.g.cs",
+    "ItemCode.g.cs",
+    "ItemTags.g.cs",
+    "Quest.g.cs",
+    "Rarity.g.cs"
+  ]
+}

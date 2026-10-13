@@ -1,0 +1,15 @@
+kind: type
+name: ItemTags
+flags:
+  underlying: uint
+  members:
+    - name: None
+      value: 0
+    - name: Weapon
+      value: 1
+    - name: Armor
+      value: 2
+    - name: Consumable
+      value: 4
+    - name: Crafting
+      value: 8
