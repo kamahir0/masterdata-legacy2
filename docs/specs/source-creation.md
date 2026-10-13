@@ -6,7 +6,7 @@ Domain: Source Authoring
 
 ## 概要
 
-本仕様は、GUI等のauthoring surfaceからconfigured source root内へ新しいfolderまたはMasterdata source documentを安全に作成するobservable contractを定義する。
+本仕様は、GUI等のauthoring surfaceから固定source directory内へ新しいfolderまたはMasterdata source documentを安全に作成するobservable contractを定義する。
 
 Table / Data semanticsは[Table / Primary Key / Secondary Key](table-and-keys.md)、Value Objectは[Value Objects](type-system/value-objects.md)、Enum / Flagsは[Enum / Flags](type-system/enums.md)、Custom Typeは[Custom Types](type-system/custom-types.md)、field shapeは[Field Modifiers](type-system/field-modifiers.md)、YAML syntaxは[Masterdata YAML subset](yaml-subset.md)、source root boundaryは[Project layout](project-layout.md)が所有する。本仕様はそれらを再定義せず、creation request、destination safety、initial source construction、exclusive create、result/recovery、およびshared application/host boundaryを所有する。
 
@@ -14,7 +14,7 @@ Table / Data semanticsは[Table / Primary Key / Secondary Key](table-and-keys.md
 
 ## 用語
 
-- **Creation target**: 1つのconfigured source rootと、そのroot内のproject-relative destination pathの組。
+- **Creation target**: 1つの固定source directoryと、そのroot内のproject-relative destination pathの組。
 - **Source artifact**: Table schema、Data document、Value Object、Normal Enum、Flags Enum、Custom Typeのいずれかを表す新規YAML source file。
 - **Creation request**: destinationとartifact category、およびowner specificationが必要とするinitial declaration inputを含むtyped request。
 - **Creation conflict**: target pathが既に存在する、またはexclusive commit直前に別process等によって作成され、既存contentを置換せずoperationを停止した状態。
@@ -24,7 +24,7 @@ Table / Data semanticsは[Table / Primary Key / Secondary Key](table-and-keys.md
 
 ### SOURCE-CREATE-001
 
-source creation operationは、exactly 1つのconfigured source rootをtargetとし、そのroot内にexactly 1つのnew folderまたは1つのnew source fileを作成しなければならない（MUST）。
+source creation operationは、Project直下の`sources/`をtargetとし、そのroot内にexactly 1つのnew folderまたは1つのnew source fileを作成しなければならない（MUST）。
 
 folder path、file path、filename、directory nameはworkspace organizationであり、Table、type、recordその他のdomain identityを決めてはならない（MUST NOT）。domain identityは各source documentのcanonical contentから決定しなければならない（MUST）。
 
@@ -32,9 +32,9 @@ folder path、file path、filename、directory nameはworkspace organizationで�
 
 ### SOURCE-CREATE-002
 
-creation targetは選択されたconfigured source rootからのlogical relative pathとして解決しなければならず（MUST）、absolute path、`..`等のpath traversal、symlink / junction / reparse point等を利用してselected source root外へ到達してはならない（MUST NOT）。
+creation targetは固定source directoryからのlogical relative pathとして解決しなければならず（MUST）、absolute path、`..`等のpath traversal、symlink / junction / reparse point等を利用して固定source directory外へ到達してはならない（MUST NOT）。
 
-hostはmutation開始前にtargetのparentがselected source root内の実在directoryであることを確認しなければならない（MUST）。initial sliceのfile createはmissing parent directoryを暗黙に作成してはならず（MUST NOT）、必要なfolderは明示的なfolder creation operationで作成する。
+hostはmutation開始前にtargetのparentが固定source directory内の実在directoryであることを確認しなければならない（MUST）。initial sliceのfile createはmissing parent directoryを暗黙に作成してはならず（MUST NOT）、必要なfolderは明示的なfolder creation operationで作成する。
 
 path safetyのplatform-specific mechanismはhost implementation detailであり、本仕様はOS separator、canonicalization API、filesystem identity APIを固定しない。
 
@@ -164,7 +164,7 @@ filesystem destination resolution、path safety、exclusive create、Outcome Unk
 
 少なくとも次をfocused unit / integration / GUI workflow evidenceで検証する。
 
-- configured source root外へのabsolute/path traversal/symlink escapeがmutation前にrejectされる。
+- 固定source directory外へのabsolute/path traversal/symlink escapeがmutation前にrejectされる。
 - `.yaml`と`.yml`はsource fileとして作成可能で、別extensionはinitial source creationでrejectされる。
 - Table requestからowner specificationを満たすschema documentが生成され、pathからTable identityを推測しない。
 - Data requestはexisting Tableを明示してempty `records` documentを生成し、unknown Tableではwriteしない。

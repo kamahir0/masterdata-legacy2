@@ -57,6 +57,32 @@ fn source_bytes(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
         })
         .collect()
 }
+
+#[test]
+fn fixed_sources_config_is_shared_by_validate_build_and_publish_without_partial_input() {
+    let t = fixture("migration-add");
+    let path = t.path().join("masterdata.toml");
+    let standard = fs::read_to_string(&path).unwrap();
+    let omitted = standard.replace("[sources]\nroots = [\"sources\"]\n", "");
+    assert_ne!(omitted, standard);
+    fs::write(&path, omitted).unwrap();
+    result(t.path(), &["validate".as_ref(), "--json".as_ref()], true);
+    let data = source_bytes(t.path());
+    for roots in ["[\"other\"]", "[\"sources\", \"other\"]"] {
+        let invalid = standard.replace("[\"sources\"]", roots);
+        fs::write(&path, &invalid).unwrap();
+        for command in ["validate", "doctor", "build", "publish"] {
+            let reply = result(t.path(), &[command.as_ref(), "--json".as_ref()], false);
+            assert_eq!(
+                reply["diagnostic"]["code"], "E-CONFIG-SOURCE-ROOT",
+                "{command}"
+            );
+            assert_eq!(source_bytes(t.path()), data);
+            assert_eq!(fs::read_to_string(&path).unwrap(), invalid);
+            assert!(!t.path().join(".masterdata").exists());
+        }
+    }
+}
 #[test]
 fn init_scaffolds_without_tool_state_and_preserves_existing_gitignore_and_marker() {
     let temp = tempfile::tempdir().unwrap();
@@ -85,6 +111,7 @@ fn init_scaffolds_without_tool_state_and_preserves_existing_gitignore_and_marker
     );
     assert!(!root.join(".masterdata").exists());
     let config = fs::read(root.join("masterdata.toml")).unwrap();
+    assert!(!String::from_utf8_lossy(&config).contains("[sources]"));
     let loaded = masterdata_engine::project::Project::open(&root).unwrap();
     assert_eq!(loaded.config.project.name, "Game \"Data\"");
     assert_eq!(loaded.config.build.artifact_dir, ".masterdata/output");

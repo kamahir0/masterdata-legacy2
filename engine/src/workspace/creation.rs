@@ -17,20 +17,13 @@ impl Workspace {
                 "source creation is gated",
             ));
         }
-        let index = self
-            .read
-            .config
-            .sources
-            .roots
-            .iter()
-            .position(|r| r == &request.root)
-            .ok_or_else(|| {
-                Error::new(
-                    "E-PATH-SCOPE",
-                    "exactly one configured source root required",
-                )
-            })?;
-        let root = self.read.roots[index].clone();
+        if request.root != project::SOURCE_DIRECTORY {
+            return Err(Error::new(
+                "E-PATH-SCOPE",
+                "Project sources/ destination required",
+            ));
+        }
+        let root = self.read.roots[0].clone();
         let path = native::creation_path(&self.read.root, &root, &request.path)?;
         if !matches!(request.artifact, Artifact::Folder)
             && !path
@@ -47,7 +40,7 @@ impl Workspace {
     }
     pub fn creation_choices(&self) -> serde_json::Value {
         let mut value = creation::choices(&self.read);
-        value["roots"] = serde_json::json!(self.read.config.sources.roots.iter().zip(&self.read.roots).map(|(name,path)|serde_json::json!({"root":name,"path":path.strip_prefix(&self.read.root).unwrap().to_string_lossy().replace('\\',"/")})).collect::<Vec<_>>());
+        value["roots"] = serde_json::json!([{"root":project::SOURCE_DIRECTORY,"path":self.read.source_directory_path()}]);
         value
     }
     pub fn creation_defaults(

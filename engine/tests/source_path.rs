@@ -208,10 +208,7 @@ fn source_path_scope_and_config_are_fresh_and_invalid_yaml_is_not_rewritten() {
     let temp = fixture();
     fs::create_dir(temp.path().join("other")).unwrap();
     let config = temp.path().join("masterdata.toml");
-    let bytes = fs::read_to_string(&config)
-        .unwrap()
-        .replace("[\"sources\"]", "[\"sources\", \"other\"]");
-    fs::write(&config, &bytes).unwrap();
+    let bytes = fs::read_to_string(&config).unwrap();
     let mut w = Workspace::open(temp.path()).unwrap();
     assert_eq!(
         w.prepare_path_move(DATA, "other/new.yaml")

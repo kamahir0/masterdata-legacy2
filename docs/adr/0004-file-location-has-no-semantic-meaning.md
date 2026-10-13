@@ -14,7 +14,6 @@ Filesystem locationはdiscovery boundaryに過ぎない。各YAML fileが `kind`
 
 ## 結果（Consequences）
 
-Discoveryはconfigured rootをrecursiveにscanし、deterministicなprocessing/hash inputのためにpathをsortする。
-source root内でfileを移動してもtable identityは変わらない。source root自体は明示的なproject configurationで
-あり、hard-coded directory conventionではない。current traversalはcycle-safetyのinternal guardとして
+DiscoveryはProject直下の固定`sources/`をrecursiveにscanし、deterministicなprocessing/hash inputのためにpathをsortする。
+source directory内でfileを移動してもtable identityは変わらない。[仕様変更0061](../spec-changes/0061-fixed-source-directory.md)で、不要なroot選択をなくすためscan boundaryを単一の固定directoryへ統一した。これは配下のfolder / filenameへdomain semanticsを与えることを意味しない。current traversalはcycle-safetyのinternal guardとして
 symlink entryをfollowしない。source discoveryがsymlinkをfollowするかどうかは、別のproduct Open Questionである。

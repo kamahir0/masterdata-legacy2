@@ -64,6 +64,7 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     const treeLabels=[...document.querySelectorAll<HTMLElement>('#explorer .source')].map(e=>e.textContent!.trim()).sort();
     const physicalLabels=desktop.surface.inventory!.sources.map(source=>source.path.split('/').at(-1)!).sort();
     assert(JSON.stringify(treeLabels)===JSON.stringify(physicalLabels),'Explorer mixed domain groups into the physical source hierarchy');
+    assert(desktop.surface.inventory!.sourceDirectory==='sources'&&!document.querySelector('#explorer [data-path="folder:sources"]'),'Explorer retained the fixed root row');
     const selection=desktop.interaction.selection;
     const retainedTree=document.querySelector('#explorer [role="tree"]'),sourceProjection=desktop.surface.projection;
     const beforeWidth=document.getElementById('editor-pane')!.getBoundingClientRect().width;

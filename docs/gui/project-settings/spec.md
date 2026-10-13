@@ -16,7 +16,7 @@ settingsのgeneral Undo/Redoはv1必須ではない。text input内Undoは維持
 ### GUI-SETTINGS-002
 
 Project切替 / Reload / closeは、YAMLとconfigの全dirtyを同じSave All / Don't Save / Cancel guardへ含めなければならない（MUST）。Save Allはconfigを先に保存・project binding再解決し、config失敗/無効でYAML保存の安全なauthorityを取得できなければ以降を開始しない。config成功後にYAMLで失敗した場合は成功fileをrollbackせず、元の上位操作を止めて残bufferを保持する。all-or-none transactionではない。
-通常config Save後にsource roots/identityが外部変更等で変わった場合は旧workspaceへ推測で接続しない（MUST NOT）。再open / reloadとdirty guardを要求する。
+通常config Save後に固定source directoryのbinding / identityが外部変更等で変わった場合は旧workspaceへ推測で接続しない（MUST NOT）。再open / reloadとdirty guardを要求する。
 Migration Recovery Required中はconfig保存も停止する。read-only Diff / Compare / 診断は継続可能とする（MUST）。config dirtyだけで保存済みinputのBuild / Publishを禁止しないが、未保存設定は不使用と表示する。
 
 ### GUI-SETTINGS-003

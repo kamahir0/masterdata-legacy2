@@ -54,6 +54,7 @@ fn gui_create_accepts_empty_or_one_new_directory_and_resolves_only_the_minimum_s
         assert_eq!(p.config.project.name, "Game \"Data\"");
         assert!(p.sources.is_empty());
         assert!(p.config.publish.targets.is_empty());
+        assert!(!p.config_bytes.contains("[sources]"));
         assert_eq!(
             fs::read(root.join(".gitignore")).unwrap(),
             b"/.masterdata/\n"

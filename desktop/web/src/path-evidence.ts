@@ -70,12 +70,12 @@ export async function run({startup}:{startup:Record<string,unknown>}) {
     await desktop.rpc({kind:'editText',source:p.source,revision:p.revision,generation:p.generation,row:p.rows[0].id,field:'name',text:'Discard this draft only'});
     await desktop.selectTarget(p.source!,'path-dirty',false);
     await begin("保存しない");
-    await folder('sources/moved');await ready();await moved('sources/moved/Renamed-data.yml');
+    await folder('moved');await ready();await moved('sources/moved/Renamed-data.yml');
     assert(desktop.surface.projection!.rows[0].cells.find((_cell,i)=>desktop.surface.projection!.columns[i].field.name==='name')!.display==='Saved before move',"Don't Save did not discard only target draft");
     assert(desktop.surface.status.dirty.includes(SCHEMA)&&desktop.surface.projection!.schemaCanUndo,"Move lost unrelated schema/history");
     assert(desktop.viewport!.getBoundingClientRect().top===gridTop,"Move shifted working surface");
     checks.push('target-only-discard-move');
-    await begin();await folder('sources');text('catalog-schema.yaml');
+    await begin();await folder('ソース直下');text('catalog-schema.yaml');
     await until(()=>!!document.querySelector('.ant-modal .ant-alert'),"existing destination did not fail preflight");
     assert(button("移動").disabled,"destination collision offered overwrite");button("キャンセル").click();
     checks.push('destination-conflict-no-overwrite');

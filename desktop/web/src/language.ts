@@ -34,7 +34,11 @@ const messages: Record<string, string> = {
   "pending delete is not editable": "削除予定のレコードは編集できません",
   "record occurrence missing": "対象のレコードがありません",
   "project configuration changed; explicit Project reload required": "プロジェクト設定が変わりました。プロジェクトを再読み込みしてください",
-  "source root binding changed": "ソースルートの対応付けが変わりました",
+  "source root binding changed": "sources/ の保存先が変わりました。プロジェクトを再読み込みしてください",
+  "source settings {roots} require migration to Project sources/: back up, copy each old root into a separate sources/ subfolder without overwriting files, omit [sources] or set roots = [\"sources\"], then validate; no files were changed": "ソースの配置を sources/ 配下に揃える必要があります。現在の設定: {roots}。バックアップを確保し、各フォルダーの内容を sources/ 配下の別々のフォルダーへ上書きせずコピーしてください。その後、[sources] を省略するか roots = [\"sources\"] に変更して検証してください。ファイルは変更していません",
+  "Project sources/ directory is missing; create it explicitly or restore it from backup": "sources/ フォルダーがありません。フォルダーを作成するか、バックアップから復元してください",
+  "Project sources/ must be a directory": "sources/ はフォルダーである必要があります",
+  "Project sources/ destination required": "sources/ 配下の保存先を指定してください",
   "external source identity/binding changed": "ソースが外部で変更されたか対応付けが変わりました",
   "no current parseable document": "現在のソースを解析できません",
   "unobserved dependency": "依存するソースの状態が未確認です",
@@ -435,4 +439,8 @@ export function complexSummary(display: string, complex: boolean): string {
   if (!complex) return display;
   if (display === "(missing)") return "（未指定）";
   return display.replace(/^\[(\d+) items\]$/, "[$1 要素]").replace(/^\{(\d+) fields\}$/, "{$1 フィールド}");
+}
+
+export function sourceFolderLabel(path: string, directory: string): string {
+  return path === directory ? "ソース直下" : path.startsWith(directory + "/") ? path.slice(directory.length + 1) : path;
 }

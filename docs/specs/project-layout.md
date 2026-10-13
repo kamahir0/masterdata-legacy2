@@ -30,7 +30,7 @@ identityを決めるmechanismにしてはならない（MUST NOT）。
 
 ### PROJECT-006
 
-Source rootはscan boundaryに過ぎない。source fileのdirectoryが、そのfileのtable、type、または
+固定の`sources/`はscan boundaryに過ぎない。source fileのdirectoryが、そのfileのtable、type、または
 index semanticsを決めてはならない（MUST NOT）。
 
 ### PROJECT-CONVENTION-001
@@ -46,13 +46,12 @@ index semanticsを決めてはならない（MUST NOT）。
 その他のsemantic identityを決めてはならない（MUST NOT）。`sources/data/item/base.yaml`のような
 pathから`table = item`を推測してはならず（MUST NOT）、YAML document contentと既存のschema、type、
 table仕様がauthorityである。`sources/data/`以下は大量のdataを整理するため任意にnestしてもよい
-（MAY）。domain/table-first layoutをinvalidとみなしてはならず（MUST NOT）、configured source
-root内の別のorganizationも引き続きvalidである。
+（MAY）。domain/table-first layoutをinvalidとみなしてはならず（MUST NOT）、`sources/`内の別のorganizationも引き続きvalidである。
 
 ## 推奨するproject layout
 
 次のlayoutはhuman-facingなdefault/recommended conventionである。directory nameはsemantic
-identityではなく、`masterdata.toml`のconfigured source rootがscan boundaryを定義する。
+identityではなく、Project直下の固定`sources/`がscan boundaryを定義する。
 
 ```text
 my-game-master-data/
@@ -85,9 +84,6 @@ id = "game.masterdata"
 name = "Game Master Data"
 version = "0.1.0"
 
-[sources]
-roots = ["sources"]
-
 [build]
 artifact_dir = ".masterdata/output"
 cache = ".masterdata/cache"
@@ -101,9 +97,9 @@ kind = "binary"
 path = "../unity/Assets/StreamingAssets/masterdata.bytes"
 ```
 
-`project.id`、`project.name`、`project.version`、および少なくとも1つのsource rootが必要である。canonical artifactとexternal publish targetの
+`project.id`、`project.name`、`project.version`が必要である。source directoryはProject直下の`sources/`に固定する。canonical artifactとexternal publish targetの
 normative semanticsは[Build pipeline仕様](build-pipeline.md)の`BUILD-ARTIFACT-*`および`PUBLISH-*`が所有する。このdocumentはproject marker、
-project metadata、およびsource rootのconfiguration boundaryを所有する。
+project metadata、および固定source directoryと旧source設定の互換性を所有する。
 
 legacy configurationのhard cutとstructured migration diagnosticのdecision historyは[仕様変更0005](../spec-changes/0005-legacy-build-path-hard-cut.md)に
 記録されている。artifactとexternal publishのobservable semanticsは[Build pipeline仕様](build-pipeline.md)が所有する。
@@ -115,9 +111,6 @@ legacy configurationのhard cutとstructured migration diagnosticのdecision his
 id = "my-game-master-data"
 name = "My Game Master Data"
 version = "0.1.0"
-
-[sources]
-roots = ["sources"]
 
 [build]
 artifact_dir = ".masterdata/output"
@@ -133,13 +126,23 @@ path APIに関するimplementation noteはnon-normativeであり、callerは特�
 `project.id`、`project.name`、`project.version` は、それぞれwhitespace以外のvalueを少なくとも
 1文字含まなければならない（MUST）。
 
-### PROJECT-CONFIG-002
+### PROJECT-SOURCE-001
 
-`sources.roots` は少なくとも1つのsource rootを含まなければならない（MUST）。
+読込み・作成・編集・検証・Buildが扱うsource directoryは、`masterdata.toml`のあるProject directory直下の`sources/`だけでなければならない（MUST）。別名・複数rootを有効にする設定は提供しない。PROJECT-CONFIG-002のroot数契約は本要件へ置換した。
+
+`sources/`がないProjectはmissing source directoryを識別可能なstructured diagnosticで拒否し、空Projectとして成功扱いしたりOpen / validateを理由にfolderを作成したりしてはならない（MUST NOT）。固定化してもactual directory identity、config exact bytes、source membership、stale / external replacementの再確認を省いてはならない（MUST NOT）。symlink / junction / reparse pointに対する既存guardを緩和するものではない。
+
+### PROJECT-SOURCE-002
+
+`[sources]`またはその`roots`を省略してもsource directoryは常に`sources/`である。既存の`roots = ["sources"]`は同じ意味で受理しなければならない（MUST）。`roots`を明示する場合はlist of stringsとし、shape違反は通常のstructured config diagnosticとする。別名、`./sources`等の別表記、空list、重複を含む複数rootはstructured migration diagnosticで拒否しなければならない（MUST）。unknown keyの既存validationを維持する。
+
+拒否はsource discovery / Build / Publish / mutation開始前とし、source、config、artifact、cache、publish destinationを変更してはならない（MUST NOT）。diagnosticは設定されたroot、移行先`sources/`、必要な手動移行操作を識別できなければならない（MUST）。標準configはOpen / Saveを理由に自動削除・整形しない。
+
+手動移行の案内ではGit checkpoint / backupを確保し、旧rootのYAMLをbyte-for-byteで`sources/`配下へ配置してからroot設定を省略または`["sources"]`へ変更し、validateする。複数rootは別subfolderへ整理し、既存fileを上書きしない。collision / duplicate declarationを自動mergeせず、旧rootの削除を成功条件にしない。path-bearing stateはreloadで再取得し、過去Plan / recovery / receiptを新配置へ推測で付け替えない。pending recovery / dirty / Outcome Unknownは既存契約で先に解決する。採用記録は[仕様変更0061](../spec-changes/0061-fixed-source-directory.md)。
 
 ### PROJECT-CONFIG-003
 
-設定されたsource rootは空文字列であってはならない（MUST NOT）。`build.artifact_dir`と`build.cache`
+`build.artifact_dir`と`build.cache`
 は空であってはならず（MUST）。`publish.targets`の存在、kind、path、およびtarget ownershipのshapeは、
 [Build pipeline仕様](build-pipeline.md)の`PUBLISH-001`、`PUBLISH-002`、および`PUBLISH-009`が所有する。
 
@@ -163,7 +166,7 @@ legacy configurationのrejectionはbuild/publish operationを開始してはな�
 
 `init`はcanonical configurationとして`build.artifact_dir = ".masterdata/output"`と`build.cache = ".masterdata/cache"`を生成しなければならず（MUST）、
 legacy `build.output`または`build.binary_output`を生成してはならない（MUST NOT）。`publish.targets`は0..Nであるため、初期configurationで生成しなくてもよい（MAY）。
-publish targetがない初期projectでも、canonical buildがproject-local artifactを作成できるconfigurationを生成しなければならない（MUST）。
+publish targetがない初期projectでも、canonical buildがproject-local artifactを作成できるconfigurationを生成しなければならない（MUST）。冗長な`[sources] roots`は新規configurationへ生成しない。
 
 ### PROJECT-CONFIG-007
 
@@ -171,7 +174,7 @@ Project Settings、Project Local State、Application User Settings / UI Stateは
 persistence scopeとして扱わなければならない（MUST）。
 
 **Project Settings**のcanonical configuration entrypointは`masterdata.toml`であり、project-scoped、
-shared、reproducibleで、通常Git trackedである。project identity、source roots、build artifact/cache
+shared、reproducibleで、通常Git trackedである。project identity、build artifact/cache
 paths、Build Profiles、publish targets、およびproject/compiler/schema semanticsに影響するfuture
 optionはProject Settingsに属する。
 
@@ -253,7 +256,7 @@ publish target pathのbaseは、[Build pipeline仕様](build-pipeline.md)の`PUB
 Unity packageのimport/compile/runtime observationと`.meta` ownershipは[Unity Integration仕様](unity-integration.md)へ委譲する。existing `publish.targets`でUnity destinationを指定する例だけをこのdocumentのconfiguration guidanceとし、Unity project linkをMasterData project identityへ昇格させない。
 
 Open Questions: configがnamed source group、ignore pattern、明示的なUnity project linkを将来
-サポートするか、設定されたsource rootがsymlinkをfollowするか、custom artifact/cache pathのautomatic
+サポートするか、source directoryがsymlinkをfollowするか、custom artifact/cache pathのautomatic
 Git ignoreを行うか、Project Local State / Application User Settingsのexact serializationとfile layoutを
 どう定義するか、empty source convention directoryをGit上でどう保持するか。source discoveryのsymlink policyはproduct-level decisionとして別途解決し、internal guardから
 permissionまたは禁止の意味を推測しない。
@@ -272,8 +275,9 @@ inventory、fixture、manual pass/fail statusはこのspecificationのownerで�
 | PROJECT-005 | Unity folderはidentityを確立しない。 | `Assets/`と`ProjectSettings/`だけではprojectをresolveしない。 | `masterdata.toml`がない場合はnot foundのままである。 |
 | PROJECT-006 | 宣言されたYAML `kind`と`table`がdocument semanticsを決める。 | 1つのroot内にある複数fileが、宣言したtableを保持する。 | file pathまたはdirectory nameでdocumentを別の意味に変更できない。 |
 | PROJECT-CONFIG-001 | project metadata fieldがwhitespace以外のvalueを含む。 | metadataが揃ったblockを受け入れる。 | 空の`id`、`name`、`version`はstructured config diagnosticを返す。 |
-| PROJECT-CONFIG-002 | 少なくとも1つのsource rootが設定されている。 | source rootのあるprojectを受け入れる。 | 空の`sources.roots` listはstructured config diagnosticを返す。 |
-| PROJECT-CONFIG-003 | 設定されたsource root、canonical artifact path、cache pathが空でない。 | 空でないpathを受け入れる。 | 空のsource、`artifact_dir`、またはcache pathはstructured config diagnosticを返す。 |
+| PROJECT-SOURCE-001 | Project直下の`sources/`だけをsource boundaryとする。 | 固定directoryとその任意のsubfolderを利用できる。 | missing directoryを空Projectとして成功扱いする、またはbinding再確認を省く。 |
+| PROJECT-SOURCE-002 | source設定省略と旧標準形を受理し、非標準設定は移行案内付きでno-mutation拒否する。 | 旧`roots = ["sources"]`を編集せず継続利用できる。 | 一部rootだけ読む、別表記を推測変換する、拒否時にsource / output / configを書き換える。 |
+| PROJECT-CONFIG-003 | canonical artifact path、cache pathが空でない。 | 空でないpathを受け入れる。 | 空の`artifact_dir`またはcache pathはstructured config diagnosticを返す。 |
 | PROJECT-CONFIG-004 | legacy `build.output` / `build.binary_output`はmigration-aware structured diagnosticで拒否され、generic unknown-key errorへ潰れない。 | 新configurationを受け入れる。 | 各legacy fieldを対応するdiagnostic codeで拒否する。 |
 | PROJECT-CONFIG-005 | legacy rejectionはbuild/publishとfilesystem mutationを開始せず、自動変換もしない。 | 旧artifactを残したままoperation開始を拒否する。 | rejection後にcanonical/legacy/external artifactが変更されない。 |
 | PROJECT-CONFIG-006 | `init`はcanonical build configだけを生成し、publish targetを任意で省略できる。 | `artifact_dir`と`cache`を持つconfigが生成される。 | legacy keysが生成される、またはpublish targetが必須になる。 |

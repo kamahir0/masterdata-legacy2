@@ -22,14 +22,14 @@ fn metadata() -> Metadata {
     }
 }
 #[tokio::test(flavor = "current_thread")]
-async fn accepted_empty_external_root_does_not_break_desktop_open() {
+async fn nonstandard_roots_are_rejected_without_adopting_or_discarding_the_dirty_workspace() {
     let t = tempfile::tempdir().unwrap();
+    let old = t.path().join("old");
     let project = t.path().join("project");
-    copy(
-        &Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../fixtures/rewrite-oracle/v1/save-both/input"),
-        &project,
-    );
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/rewrite-oracle/v1/save-both/input");
+    copy(&fixture, &old);
+    copy(&fixture, &project);
     fs::create_dir(t.path().join("outside")).unwrap();
     let config = project.join("masterdata.toml");
     fs::write(
@@ -40,13 +40,14 @@ async fn accepted_empty_external_root_does_not_break_desktop_open() {
         ),
     )
     .unwrap();
+    let config_bytes = fs::read(&config).unwrap();
     let data = fs::read(project.join("sources/data.yaml")).unwrap();
     let session = Session::default();
     let opened: Value = serde_json::from_str(
         &session
             .request_at(
                 Intent::Open {
-                    path: project.to_string_lossy().into(),
+                    path: old.to_string_lossy().into(),
                     discard: false,
                 },
                 0,
@@ -55,10 +56,40 @@ async fn accepted_empty_external_root_does_not_break_desktop_open() {
             .unwrap(),
     )
     .unwrap();
-    let sources = opened["data"]["sources"].as_array().unwrap();
-    assert_eq!(sources.len(), 3);
-    assert!(sources.iter().any(|s| s["path"] == "sources/data.yaml"));
+    let epoch = opened["host"]["epoch"].as_u64().unwrap();
+    session
+        .request_at(
+            Intent::ConfigEdit {
+                revision: 0,
+                operation: Operation::AddProfile {
+                    name: "retained".into(),
+                },
+            },
+            epoch,
+        )
+        .await
+        .unwrap();
+    let rejected = session
+        .request_at(
+            Intent::Open {
+                path: project.to_string_lossy().into(),
+                discard: true,
+            },
+            epoch,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(rejected.code, "E-CONFIG-SOURCE-ROOT");
+    assert!(rejected.message.contains("../outside"));
+    let inventory: Value =
+        serde_json::from_str(&session.request_at(Intent::Inventory, epoch).await.unwrap()).unwrap();
+    assert_eq!(inventory["host"]["epoch"], epoch);
+    assert_eq!(inventory["data"]["root"], opened["data"]["root"]);
+    assert_eq!(inventory["data"]["configDirty"], true);
+    assert_eq!(inventory["data"]["sourceDirectory"], "sources");
+    assert_eq!(fs::read(&config).unwrap(), config_bytes);
     assert_eq!(fs::read(project.join("sources/data.yaml")).unwrap(), data);
+    assert!(!project.join(".masterdata").exists());
 }
 #[tokio::test(flavor = "current_thread")]
 async fn project_creation_guard_failure_and_obsolete_requests_preserve_the_old_workspace() {

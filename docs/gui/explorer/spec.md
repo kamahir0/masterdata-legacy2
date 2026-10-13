@@ -11,11 +11,11 @@ Explorerはdomain treeではなくworkspace navigationであり、folder配置�
 
 ### GUI-EXPLORER-001
 
-Desktop authoring画面は左側にWorkspace Explorerを持たなければならない（MUST）。ExplorerはProjectに設定されたsource rootごとのfile / folder hierarchyのみを密なtreeとして表示し、中央typed editorとは独立したnavigation surfaceとして扱う。folder展開、file選択、dirty / loading / error状態は該当行で識別できなければならない（MUST）。
+Desktop authoring画面は左側にWorkspace Explorerを持たなければならない（MUST）。ExplorerはProject直下の固定`sources/`内のfile / folder hierarchyのみを密なtreeとして表示し、中央typed editorとは独立したnavigation surfaceとして扱う。folder展開、file選択、dirty / loading / error状態は該当行で識別できなければならない（MUST）。
 
-単一source rootの場合は、そのroot自体の冗長なfolder行を省略し直下のfile / folderから表示する（SHOULD）。表示省略によってphysical path、creation destination、selection identityを変更してはならない（MUST NOT）。
+固定`sources/`自体の冗長なfolder行を省略し、直下のfile / folderをtop levelのindentで表示する。表示省略によってphysical path、creation destination、selection identityを変更してはならない（MUST NOT）。
 
-複数source rootがある場合は、利用者がどのconfigured rootに属する項目か識別できなければならない（MUST）。source root外の`.masterdata/output`、cache、generated artifact等をExplorerのsource treeへ暗黙に混在させてはならない（MUST NOT）。
+`sources/`外の`.masterdata/output`、cache、generated artifact等をExplorerのsource treeへ暗黙に混在させてはならない（MUST NOT）。source配置の互換性と移行は[PROJECT-SOURCE-002](../../specs/project-layout.md#project-source-002)に従う。非標準ProjectのOpen失敗で現在のworkspace / dirty bufferを破棄しない。
 
 ### GUI-EXPLORER-002
 
@@ -72,7 +72,7 @@ Project切替、Project Reload、window close等、dirty bufferを失う可能�
 
 Explorer上端は全体操作だけを持つ。Rename / Moveはfile行のmenu / context menu / F2から、対象pathを固定して開始する。別fileのeditor selectionでmenuの対象を変えない。
 
-Workspace Explorerはexisting Masterdata source fileに対するRename / Move actionを提供しなければならない（MUST）。destinationはsame configured source root内のfolder / filenameとして指定できなければならず（MUST）、source root間moveを実行可能にしてはならない（MUST NOT）。
+Workspace Explorerはexisting Masterdata source fileに対するRename / Move actionを提供しなければならない（MUST）。destinationは固定`sources/`内のfolder / filenameとして指定できなければならず（MUST）、root selectorを出さない。表示上の基点は`ソース直下`とし、実際のpathは確認できるようにする。候補folderが1つならselectorにしない。
 
 frontendはfolder配置またはfilenameからTable / Type identity changeを推測してはならない（MUST NOT）。
 

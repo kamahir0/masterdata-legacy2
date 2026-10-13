@@ -1,4 +1,4 @@
-import { uiMessage, sourceCategoryLabel } from "./language";
+import { uiMessage, sourceCategoryLabel, sourceFolderLabel } from "./language";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Alert, Button, Checkbox, Divider, Flex, Form, Input, Modal, Select, Space, Spin, Tooltip, Typography, type MenuProps } from "antd";
 import { ArrowDownOutlined, ArrowUpOutlined, CloseOutlined, DeleteOutlined, PlusOutlined, SettingOutlined } from "@ant-design/icons";
@@ -64,9 +64,8 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
     if(input?.isConnected){input.focus();request.done=true;}
   }
   const target=(folder:string) => {
-    const candidates=choices?.roots.filter(r=>!r.path||folder===r.path||folder.startsWith(r.path+"/"))??[];
-    const root=candidates.sort((a,b)=>b.path.length-a.path.length)[0]??choices?.roots[0];
-    return root?{root:root.root,folder:candidates.length?folder:(root.path||".")}:null;
+    const root=choices?.roots[0];
+    return root?{root:root.root,folder:folder===root.path||folder.startsWith(root.path+"/")?folder:root.path}:null;
   };
   async function validate(next:Draft,propose=false) {
     const mine=++revision.current;
@@ -131,7 +130,7 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
     document.addEventListener('pointerdown',outside);
     return()=>document.removeEventListener('pointerdown',outside);
   },[draft?.id,draft?.advanced]);
-  const folders=inventory.folders.map(folder=>folder||".").filter(folder=>choices?.roots.some(root=>!root.path||folder===root.path||folder.startsWith(root.path+"/")));
+  const folders=inventory.folders;
   const uncertain=draft?.result?.outcome==="OutcomeUnknown"||draft?.result?.outcome==="RecoveryRequired";
   const committing=!!draft?.pending&&!!draft.artifact&&!!draft.preview;
   const content=draft&&<div ref={inlineElement} className="creation-inline" onClick={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}>
@@ -139,7 +138,7 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
     {/* Ant Input recreates its input when the affix structure changes. Keep the
         suffix mounted so preview completion cannot discard focus or composition. */}
     <Input ref={r=>{filename.current=r?.input??null;}} aria-label="新しいソースのファイル名" value={draft.filename} disabled={committing||uncertain} suffix={<span className="creation-pending">{draft.pending?<Spin size="small"/>:null}</span>} onChange={e=>change({filename:e.target.value},!draft.advanced)} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} onKeyDown={e=>{if(e.nativeEvent.isComposing||composing.current||e.keyCode===229)return;if(e.key==="Escape"){e.preventDefault();cancel();}if(e.key==="Enter"||e.key==="Tab"){if(e.key==="Enter")e.preventDefault();void finish(e.key==="Enter");}}}/>
-    <Typography.Text type="secondary" className="creation-destination" title={`${draft.root} · ${draft.folder}`}>{draft.folder} · {draft.preview?.identity??(draft.category==="folder"?"フォルダー":"…")}</Typography.Text>
+    <Typography.Text type="secondary" className="creation-destination" title={draft.folder}>{sourceFolderLabel(draft.folder,inventory.sourceDirectory)} · {draft.preview?.identity??(draft.category==="folder"?"フォルダー":"…")}</Typography.Text>
     {draft.artifact?.category==="data"&&<Select aria-label="データのテーブル" value={draft.artifact.table||undefined} placeholder="テーブルを選択" options={options(choices?.tables??[])} disabled={committing||uncertain} onChange={table=>change({artifact:{category:"data",table}})}/>}
     {!draft.advanced&&<Feedback draft={draft}/>}
     {uncertain&&<Button onClick={()=>void create(true)} loading={draft.pending}>保存先を再確認</Button>}
@@ -147,7 +146,7 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
   const menu:MenuProps={items:categories.map(([key,label])=>({key,label})),onClick:({key})=>begin(key as Category)};
   const modal=draft&&<Modal title={`新規: ${categories.find(([kind])=>kind===draft.category)?.[1]}`} open={draft.advanced} afterOpenChange={open=>{if(open)focusFilename();}} width={730} onCancel={()=>{if(!committing&&!uncertain)patch({advanced:false});}} mask={{closable:!committing&&!uncertain}} keyboard={!committing&&!uncertain} footer={<Space><Button disabled={committing||uncertain} onClick={()=>cancel()}>キャンセル</Button><Button type="primary" loading={committing} disabled={draft.pending||(!uncertain&&!draft.preview?.valid)} onClick={()=>void create(!!uncertain)}>{uncertain?"保存先を再確認":"作成"}</Button></Space>}>
     <Form layout="vertical" className="creation-form" disabled={committing||uncertain}>
-      <Form.Item label="作成先フォルダー">{folders.length>1?<Select aria-label="作成先のフォルダー" value={draft.folder} options={options(folders)} onChange={folder=>{const destination=target(folder);if(destination)change(destination);}}/>:<Typography.Text aria-label="作成先のフォルダー">{draft.folder}</Typography.Text>}</Form.Item>
+      <Form.Item label="作成先フォルダー">{folders.length>1?<Select aria-label="作成先のフォルダー" value={draft.folder} options={folders.map(folder=>({value:folder,label:sourceFolderLabel(folder,inventory.sourceDirectory),title:folder}))} onChange={folder=>{const destination=target(folder);if(destination)change(destination);}}/>:<Typography.Text aria-label="作成先のフォルダー" title={draft.folder}>{sourceFolderLabel(draft.folder,inventory.sourceDirectory)}</Typography.Text>}</Form.Item>
       <Form.Item label="ファイル名"><Input ref={r=>{advancedFilename.current=r?.input??null;}} aria-label="作成するファイル名" value={draft.filename} onChange={e=>change({filename:e.target.value})} onKeyDown={e=>{if(e.nativeEvent.isComposing)return;if(e.key==="Enter")e.preventDefault();}}/></Form.Item>
       {draft.artifact&&choices&&<Declaration artifact={draft.artifact} choices={choices} disabled={committing||uncertain} update={artifact=>change({artifact})}/>}
     </Form><Feedback draft={draft}/>

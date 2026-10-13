@@ -12,6 +12,12 @@ use std::{
     sync::Arc,
 };
 
+pub const SOURCE_DIRECTORY: &str = "sources";
+
+fn source_roots() -> Vec<String> {
+    vec![SOURCE_DIRECTORY.into()]
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
@@ -22,7 +28,20 @@ pub struct Metadata {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Sources {
+    #[serde(default = "source_roots")]
     pub roots: Vec<String>,
+}
+impl Default for Sources {
+    fn default() -> Self {
+        Self {
+            roots: source_roots(),
+        }
+    }
+}
+impl Sources {
+    fn is_fixed(&self) -> bool {
+        self.roots == [SOURCE_DIRECTORY]
+    }
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,6 +75,7 @@ pub struct PublishTarget {
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub project: Metadata,
+    #[serde(default, skip_serializing_if = "Sources::is_fixed")]
     pub sources: Sources,
     pub build: BuildConfig,
     #[serde(default)]
@@ -221,11 +241,18 @@ pub fn config(bytes: &str) -> Result<Config> {
     let c: Config = value
         .try_into()
         .map_err(|e| Error::new("E-CONFIG", e.to_string()))?;
+    if !c.sources.is_fixed() {
+        return Err(Error::new(
+            "E-CONFIG-SOURCE-ROOT",
+            format!(
+                "source settings {:?} require migration to Project sources/: back up, copy each old root into a separate sources/ subfolder without overwriting files, omit [sources] or set roots = [\"sources\"], then validate; no files were changed",
+                c.sources.roots
+            ),
+        ));
+    }
     if [&c.project.id, &c.project.name, &c.project.version]
         .iter()
         .any(|s| s.trim().is_empty())
-        || c.sources.roots.is_empty()
-        || c.sources.roots.iter().any(|s| s.trim().is_empty())
         || c.build.artifact_dir.trim().is_empty()
         || c.build.cache.trim().is_empty()
     {
@@ -296,6 +323,15 @@ pub fn selected(tags: &[String], profile: &Profile) -> bool {
 }
 
 impl Project {
+    pub fn source_directory_path(&self) -> String {
+        // Keep the observed spelling on case-insensitive hosts; this does not
+        // create another configurable root or change physical provenance.
+        self.roots
+            .first()
+            .and_then(|p| p.strip_prefix(&self.root).ok())
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .unwrap_or_else(|| SOURCE_DIRECTORY.into())
+    }
     pub fn open(path: &Path) -> Result<Self> {
         let root = discover(Some(path), &std::env::current_dir().map_err(io_error)?)?
             .canonicalize()
@@ -307,15 +343,21 @@ impl Project {
     }
     pub(crate) fn from_saved_config(root: PathBuf, config_bytes: Arc<str>) -> Result<Self> {
         let config = config(&config_bytes)?;
-        let roots = config
-            .sources
-            .roots
-            .iter()
-            .map(|p| {
-                let path = root.join(p);
-                path.canonicalize().map_err(io_error)
-            })
-            .collect::<Result<Vec<_>>>()?;
+        let directory = root.join(SOURCE_DIRECTORY);
+        let source_root = directory.canonicalize().map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                Error::new("E-SOURCE-DIRECTORY-MISSING", "Project sources/ directory is missing; create it explicitly or restore it from backup")
+            } else {
+                io_error(e)
+            }
+        })?;
+        if !source_root.is_dir() {
+            return Err(Error::new(
+                "E-SOURCE-DIRECTORY-MISSING",
+                "Project sources/ must be a directory",
+            ));
+        }
+        let roots = vec![source_root];
         let mut paths = BTreeSet::new();
         let mut folders = BTreeSet::new();
         for source_root in &roots {

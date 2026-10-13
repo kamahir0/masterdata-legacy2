@@ -1,4 +1,4 @@
-import { uiMessage, statusLabel } from "./language";
+import { uiMessage, statusLabel, sourceFolderLabel } from "./language";
 import {useEffect, useRef, useState} from "react";
 import {Alert, Button, Flex, Form, Input, Modal, Select, Space, Typography} from "antd";
 import {desktop} from "./workspace";
@@ -92,11 +92,11 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
   </Space>}>
     <Typography.Paragraph type="secondary" className="source-path-origin">{draft.source}</Typography.Paragraph>
     <Form layout="vertical" disabled={draft.committing||uncertain}>
-      <Form.Item label="フォルダー"><Select aria-label="ソースの移動先フォルダー" value={draft.folder} options={draft.choices.folders.map(folder=>({value:folder||".",label:folder||"."}))} onChange={folder=>change({folder})}/></Form.Item>
+      <Form.Item label="フォルダー">{draft.choices.folders.length>1?<Select aria-label="ソースの移動先フォルダー" value={draft.folder} options={draft.choices.folders.map(folder=>({value:folder,label:sourceFolderLabel(folder,draft.choices.root),title:folder}))} onChange={folder=>change({folder})}/>:<Typography.Text aria-label="ソースの移動先フォルダー" title={draft.folder}>{sourceFolderLabel(draft.folder,draft.choices.root)}</Typography.Text>}</Form.Item>
       <Form.Item label="ファイル名"><Input aria-label="移動後のソースファイル名" ref={input=>{filename.current=input?.input??null;}} value={draft.filename} onChange={event=>change({filename:event.target.value})} onKeyDown={event=>{if(event.nativeEvent.isComposing)return;if(event.key==="Enter"){event.preventDefault();void apply();}}}/></Form.Item>
     </Form>
     <Flex vertical gap={8}>
-      <Typography.Text type="secondary">{draft.choices.root} · {join(draft.folder,draft.filename)}</Typography.Text>
+      <Typography.Text type="secondary">{join(draft.folder,draft.filename)}</Typography.Text>
       {draft.error&&<Alert type="error" showIcon title={uiMessage(draft.error)}/>}
       {draft.result&&<Alert type={uncertain?"warning":"error"} showIcon title={uncertain?"結果を確認できません":statusLabel(draft.result.outcome)} description={uiMessage(draft.result.message)}/>}
     </Flex>

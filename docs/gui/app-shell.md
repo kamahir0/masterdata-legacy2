@@ -26,7 +26,7 @@ headerの空白・製品名・project名からwindowをdragでき、button操作
 
 ### GUI-SHELL-NAV-001
 
-Projectが開いている間、DesktopはProject名とcurrent selectionを識別可能にしなければならない（MUST）。左ペインの常設navigationはconfigured source rootとそのfile / folder hierarchyだけで構成し、Table / Type / Project areaの並列groupを置いてはならない（MUST NOT）。metadataがinvalid / unavailableなfileもsource treeから失ってはならない（MUST NOT）。
+Projectが開いている間、DesktopはProject名とcurrent selectionを識別可能にしなければならない（MUST）。左ペインの常設navigationは固定`sources/`内のfile / folder hierarchyだけで構成し、Table / Type / Project areaの並列groupを置いてはならない（MUST NOT）。metadataがinvalid / unavailableなfileもsource treeから失ってはならない（MUST NOT）。
 
 Project Settings / Delivery / Build等のProject areaは上部Project command surfaceから、Tableのsource構成 / Build inclusionは関連Table / Build文脈から理解できなければならない（MUST）。Build、Validate、Project Reload、Saveへの到達を失ってはならない（MUST NOT）。file / area間の移動だけでdirty bufferを保存・破棄・確認してはならない（MUST NOT）。navigationとcommandはkeyboardで到達・実行でき、選択対象と展開状態をassistive technologyから識別できなければならない（MUST）。
 

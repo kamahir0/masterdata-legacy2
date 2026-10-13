@@ -289,6 +289,9 @@ impl Workspace {
         let (read, environment_error, config_binding_available) =
             match Project::from_saved_config(root.clone(), configuration.base.bytes.clone()) {
                 Ok(p) => (Arc::new(p), None, true),
+                // A layout requiring migration must not replace an existing
+                // workspace with an empty repair-only view.
+                Err(e) if e.code == "E-CONFIG-SOURCE-ROOT" => return Err(e),
                 Err(e) if project::config(&configuration.base.bytes).is_err() => (
                     Arc::new(Project::unavailable_config(
                         root,

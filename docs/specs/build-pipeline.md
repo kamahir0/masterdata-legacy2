@@ -524,7 +524,7 @@ publish targetは、destination filesystem上で次のMasterData critical path�
 protected regionを管理・置換できるequalまたはancestor/descendant overlapをしてはならない（MUST）。
 
 - MasterData project rootおよび`masterdata.toml`
-- configured source rootsとそのtree
+- [PROJECT-SOURCE-001](project-layout.md#project-source-001)の固定source directoryとそのtree
 - canonical artifact rootとそのtree
 - build cacheとそのtree
 

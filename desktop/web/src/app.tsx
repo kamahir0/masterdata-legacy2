@@ -534,8 +534,7 @@ function Explorer({ s, reveal }: { s: Surface; reveal:()=>void }) {
       });
     }
     if(creation.draft)ensureFolder(creation.draft.folder).push({key:"creation:temporary",title:creation.draft.filename,isLeaf:true,selectable:false});
-    const sourceRoots=s.inventory?.sourceRootPaths??[];
-    return sourceRoots.length===1 ? folders.get(sourceRoots[0]||".")?.children??roots : roots;
+    return folders.get(s.inventory?.sourceDirectory??"")?.children??[];
   }, [s.inventory,creation.draft?.folder,creation.draft?.filename,creation.draft?.id]);
   return (
     <aside id="explorer" ref={container} onKeyDownCapture={event=>{

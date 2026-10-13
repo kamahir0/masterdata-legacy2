@@ -312,9 +312,7 @@ pub fn initialize_project(path: &Path, metadata: Metadata) -> Result<InitReport>
 fn configuration(metadata: Metadata) -> Result<String> {
     let config = Config {
         project: metadata,
-        sources: Sources {
-            roots: vec!["sources".into()],
-        },
+        sources: Sources::default(),
         build: BuildConfig {
             artifact_dir: ".masterdata/output".into(),
             cache: ".masterdata/cache".into(),

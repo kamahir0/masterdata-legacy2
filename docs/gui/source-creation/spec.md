@@ -12,7 +12,7 @@ Workspace Explorerから新しいfolder、Table schema、Data document、Value O
 
 ### GUI-CREATE-LAYOUT-001
 
-Workspace Explorerはsource rootまたはその配下folderを対象に、新規itemを作成する`New` command surfaceを提供しなければならない（MUST）。少なくとも次を選択できなければならない（MUST）。
+Workspace Explorerは固定`sources/`またはその配下folderを対象に、新規itemを作成する`New` command surfaceを提供しなければならない（MUST）。少なくとも次を選択できなければならない（MUST）。
 
 - Folder
 - Table
@@ -26,15 +26,15 @@ exact icon、menu placement、toolbar/context menu併用は固定しない。fil
 
 ### GUI-CREATE-LAYOUT-002
 
-file-based artifactの通常creation UIはExplorer内に未commitの仮nodeを表示し、filenameをinline編集できなければならない（MUST）。Enterで作成を開始し、Escapeでmutationなしに中止できなければならない（MUST）。kind、destination source root / folder、filename、作成されるdomain identityの候補を作成前に識別できなければならない（MUST）。raw YAML text入力をprimary workflowにしてはならない（MUST NOT）。
+file-based artifactの通常creation UIはExplorer内に未commitの仮nodeを表示し、filenameをinline編集できなければならない（MUST）。Enterで作成を開始し、Escapeでmutationなしに中止できなければならない（MUST）。kind、destination folder、filename、作成されるdomain identityの候補を作成前に識別できなければならない（MUST）。raw YAML text入力をprimary workflowにしてはならない（MUST NOT）。
 
 defaultで表現できない初期declarationはAdvanced creationから指定できなければならない（MUST）。exact componentは固定しない。
 
 ### GUI-CREATE-LAYOUT-003
 
-作成先はフォルダーだけを選ぶ。複数configured rootsは候補pathで区別し、rootはshared choicesから導く。単一rootに冗長なroot selectorを出さず、作成先folderの候補が1個ならpathを表示するだけにする。通常inline filenameは[GUI-SHELL-INPUT-001](../app-shell.md#gui-shell-input-001)の確定 / 取消を使う。
+作成先は固定`sources/`内のフォルダーだけを選ぶ。root selector、複数rootを区別するgroup / labelを出さず、作成先folderの候補が1個ならpathを表示するだけにする。表示上の基点は`ソース直下`とし、実際のpathは確認できるようにする。inventory / choices / validationはshared Rustが提供する。通常inline filenameは[GUI-SHELL-INPUT-001](../app-shell.md#gui-shell-input-001)の確定 / 取消を使う。
 
-複数source rootがconfiguredされている場合、target rootを明示的に識別できなければならない（MUST）。filenameは変更できなければならず（MUST）、仮nodeのfilename変更中だけApplicationが提案するdomain identity候補を更新してよい（MAY）。候補identityは作成されるcanonical sourceに明示され、作成後のfilename変更 / moveはdomain identityを変更してはならない（MUST NOT）。human-facing default extensionは`.yaml`とする。
+filenameは変更できなければならず（MUST）、仮nodeのfilename変更中だけApplicationが提案するdomain identity候補を更新してよい（MAY）。候補identityは作成されるcanonical sourceに明示され、作成後のfilename変更 / moveはdomain identityを変更してはならない（MUST NOT）。human-facing default extensionは`.yaml`とする。
 
 ## 状態（States）
 
@@ -54,7 +54,7 @@ workspaceが開かれていない、または[GUI app shell](../app-shell.md)の
 
 ### GUI-CREATE-INT-001
 
-Folder creationではselected source root / folder配下のnew folder nameを入力し、[SOURCE-CREATE-016](../../specs/source-creation.md)へ従ってexactly 1つのfolderを作成しなければならない（MUST）。domain kind、Table/type identityをfolder nameへ割り当ててはならない（MUST NOT）。
+Folder creationではselected folder配下のnew folder nameを入力し、[SOURCE-CREATE-016](../../specs/source-creation.md)へ従ってexactly 1つのfolderを作成しなければならない（MUST）。domain kind、Table/type identityをfolder nameへ割り当ててはならない（MUST NOT）。
 
 ### GUI-CREATE-INT-002
 

@@ -15,7 +15,7 @@ Domain: Project Configuration
 - named Profile追加、existing Profileのinclude_tags / exclude_tags更新。
 - Publish target追加、existing targetのpath更新。existing targetはconfig snapshot内のarray occurrenceで指定する。
 
-Profile rename/delete、target remove/reorder/kind変更、project id / roots / artifact path等のgeneral config編集はv1外。target追加時のkindは`csharp`または`binary`を明示入力する。source rootやdirectoryからkindを推測してはならない（MUST NOT）。
+Profile rename/delete、target remove/reorder/kind変更、project id / artifact path等のgeneral config編集はv1外。target追加時のkindは`csharp`または`binary`を明示入力する。source rootやdirectoryからkindを推測してはならない（MUST NOT）。
 
 ### CONFIG-EDIT-002
 
