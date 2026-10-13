@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{clipboard, workspace::Workspace};
 use serde_json::Value as Json;
 use std::{fs, path::Path};
@@ -8,7 +10,7 @@ fn copy_files(source: &Path, target: &Path) {
         if entry.file_type().unwrap().is_dir() {
             copy_files(&entry.path(), &target.join(entry.file_name()));
         } else {
-            fs::copy(entry.path(), target.join(entry.file_name())).unwrap();
+            fixture::copy_file(entry.path(), target.join(entry.file_name())).unwrap();
         }
     }
 }

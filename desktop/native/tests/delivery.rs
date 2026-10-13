@@ -1,3 +1,5 @@
+#[path = "../../../engine/tests/support/mod.rs"]
+pub mod fixture;
 use masterdata_desktop::{
     actor::{Intent, Session},
     delivery::Request,
@@ -13,7 +15,7 @@ fn project() -> tempfile::TempDir {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../fixtures/rewrite-oracle/v1/consumer/minimal");
     let temp = tempfile::tempdir().unwrap();
-    fs::copy(
+    fixture::copy_file(
         root.join("masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )
@@ -21,7 +23,7 @@ fn project() -> tempfile::TempDir {
     fs::create_dir(temp.path().join("sources")).unwrap();
     for entry in fs::read_dir(root.join("sources")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             temp.path().join("sources").join(entry.file_name()),
         )

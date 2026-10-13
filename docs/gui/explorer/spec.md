@@ -15,7 +15,7 @@ Desktop authoring画面は左側にWorkspace Explorerを持たなければなら
 
 固定`sources/`自体の冗長なfolder行を省略し、直下のfile / folderをtop levelのindentで表示する。表示省略によってphysical path、creation destination、selection identityを変更してはならない（MUST NOT）。
 
-`sources/`外の`.masterdata/output`、cache、generated artifact等をExplorerのsource treeへ暗黙に混在させてはならない（MUST NOT）。source配置の互換性と移行は[PROJECT-SOURCE-002](../../specs/project-layout.md#project-source-002)に従う。非標準ProjectのOpen失敗で現在のworkspace / dirty bufferを破棄しない。
+`sources/`外の`.masterdata/output`、cache、generated artifact等をExplorerのsource treeへ暗黙に混在させてはならない（MUST NOT）。source配置と設定拒否は[PROJECT-SOURCE-003](../../specs/project-layout.md#project-source-003)に従う。Open失敗で現在のworkspace / dirty bufferを破棄しない。
 
 ### GUI-EXPLORER-002
 

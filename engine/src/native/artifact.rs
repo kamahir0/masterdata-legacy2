@@ -112,12 +112,10 @@ fn protected(root: &Path, config: &Config, target: &Path) -> Result<()> {
     {
         return Err(unsafe_path("canonical root overlaps Project or config"));
     }
-    for path in config
-        .sources
-        .roots
-        .iter()
-        .chain(std::iter::once(&config.build.cache))
-    {
+    for path in [
+        crate::project::SOURCE_DIRECTORY,
+        config.build.cache.as_str(),
+    ] {
         let configured = absolute(root, Path::new(path))?;
         if namespace.relation(&Namespace::resolve(&configured)?)? != Relation::Separate {
             return Err(unsafe_path(format!(

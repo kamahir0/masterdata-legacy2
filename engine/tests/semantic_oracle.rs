@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     project::Project,
     semantic::{Field, Types, interpret},
@@ -37,7 +39,9 @@ fn independent_schema_directed_interpretation() {
 #[test]
 fn full_project_lowering_keeps_nested_and_64_bit_values() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/full");
-    let p = Project::open(&root).unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    fixture::copy(&root, temp.path()).unwrap();
+    let p = Project::open(temp.path()).unwrap();
     let (problems, rows) = p.validate(None).unwrap();
     assert!(problems.is_empty(), "{problems:#?}");
     let rows = &rows["item"];
@@ -55,12 +59,20 @@ fn full_project_lowering_keeps_nested_and_64_bit_values() {
 #[test]
 fn empty_table_has_no_implicit_source_and_minimal_is_valid() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures");
-    let p = Project::open(&root.join("rewrite-oracle/v1/empty-table/input")).unwrap();
+    let empty = tempfile::tempdir().unwrap();
+    fixture::copy(
+        &root.join("rewrite-oracle/v1/empty-table/input"),
+        empty.path(),
+    )
+    .unwrap();
+    let p = Project::open(empty.path()).unwrap();
     let name = p.tables.keys().next().unwrap();
     assert!(p.record_sources(name).is_empty());
     assert!(p.validate(None).unwrap().0.is_empty());
+    let minimal = tempfile::tempdir().unwrap();
+    fixture::copy(&root.join("minimal"), minimal.path()).unwrap();
     assert!(
-        Project::open(&root.join("minimal"))
+        Project::open(minimal.path())
             .unwrap()
             .validate(None)
             .unwrap()
@@ -88,7 +100,7 @@ fn schema_keys_and_generated_identifiers_are_validated_without_repair() {
 #[test]
 fn invalid_key_capability_returns_diagnostics_instead_of_aborting_validation() {
     let temp = tempfile::tempdir().unwrap();
-    fs::copy(
+    fixture::copy_file(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/minimal/masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )

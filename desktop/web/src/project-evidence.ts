@@ -101,6 +101,12 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     await until(()=>desktop.surface.typeProjection?.name==='ItemId'&&!desktop.surface.pending,'Find did not open the shared typed source');
     const work=desktop.surface.typeProjection!.measurement.work;
     assert(work.projectDiscovery===0&&work.projectEnumeration===0&&work.projectYamlParse===0&&work.projectValidation===0,'logical Find reopened / rebuilt the Project');
+    const typeEpoch=desktop.surface.status.epoch;
+    await desktop.openRecent(`${fixtureRoot}/../unsupported-project`);
+    await until(()=>document.querySelector('.context-alert')?.textContent?.includes('ソースの保存先はプロジェクト直下の sources/ に固定されています')===true,'unsupported-setting reason was invisible beside a loaded Type');
+    assert(desktop.surface.status.epoch===typeEpoch&&desktop.surface.typeProjection?.name==='ItemId'&&desktop.surface.error?.includes('[sources] settings are not supported'),'setting rejection replaced the typed workspace or lost its diagnostic');
+    desktop.dismissError();
+    checks.push('source-settings-error-visible-retains-type');
     await findTarget('item','テーブル · item — sources/catalog-schema.yaml');
     await until(()=>desktop.surface.target==='sources/catalog-schema.yaml'&&desktop.surface.projection?.source===SOURCE&&!desktop.surface.pending,'logical Table did not use the same physical record context');
     assert(document.querySelector('#explorer [data-path="sources/catalog-schema.yaml"]')!.closest('[aria-selected="true"]'),'logical Find did not select its physical source row');
@@ -135,6 +141,12 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     newRoot=desktop.surface.inventory!.root;
     assert(desktop.surface.inventory!.sources.length===0&&!desktop.surface.status.dirty.length,'Project creation fabricated data');
     checks.push('unknown-creation-reply-explicit-open');
+    const emptyEpoch=desktop.surface.status.epoch;
+    await desktop.openRecent(`${fixtureRoot}/../unsupported-project`);
+    await until(()=>document.querySelector('.context-alert')?.textContent?.includes('ソースの保存先はプロジェクト直下の sources/ に固定されています')===true,'unsupported-setting reason was invisible without a selected source');
+    assert(desktop.surface.status.epoch===emptyEpoch&&desktop.surface.inventory!.root===newRoot&&!desktop.surface.target,'setting rejection replaced the empty workspace');
+    desktop.dismissError();
+    checks.push('source-settings-error-visible-retains-empty');
 
     await until(()=>!button("テーブルを作成").disabled,'empty Project lacks guided Table action');button("テーブルを作成").click();
     await readyArtifact();button("作成内容の詳細").click();

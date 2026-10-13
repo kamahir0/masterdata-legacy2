@@ -1,11 +1,16 @@
+#[path = "../../../engine/tests/support/mod.rs"]
+pub mod fixture;
 use masterdata_desktop::actor::{Intent, Session};
 use serde_json::Value;
 use std::path::PathBuf;
 #[test]
 fn rapid_navigation_accepts_only_latest_target_and_warm_selection_reuses_project() {
     let session = Session::default();
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../fixtures/rewrite-oracle/v1/save-both/input");
+    let temp = tempfile::tempdir().unwrap();
+    fixture::copy(&input, temp.path()).unwrap();
+    let root = temp.path();
     session
         .request_blocking(Intent::Open {
             path: root.to_string_lossy().into(),
@@ -64,8 +69,11 @@ fn rapid_navigation_accepts_only_latest_target_and_warm_selection_reuses_project
 #[tokio::test(flavor = "current_thread")]
 async fn previous_project_authoring_cannot_mutate_a_new_session_with_identical_source_bytes() {
     let session = Session::default();
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../fixtures/rewrite-oracle/v1/save-both/input");
+    let temp = tempfile::tempdir().unwrap();
+    fixture::copy(&input, temp.path()).unwrap();
+    let root = temp.path();
     let open = || Intent::Open {
         path: root.to_string_lossy().into(),
         discard: false,
@@ -127,7 +135,7 @@ fn filesystem_changes_refresh_clean_sources_conflict_dirty_sources_and_invalidat
             if entry.file_type().unwrap().is_dir() {
                 copy(&entry.path(), &dst.join(entry.file_name()));
             } else {
-                fs::copy(entry.path(), dst.join(entry.file_name())).unwrap();
+                fixture::copy_file(entry.path(), dst.join(entry.file_name())).unwrap();
             }
         }
     }

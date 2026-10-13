@@ -10,7 +10,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from generate_corpus import capacity, navigation
+from generate_corpus import capacity, navigation, current_config
 from process_memory import child_peak, windows_peak
 from analyze_os_input import distribution
 
@@ -202,9 +202,9 @@ def check_project(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
     assert report['checks'] == ['welcome-recent-and-appearance-entry', 'welcome-create-cancel-focus', 'welcome-recents-explicit-open-remove', 'unknown-open-reply-explicit-reopen',
-                               'sidebar-whole-pane-state-preserved', 'source-only-tree-contextual-find-cancel', 'contextual-find-type-table-warm-zero', 'create-all-dirty-guard-cancel',
+                               'sidebar-whole-pane-state-preserved', 'source-only-tree-contextual-find-cancel', 'source-settings-error-visible-retains-type', 'contextual-find-type-table-warm-zero', 'create-all-dirty-guard-cancel',
                                'create-form-cancel-composition', 'nonempty-failure-retains-workspace',
-                               'unknown-creation-reply-explicit-open', 'guided-schema-explicit-no-record-source',
+                               'unknown-creation-reply-explicit-open', 'source-settings-error-visible-retains-empty', 'guided-schema-explicit-no-record-source',
                                'explicit-data-logical-navigation-shared-draft', 'recent-canonical-root-order-dedup']
     assert not report['startup']['browserErrors']
     return {'checks': len(report['checks']), 'explicitProjectAndArtifactLifecycles': True}
@@ -251,6 +251,8 @@ def run(binary: Path, output: Path, case: str):
             {'navigation': navigation, 'capacity': capacity, 'geometry': navigation}[case](project)
         else:
             shutil.copytree(ROOT / 'fixtures/full', project)
+            config = project / 'masterdata.toml'
+            config.write_bytes(current_config(config.read_bytes()))
             data = project / 'sources/catalog-data.yaml'
             if case != 'delivery':
                 data.write_text(data.read_text(encoding='utf-8').replace('numbers: [1, -2]', 'numbers: [1, "1", -2]'), encoding='utf-8')
@@ -295,6 +297,10 @@ def run(binary: Path, output: Path, case: str):
             executable = app / 'MacOS' / 'masterdata-desktop'
         report_path = temporary / 'measurement.json'
         if case == 'project':
+            nonstandard = temporary / 'unsupported-project'
+            shutil.copytree(project, nonstandard)
+            config = nonstandard / 'masterdata.toml'
+            config.write_text(config.read_text(encoding='utf-8') + '\n[sources]\nroots = ["sources", "other"]\n', encoding='utf-8')
             removed = temporary / 'remove-entry'
             removed.mkdir()
             (removed / 'notes').write_bytes(b'user bytes')

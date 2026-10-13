@@ -11,7 +11,7 @@ const DATA: &str = "sources/data.yaml";
 fn setup() -> (tempfile::TempDir, Workspace) {
     let t = tempfile::tempdir().unwrap();
     fs::create_dir(t.path().join("sources")).unwrap();
-    fs::write(t.path().join("masterdata.toml"),"[project]\nid = 'config.workspace'\nname = 'Settings'\nversion = '0.1.0'\n[sources]\nroots = ['sources']\n[build]\nartifact_dir = '.masterdata/output'\ncache = '.masterdata/cache'\n[build.profiles.production]\nexclude_tags = ['debug']\n").unwrap();
+    fs::write(t.path().join("masterdata.toml"),"[project]\nid = 'config.workspace'\nname = 'Settings'\nversion = '0.1.0'\n[build]\nartifact_dir = '.masterdata/output'\ncache = '.masterdata/cache'\n[build.profiles.production]\nexclude_tags = ['debug']\n").unwrap();
     fs::write(t.path().join("sources/schema.yaml"),"kind: schema\ntable: item\nfields:\n  - key: 0\n    name: id\n    type: long\n  - key: 1\n    name: note\n    type: string\nprimaryKey:\n  fields: [id]\nsecondaryKeys: []\n").unwrap();
     fs::write(
         t.path().join(DATA),

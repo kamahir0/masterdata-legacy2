@@ -52,12 +52,11 @@ impl Workspace {
     pub fn path_move_choices(&self, source: &str) -> Result<serde_json::Value> {
         self.check_config()?;
         let snapshot = native::capture(&self.read.root, &self.read.roots, source)?;
-        let (index, root) = self
+        let root = self
             .read
             .roots
             .iter()
-            .enumerate()
-            .find(|(_, r)| snapshot.physical.starts_with(r))
+            .find(|r| snapshot.physical.starts_with(r))
             .ok_or_else(|| Error::new("E-PATH-SCOPE", "source root required"))?;
         let folders = self
             .read
@@ -66,7 +65,7 @@ impl Workspace {
             .filter(|p| self.read.root.join(p).starts_with(root))
             .collect::<Vec<_>>();
         Ok(
-            serde_json::json!({"root":self.read.config.sources.roots[index],"folders":folders,"filename":std::path::Path::new(source).file_name().unwrap().to_string_lossy()}),
+            serde_json::json!({"root":self.read.source_directory_path(),"folders":folders,"filename":std::path::Path::new(source).file_name().unwrap().to_string_lossy()}),
         )
     }
     pub fn prepare_path_move(&mut self, source: &str, destination: &str) -> Result<MoveReview> {

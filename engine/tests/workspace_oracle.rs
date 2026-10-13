@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{instrument, native::Outcome, source::Value, workspace::Workspace};
 use serde_json::Value as Json;
 use std::{
@@ -11,7 +13,7 @@ fn copy(src: &Path, dst: &Path) {
         if e.file_type().unwrap().is_dir() {
             copy(&e.path(), &dst.join(e.file_name()));
         } else {
-            fs::copy(e.path(), dst.join(e.file_name())).unwrap();
+            fixture::copy_file(e.path(), dst.join(e.file_name())).unwrap();
         }
     }
 }
@@ -51,8 +53,14 @@ fn compare(expected: &Path, actual: &Path) {
         if e.file_type().unwrap().is_dir() {
             compare(&e.path(), &other);
         } else {
+            let expected = fs::read(e.path()).unwrap();
+            let expected = if e.file_name() == "masterdata.toml" {
+                fixture::current_config(&expected)
+            } else {
+                expected
+            };
             assert_eq!(
-                fs::read(e.path()).unwrap(),
+                expected,
                 fs::read(&other).unwrap(),
                 "exact disk bytes {}",
                 other.display()

@@ -14,34 +14,12 @@ use std::{
 
 pub const SOURCE_DIRECTORY: &str = "sources";
 
-fn source_roots() -> Vec<String> {
-    vec![SOURCE_DIRECTORY.into()]
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
     pub id: String,
     pub name: String,
     pub version: String,
-}
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Sources {
-    #[serde(default = "source_roots")]
-    pub roots: Vec<String>,
-}
-impl Default for Sources {
-    fn default() -> Self {
-        Self {
-            roots: source_roots(),
-        }
-    }
-}
-impl Sources {
-    fn is_fixed(&self) -> bool {
-        self.roots == [SOURCE_DIRECTORY]
-    }
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -75,8 +53,6 @@ pub struct PublishTarget {
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub project: Metadata,
-    #[serde(default, skip_serializing_if = "Sources::is_fixed")]
-    pub sources: Sources,
     pub build: BuildConfig,
     #[serde(default)]
     pub publish: PublishConfig,
@@ -238,18 +214,15 @@ pub fn config(bytes: &str) -> Result<Config> {
             "build.binary_output requires explicit migration to canonical masterdata.bytes or a binary publish target",
         ));
     }
+    if value.get("sources").is_some() {
+        return Err(Error::new(
+            "E-CONFIG-SOURCES-UNSUPPORTED",
+            "source directory is fixed at Project sources/; [sources] settings are not supported",
+        ));
+    }
     let c: Config = value
         .try_into()
         .map_err(|e| Error::new("E-CONFIG", e.to_string()))?;
-    if !c.sources.is_fixed() {
-        return Err(Error::new(
-            "E-CONFIG-SOURCE-ROOT",
-            format!(
-                "source settings {:?} require migration to Project sources/: back up, copy each old root into a separate sources/ subfolder without overwriting files, omit [sources] or set roots = [\"sources\"], then validate; no files were changed",
-                c.sources.roots
-            ),
-        ));
-    }
     if [&c.project.id, &c.project.name, &c.project.version]
         .iter()
         .any(|s| s.trim().is_empty())
@@ -428,7 +401,6 @@ impl Project {
                     name: text("name"),
                     version: text("version"),
                 },
-                sources: Sources { roots: vec![] },
                 build: BuildConfig {
                     artifact_dir: String::new(),
                     cache: String::new(),

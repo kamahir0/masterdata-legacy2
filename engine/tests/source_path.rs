@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     native::{self, Fault, Outcome},
     workspace::{SourceViewState, Workspace},
@@ -14,7 +16,7 @@ fn copy(src: &Path, dst: &Path) {
         if entry.file_type().unwrap().is_dir() {
             copy(&entry.path(), &dst.join(entry.file_name()));
         } else {
-            fs::copy(entry.path(), dst.join(entry.file_name())).unwrap();
+            fixture::copy_file(entry.path(), dst.join(entry.file_name())).unwrap();
         }
     }
 }

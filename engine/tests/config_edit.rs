@@ -4,7 +4,7 @@ use masterdata_engine::{
     project,
 };
 use std::fs;
-const BASE: &str = "# project\n[project]\nid = 'rewrite.config'\nname = \"Settings\"\nversion = '0.1.0'\n[sources]\nroots = ['sources']\n[build]\nartifact_dir = '.masterdata/output'\ncache = '.masterdata/cache'\n";
+const BASE: &str = "# project\n[project]\nid = 'rewrite.config'\nname = \"Settings\"\nversion = '0.1.0'\n[build]\nartifact_dir = '.masterdata/output'\ncache = '.masterdata/cache'\n";
 fn setup(extra: &str) -> (tempfile::TempDir, Editor) {
     let t = tempfile::tempdir().unwrap();
     fs::create_dir(t.path().join("sources")).unwrap();

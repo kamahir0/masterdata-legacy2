@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 #[cfg(feature = "oracle-faults")]
 use masterdata_engine::{
     native::{Fault, Outcome},
@@ -13,7 +15,7 @@ fn copy(src: &Path, dst: &Path) {
         if e.file_type().unwrap().is_dir() {
             copy(&e.path(), &dst.join(e.file_name()));
         } else {
-            fs::copy(e.path(), dst.join(e.file_name())).unwrap();
+            fixture::copy_file(e.path(), dst.join(e.file_name())).unwrap();
         }
     }
 }

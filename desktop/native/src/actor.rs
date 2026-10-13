@@ -758,9 +758,9 @@ fn watch(
     Ok(watcher)
 }
 fn inventory(w: &Workspace) -> Value {
-    json!({"project":w.read.config.project,"root":w.read.root,"roots":w.read.config.sources.roots,
+    json!({"project":w.read.config.project,"root":w.read.root,
         "sourceDirectory":w.read.source_directory_path(),
-        "sourceRootPaths":[w.read.source_directory_path()],"folders":w.read.folders,
+        "folders":w.read.folders,
         "sources":w.read.sources.values().map(|s|json!({"path":s.path,"kind":s.kind,"category":s.category(),"binding":s.binding,"error":s.error})).collect::<Vec<_>>(),
         "logicalTables":w.read.tables.values().map(|table|json!({"name":table.name,"source":table.source})).collect::<Vec<_>>(),
         "logicalTypes":w.read.type_sources.iter().map(|(name,source)|json!({"name":name,"source":source})).collect::<Vec<_>>(),

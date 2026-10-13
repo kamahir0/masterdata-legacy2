@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     semantic::Type,
     type_migration::{self, Command},
@@ -103,7 +105,7 @@ fn default_add_uses_a_saved_plan_and_rejects_changed_source_identity() {
     std::fs::create_dir(temp.path().join("sources")).unwrap();
     std::fs::write(
         temp.path().join("masterdata.toml"),
-        include_str!("../../fixtures/full/masterdata.toml"),
+        fixture::current_config(include_bytes!("../../fixtures/full/masterdata.toml")),
     )
     .unwrap();
     let source = "sources/enum.yaml";

@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     creation::Declaration,
     migration::{self, Plan},
@@ -13,14 +15,14 @@ fn fixture() -> tempfile::TempDir {
     let temp = tempfile::tempdir().unwrap();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/full");
     fs::create_dir(temp.path().join("sources")).unwrap();
-    fs::copy(
+    fixture::copy_file(
         root.join("masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )
     .unwrap();
     for entry in fs::read_dir(root.join("sources")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             temp.path().join("sources").join(entry.file_name()),
         )

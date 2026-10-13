@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     creation::Declaration,
     migration::{self, Command},
@@ -14,13 +16,13 @@ fn fixture(id: &str) -> tempfile::TempDir {
     fs::create_dir(temp.path().join("sources")).unwrap();
     for entry in fs::read_dir(oracle().join(id).join("input")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             temp.path().join("sources").join(entry.file_name()),
         )
         .unwrap();
     }
-    fs::copy(
+    fixture::copy_file(
         oracle().join("save-both/input/masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )
@@ -116,7 +118,7 @@ fn a_plan_rejects_changed_non_target_input_membership_config_and_same_byte_repla
                 fs::write(&path, fs::read_to_string(&path).unwrap() + "# changed\n").unwrap()
             }
             "membership" => {
-                fs::copy(&path, temp.path().join("sources/new.yaml")).unwrap();
+                fixture::copy_file(&path, temp.path().join("sources/new.yaml")).unwrap();
             }
             "config" => {
                 let path = temp.path().join("masterdata.toml");

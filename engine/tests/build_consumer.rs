@@ -1,4 +1,6 @@
 #![cfg(feature = "native-consumer")]
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     delivery::{self, BuildOptions, BuildPlan, SavedConfig},
     native::{Outcome, artifact::ArtifactSet, dotnet},
@@ -10,7 +12,7 @@ use std::{
 };
 fn copy_project(from: &Path) -> tempfile::TempDir {
     let temp = tempfile::tempdir().unwrap();
-    fs::copy(
+    fixture::copy_file(
         from.join("masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )
@@ -18,7 +20,7 @@ fn copy_project(from: &Path) -> tempfile::TempDir {
     fs::create_dir(temp.path().join("sources")).unwrap();
     for entry in fs::read_dir(from.join("sources")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             temp.path().join("sources").join(entry.file_name()),
         )
@@ -56,7 +58,8 @@ fn independent_consumers_reload_nested_values_and_sparse_keys() {
         let project = copy_project(&fixture);
         if fixture.ends_with("full") {
             for file in ["probe-schema.yaml", "probe-data.yaml"] {
-                fs::copy(oracle.join(file), project.path().join("sources").join(file)).unwrap();
+                fixture::copy_file(oracle.join(file), project.path().join("sources").join(file))
+                    .unwrap();
             }
         }
         let before = bytes(project.path());
@@ -153,7 +156,7 @@ fn unity_caller_factory_loads_actual_binary_and_preserves_independent_database_o
     let oracle = repository.join("fixtures/rewrite-oracle/v1/consumer");
     let project = copy_project(&repository.join("fixtures/full"));
     for file in ["probe-schema.yaml", "probe-data.yaml"] {
-        fs::copy(oracle.join(file), project.path().join("sources").join(file)).unwrap();
+        fixture::copy_file(oracle.join(file), project.path().join("sources").join(file)).unwrap();
     }
     let before = bytes(project.path());
     let plan = BuildPlan::capture(project.path(), None).unwrap();
@@ -215,7 +218,7 @@ fn authored_messagepack_keys_primary_secondary_and_reference_helpers_reload_in_n
     let oracle = repository.join("fixtures/rewrite-oracle/v1/consumer");
     let project = copy_project(&repository.join("fixtures/full"));
     for file in ["probe-schema.yaml", "probe-data.yaml"] {
-        fs::copy(oracle.join(file), project.path().join("sources").join(file)).unwrap();
+        fixture::copy_file(oracle.join(file), project.path().join("sources").join(file)).unwrap();
     }
     let before = bytes(project.path());
     let mut workspace = Workspace::open(project.path()).unwrap();

@@ -1,7 +1,7 @@
 //! New project scaffold, shared by CLI and Desktop. Existing configuration and
 //! .gitignore are never rewritten; tool-state directories are created lazily.
 use super::{namespace::Namespace, namespace::create_parents, *};
-use crate::project::{BuildConfig, Config, Metadata, PublishConfig, Sources};
+use crate::project::{BuildConfig, Config, Metadata, PublishConfig};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -312,7 +312,6 @@ pub fn initialize_project(path: &Path, metadata: Metadata) -> Result<InitReport>
 fn configuration(metadata: Metadata) -> Result<String> {
     let config = Config {
         project: metadata,
-        sources: Sources::default(),
         build: BuildConfig {
             artifact_dir: ".masterdata/output".into(),
             cache: ".masterdata/cache".into(),

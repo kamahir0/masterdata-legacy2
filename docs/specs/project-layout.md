@@ -132,13 +132,11 @@ path APIに関するimplementation noteはnon-normativeであり、callerは特�
 
 `sources/`がないProjectはmissing source directoryを識別可能なstructured diagnosticで拒否し、空Projectとして成功扱いしたりOpen / validateを理由にfolderを作成したりしてはならない（MUST NOT）。固定化してもactual directory identity、config exact bytes、source membership、stale / external replacementの再確認を省いてはならない（MUST NOT）。symlink / junction / reparse pointに対する既存guardを緩和するものではない。
 
-### PROJECT-SOURCE-002
+### PROJECT-SOURCE-003
 
-`[sources]`またはその`roots`を省略してもsource directoryは常に`sources/`である。既存の`roots = ["sources"]`は同じ意味で受理しなければならない（MUST）。`roots`を明示する場合はlist of stringsとし、shape違反は通常のstructured config diagnosticとする。別名、`./sources`等の別表記、空list、重複を含む複数rootはstructured migration diagnosticで拒否しなければならない（MUST）。unknown keyの既存validationを維持する。
+source directoryは設定項目として提供しない。`masterdata.toml`に`[sources]`を含めることを許可しない（MUST NOT）。旧標準形の`roots = ["sources"]`であっても受理せず、fixed directoryに対するunsupported settingと識別できるstructured config diagnosticで拒否する。拒否はsource discovery / Build / Publish / mutation開始前とし、source、config、artifact、cache、publish destinationを書き換えたり、現在のworkspace / dirty bufferを破棄したりしてはならない（MUST NOT）。
 
-拒否はsource discovery / Build / Publish / mutation開始前とし、source、config、artifact、cache、publish destinationを変更してはならない（MUST NOT）。diagnosticは設定されたroot、移行先`sources/`、必要な手動移行操作を識別できなければならない（MUST）。標準configはOpen / Saveを理由に自動削除・整形しない。
-
-手動移行の案内ではGit checkpoint / backupを確保し、旧rootのYAMLをbyte-for-byteで`sources/`配下へ配置してからroot設定を省略または`["sources"]`へ変更し、validateする。複数rootは別subfolderへ整理し、既存fileを上書きしない。collision / duplicate declarationを自動mergeせず、旧rootの削除を成功条件にしない。path-bearing stateはreloadで再取得し、過去Plan / recovery / receiptを新配置へ推測で付け替えない。pending recovery / dirty / Outcome Unknownは既存契約で先に解決する。採用記録は[仕様変更0061](../spec-changes/0061-fixed-source-directory.md)。
+旧形式の互換読み込み、migration、config自動変換を提供しない。PROJECT-SOURCE-002の互換契約は本要件へ置換した。Humanによる開発期間の保守不要decisionと採用記録は[仕様変更0062](../spec-changes/0062-remove-source-config-compatibility.md)。
 
 ### PROJECT-CONFIG-003
 
@@ -276,7 +274,7 @@ inventory、fixture、manual pass/fail statusはこのspecificationのownerで�
 | PROJECT-006 | 宣言されたYAML `kind`と`table`がdocument semanticsを決める。 | 1つのroot内にある複数fileが、宣言したtableを保持する。 | file pathまたはdirectory nameでdocumentを別の意味に変更できない。 |
 | PROJECT-CONFIG-001 | project metadata fieldがwhitespace以外のvalueを含む。 | metadataが揃ったblockを受け入れる。 | 空の`id`、`name`、`version`はstructured config diagnosticを返す。 |
 | PROJECT-SOURCE-001 | Project直下の`sources/`だけをsource boundaryとする。 | 固定directoryとその任意のsubfolderを利用できる。 | missing directoryを空Projectとして成功扱いする、またはbinding再確認を省く。 |
-| PROJECT-SOURCE-002 | source設定省略と旧標準形を受理し、非標準設定は移行案内付きでno-mutation拒否する。 | 旧`roots = ["sources"]`を編集せず継続利用できる。 | 一部rootだけ読む、別表記を推測変換する、拒否時にsource / output / configを書き換える。 |
+| PROJECT-SOURCE-003 | source directory設定を提供せず、旧設定を含む`[sources]`をno-mutation拒否する。 | 設定なしで固定`sources/`を利用する。 | 旧設定の互換読み込み、移行・自動変換、一部rootだけの解釈、拒否時のfile変更を行う。 |
 | PROJECT-CONFIG-003 | canonical artifact path、cache pathが空でない。 | 空でないpathを受け入れる。 | 空の`artifact_dir`またはcache pathはstructured config diagnosticを返す。 |
 | PROJECT-CONFIG-004 | legacy `build.output` / `build.binary_output`はmigration-aware structured diagnosticで拒否され、generic unknown-key errorへ潰れない。 | 新configurationを受け入れる。 | 各legacy fieldを対応するdiagnostic codeで拒否する。 |
 | PROJECT-CONFIG-005 | legacy rejectionはbuild/publishとfilesystem mutationを開始せず、自動変換もしない。 | 旧artifactを残したままoperation開始を拒否する。 | rejection後にcanonical/legacy/external artifactが変更されない。 |

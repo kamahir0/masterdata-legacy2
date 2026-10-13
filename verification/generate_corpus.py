@@ -1,15 +1,32 @@
 """固定oracle formulaからderivative measurement projectを生成する。"""
 import argparse
 import json
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ORACLE = ROOT / 'fixtures/rewrite-oracle/v1'
 
+def current_config(data: bytes) -> bytes:
+    """Construct current test config; frozen source YAML is never transformed."""
+    old = tomllib.loads(data.decode('utf-8')).get('sources')
+    if old is None:
+        return data
+    assert old == {'roots': ['sources']}, 'unexpected frozen corpus source settings'
+    result = []
+    source_section = False
+    for line in data.splitlines(keepends=True):
+        if line.strip().startswith(b'['):
+            source_section = line.strip() == b'[sources]'
+        if not source_section:
+            result.append(line)
+    return b''.join(result)
+
+
 def navigation(destination: Path):
     spec = json.loads((ORACLE / 'navigation.json').read_text())['input']
     destination.mkdir(parents=True, exist_ok=True)
-    (destination / 'masterdata.toml').write_bytes((ORACLE / spec['config']).read_bytes())
+    (destination / 'masterdata.toml').write_bytes(current_config((ORACLE / spec['config']).read_bytes()))
     for source in spec['sources']:
         lines = [f"kind: {source['kind']}", f"table: {source['table']}"]
         if source['kind'] == 'schema':
@@ -34,7 +51,7 @@ def capacity(destination: Path):
     assert spec['recordId'] == 'fileIndex * 10000 + rowIndex'
     assert spec['fieldValue'] == 'recordId + columnIndex'
     destination.mkdir(parents=True, exist_ok=True)
-    (destination / 'masterdata.toml').write_text('[project]\nid = "oracle.capacity"\nname = "Capacity Oracle"\nversion = "0.1.0"\n\n[sources]\nroots = ["sources"]\n\n[build]\nartifact_dir = ".masterdata/output"\ncache = ".masterdata/cache"\n', encoding='utf-8', newline='\n')
+    (destination / 'masterdata.toml').write_text('[project]\nid = "oracle.capacity"\nname = "Capacity Oracle"\nversion = "0.1.0"\n\n[build]\nartifact_dir = ".masterdata/output"\ncache = ".masterdata/cache"\n', encoding='utf-8', newline='\n')
     directory = destination / 'sources'
     directory.mkdir(exist_ok=True)
     fields = [f'field{column:02}' for column in range(spec['columns'])]

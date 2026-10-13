@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{project::Project, workspace::Workspace};
 use std::{collections::BTreeMap, fs, path::PathBuf};
 #[test]
@@ -5,7 +7,7 @@ fn saved_problem_locates_the_exact_base_occurrence_after_dirty_reorder_delete_an
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../fixtures/rewrite-oracle/v1/consumer/minimal");
     let temp = tempfile::tempdir().unwrap();
-    fs::copy(
+    fixture::copy_file(
         fixture.join("masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )
@@ -13,7 +15,7 @@ fn saved_problem_locates_the_exact_base_occurrence_after_dirty_reorder_delete_an
     fs::create_dir(temp.path().join("sources")).unwrap();
     for entry in fs::read_dir(fixture.join("sources")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             temp.path().join("sources").join(entry.file_name()),
         )

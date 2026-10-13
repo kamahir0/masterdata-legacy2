@@ -49,7 +49,7 @@ impl Closure {
         let closure = Self {
             root: project.root.clone(),
             roots: project.roots.clone(),
-            bindings: project.config.sources.roots.clone(),
+            bindings: vec![crate::project::SOURCE_DIRECTORY.into()],
             config,
             sources,
             root_ids: project

@@ -725,9 +725,6 @@ id = "game.masterdata"
 name = "Game Master Data"
 version = "0.1.0"
 
-[sources]
-roots = ["sources"]
-
 [build]
 artifact_dir = ".masterdata/output"
 cache = ".masterdata/cache"

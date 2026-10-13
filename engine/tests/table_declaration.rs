@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     native::{self, Outcome, SourceSetPlan},
     project::Project,
@@ -13,7 +15,7 @@ fn fixture(schema: &str) -> tempfile::TempDir {
     fs::create_dir(temp.path().join("sources")).unwrap();
     let oracle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../fixtures/rewrite-oracle/v1/save-both/input/masterdata.toml");
-    fs::copy(oracle, temp.path().join("masterdata.toml")).unwrap();
+    fixture::copy_file(oracle, temp.path().join("masterdata.toml")).unwrap();
     fs::write(temp.path().join("sources/item.yaml"), schema).unwrap();
     fs::write(
         temp.path().join("sources/data.yaml"),

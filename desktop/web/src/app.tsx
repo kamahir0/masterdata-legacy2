@@ -418,6 +418,7 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
               </div>}
             </div>
           )}
+          {s.inventory&&s.error&&(!s.target||s.typeProjection?.clicked===s.target&&!!s.typeProjection.declaration)&&<Alert className="context-alert" type="error" showIcon closable onClose={desktop.dismissError} title="操作を完了できません" description={<span className="error-detail">{uiMessage(s.error)}</span>}/>}
         </main>
       </div>
       {s.openingProject&&<div className="project-pending" role="status"><Spin size="small"/><Typography.Text>{s.projectCreation?"プロジェクトを作成中…":"プロジェクトを開いています…"}</Typography.Text><Typography.Text type="secondary" ellipsis>{s.openingProject}</Typography.Text></div>}

@@ -1,5 +1,7 @@
 //! Public process boundaries: exit status, diagnostics, exact bytes and filesystem
 //! effects. No command-parser or private engine topology assertions.
+#[path = "../../engine/tests/support/mod.rs"]
+pub mod fixture;
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
@@ -35,13 +37,13 @@ fn fixture(id: &str) -> tempfile::TempDir {
     fs::create_dir(temp.path().join("sources")).unwrap();
     for entry in fs::read_dir(oracle().join(id).join("input")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             temp.path().join("sources").join(entry.file_name()),
         )
         .unwrap();
     }
-    fs::copy(
+    fixture::copy_file(
         oracle().join("save-both/input/masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )
@@ -63,18 +65,15 @@ fn fixed_sources_config_is_shared_by_validate_build_and_publish_without_partial_
     let t = fixture("migration-add");
     let path = t.path().join("masterdata.toml");
     let standard = fs::read_to_string(&path).unwrap();
-    let omitted = standard.replace("[sources]\nroots = [\"sources\"]\n", "");
-    assert_ne!(omitted, standard);
-    fs::write(&path, omitted).unwrap();
     result(t.path(), &["validate".as_ref(), "--json".as_ref()], true);
     let data = source_bytes(t.path());
     for roots in ["[\"other\"]", "[\"sources\", \"other\"]"] {
-        let invalid = standard.replace("[\"sources\"]", roots);
+        let invalid = format!("{standard}\n[sources]\nroots = {roots}\n");
         fs::write(&path, &invalid).unwrap();
         for command in ["validate", "doctor", "build", "publish"] {
             let reply = result(t.path(), &[command.as_ref(), "--json".as_ref()], false);
             assert_eq!(
-                reply["diagnostic"]["code"], "E-CONFIG-SOURCE-ROOT",
+                reply["diagnostic"]["code"], "E-CONFIG-SOURCES-UNSUPPORTED",
                 "{command}"
             );
             assert_eq!(source_bytes(t.path()), data);

@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     delivery::{BuildPlan, SavedConfig},
     native::{
@@ -14,7 +16,7 @@ fn project() -> tempfile::TempDir {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../fixtures/rewrite-oracle/v1/consumer/minimal");
     let directory = tempfile::tempdir().unwrap();
-    fs::copy(
+    fixture::copy_file(
         fixture.join("masterdata.toml"),
         directory.path().join("masterdata.toml"),
     )
@@ -22,7 +24,7 @@ fn project() -> tempfile::TempDir {
     fs::create_dir(directory.path().join("sources")).unwrap();
     for entry in fs::read_dir(fixture.join("sources")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             directory.path().join("sources").join(entry.file_name()),
         )

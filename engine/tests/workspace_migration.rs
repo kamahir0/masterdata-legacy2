@@ -1,3 +1,5 @@
+#[path = "support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     creation::Declaration,
     migration::Command,
@@ -14,13 +16,13 @@ fn fixture() -> tempfile::TempDir {
     fs::create_dir(temp.path().join("sources")).unwrap();
     for entry in fs::read_dir(oracle().join("migration-add/input")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             temp.path().join("sources").join(entry.file_name()),
         )
         .unwrap();
     }
-    fs::copy(
+    fixture::copy_file(
         oracle().join("save-both/input/masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )

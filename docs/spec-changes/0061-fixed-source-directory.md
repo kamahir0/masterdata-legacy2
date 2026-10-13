@@ -23,3 +23,5 @@ Status: Applied
 Approval mode: Human。Basis: 上記の具体的なconfig互換性 / 手動移行方針への回答としての2026-10-13「実装へ」。固定化directionだけから移行policyを自動承認したものではない。
 
 Proposed確定後の別review-spec passでBlocking Issues: None identified、Approved as Proposed: Yes、Eligible: No / Breaking compatibilityのHuman gateを確認。Human decisionにより今回policy gateを解消し、canonical ownersへ適用した。計画 / reviewの詳細は本artifactをProposedとして追加した`6b9c6be34af9a1c4c346a2d3a343adde2eaed4f3`から復元できる。Windows actual Desktop / Unity actual Editor-runtimeの既存evidence gatesは保持する。
+
+2026-10-13の追加Human decision「使用Projectなし / 保守不要」で、互換維持 / 手動移行の採用を[0062](0062-remove-source-config-compatibility.md)へ置換した。固定directoryとfolder-only GUIというdirectionは継続する。

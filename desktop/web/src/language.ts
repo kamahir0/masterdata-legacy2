@@ -35,7 +35,7 @@ const messages: Record<string, string> = {
   "record occurrence missing": "対象のレコードがありません",
   "project configuration changed; explicit Project reload required": "プロジェクト設定が変わりました。プロジェクトを再読み込みしてください",
   "source root binding changed": "sources/ の保存先が変わりました。プロジェクトを再読み込みしてください",
-  "source settings {roots} require migration to Project sources/: back up, copy each old root into a separate sources/ subfolder without overwriting files, omit [sources] or set roots = [\"sources\"], then validate; no files were changed": "ソースの配置を sources/ 配下に揃える必要があります。現在の設定: {roots}。バックアップを確保し、各フォルダーの内容を sources/ 配下の別々のフォルダーへ上書きせずコピーしてください。その後、[sources] を省略するか roots = [\"sources\"] に変更して検証してください。ファイルは変更していません",
+  "source directory is fixed at Project sources/; [sources] settings are not supported": "ソースの保存先はプロジェクト直下の sources/ に固定されています。[sources] の設定には対応していません",
   "Project sources/ directory is missing; create it explicitly or restore it from backup": "sources/ フォルダーがありません。フォルダーを作成するか、バックアップから復元してください",
   "Project sources/ must be a directory": "sources/ はフォルダーである必要があります",
   "Project sources/ destination required": "sources/ 配下の保存先を指定してください",

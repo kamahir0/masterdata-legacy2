@@ -7,7 +7,7 @@ const PATH: &str = "sources/data.yaml";
 fn project(records: &str) -> (tempfile::TempDir, Workspace) {
     let temp = tempfile::tempdir().unwrap();
     fs::create_dir(temp.path().join("sources")).unwrap();
-    fs::write(temp.path().join("masterdata.toml"), "[project]\nname = \"Tags\"\nid = \"rewrite.tags\"\nversion = \"0.1.0\"\n[sources]\nroots = [\"sources\"]\n[build]\nartifact_dir = \".masterdata/output\"\ncache = \".masterdata/cache\"\n[build.profiles.production]\nexclude_tags = [\"profile-only\"]\n").unwrap();
+    fs::write(temp.path().join("masterdata.toml"), "[project]\nname = \"Tags\"\nid = \"rewrite.tags\"\nversion = \"0.1.0\"\n[build]\nartifact_dir = \".masterdata/output\"\ncache = \".masterdata/cache\"\n[build.profiles.production]\nexclude_tags = [\"profile-only\"]\n").unwrap();
     fs::write(temp.path().join("sources/schema.yaml"), "kind: schema\ntable: item\nfields:\n  - key: 0\n    name: id\n    type: long\n  - key: 1\n    name: note\n    type: string\nprimaryKey:\n  fields: [id]\nsecondaryKeys: []\n").unwrap();
     fs::write(temp.path().join(PATH), records).unwrap();
     let w = Workspace::open(temp.path()).unwrap();

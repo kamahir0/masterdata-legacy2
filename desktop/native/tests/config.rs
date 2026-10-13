@@ -1,3 +1,5 @@
+#[path = "../../../engine/tests/support/mod.rs"]
+pub mod fixture;
 use masterdata_desktop::actor::{Intent, Session};
 use masterdata_engine::{config::Operation, project::Project};
 use serde_json::Value;
@@ -10,7 +12,7 @@ fn copy(from: &Path, to: &Path) {
         if entry.file_type().unwrap().is_dir() {
             copy(&entry.path(), &target);
         } else {
-            fs::copy(entry.path(), target).unwrap();
+            fixture::copy_file(entry.path(), target).unwrap();
         }
     }
 }

@@ -1,4 +1,6 @@
 #![cfg(feature = "native-consumer")]
+#[path = "../../engine/tests/support/mod.rs"]
+pub mod fixture;
 use masterdata_engine::{
     delivery::{BuildPlan, SavedConfig},
     native::{artifact::ArtifactSet, dotnet},
@@ -34,7 +36,7 @@ fn fixture() -> tempfile::TempDir {
     let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let minimal = repository.join("fixtures/rewrite-oracle/v1/consumer/minimal");
     let temp = tempfile::tempdir().unwrap();
-    fs::copy(
+    fixture::copy_file(
         minimal.join("masterdata.toml"),
         temp.path().join("masterdata.toml"),
     )
@@ -42,7 +44,7 @@ fn fixture() -> tempfile::TempDir {
     fs::create_dir(temp.path().join("sources")).unwrap();
     for entry in fs::read_dir(minimal.join("sources")).unwrap() {
         let entry = entry.unwrap();
-        fs::copy(
+        fixture::copy_file(
             entry.path(),
             temp.path().join("sources").join(entry.file_name()),
         )

@@ -1,3 +1,5 @@
+#[path = "../../../engine/tests/support/mod.rs"]
+pub mod fixture;
 use masterdata_desktop::actor::{Intent, Session};
 use masterdata_engine::{config::Operation, project::Metadata};
 use serde_json::Value;
@@ -10,7 +12,7 @@ fn copy(from: &Path, to: &Path) {
         if entry.file_type().unwrap().is_dir() {
             copy(&entry.path(), &target);
         } else {
-            fs::copy(entry.path(), target).unwrap();
+            fixture::copy_file(entry.path(), target).unwrap();
         }
     }
 }
@@ -35,8 +37,8 @@ async fn nonstandard_roots_are_rejected_without_adopting_or_discarding_the_dirty
     fs::write(
         &config,
         fs::read_to_string(&config).unwrap().replace(
-            "roots = [\"sources\"]",
-            "roots = [\"sources\", \"../outside\"]",
+            "[build]",
+            "[sources]\nroots = [\"sources\", \"../outside\"]\n[build]",
         ),
     )
     .unwrap();
@@ -79,8 +81,8 @@ async fn nonstandard_roots_are_rejected_without_adopting_or_discarding_the_dirty
         )
         .await
         .unwrap_err();
-    assert_eq!(rejected.code, "E-CONFIG-SOURCE-ROOT");
-    assert!(rejected.message.contains("../outside"));
+    assert_eq!(rejected.code, "E-CONFIG-SOURCES-UNSUPPORTED");
+    assert!(rejected.message.contains("[sources]"));
     let inventory: Value =
         serde_json::from_str(&session.request_at(Intent::Inventory, epoch).await.unwrap()).unwrap();
     assert_eq!(inventory["host"]["epoch"], epoch);

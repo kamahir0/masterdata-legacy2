@@ -78,21 +78,15 @@ impl Workspace {
         let old = &self.read.config;
         let binding_unchanged = self.config_binding_available
             && old.project.id == config.project.id
-            && old.sources.roots == config.sources.roots
             && old.build.artifact_dir == config.build.artifact_dir
             && old.build.cache == config.build.cache
-            && config
-                .sources
-                .roots
-                .iter()
-                .zip(&self.read.roots)
-                .all(|(binding, root)| {
-                    self.read
-                        .root
-                        .join(binding)
-                        .canonicalize()
-                        .is_ok_and(|p| p == *root)
-                });
+            && self.read.roots.iter().all(|root| {
+                self.read
+                    .root
+                    .join(project::SOURCE_DIRECTORY)
+                    .canonicalize()
+                    .is_ok_and(|p| p == *root)
+            });
         if !binding_unchanged {
             self.invalidate_environment(Error::new(
                 "E-CONFIG-BINDING",

@@ -143,14 +143,13 @@ fn protected(saved: &SavedConfig, artifact: &ArtifactSet, target: &Namespace) ->
     for path in std::iter::once(saved.root.join("masterdata.toml"))
         .chain(std::iter::once(artifact.root.clone()))
         .chain(
-            saved
-                .config
-                .sources
-                .roots
-                .iter()
-                .chain(std::iter::once(&saved.config.build.cache))
-                .map(|path| absolute(&saved.root, Path::new(path)))
-                .collect::<Result<Vec<_>>>()?,
+            [
+                crate::project::SOURCE_DIRECTORY,
+                saved.config.build.cache.as_str(),
+            ]
+            .iter()
+            .map(|path| absolute(&saved.root, Path::new(path)))
+            .collect::<Result<Vec<_>>>()?,
         )
     {
         if target.relation(&Namespace::resolve(&path)?)? != Relation::Separate {
@@ -203,14 +202,13 @@ fn protected_object(saved: &SavedConfig, artifact: &ArtifactSet, path: &Path) ->
     // Object aliases need a metadata-only ownership check. This never reads,
     // hashes or interprets YAML, and does not make source freshness a receipt key.
     for region in std::iter::once(artifact.root.clone()).chain(
-        saved
-            .config
-            .sources
-            .roots
-            .iter()
-            .chain(std::iter::once(&saved.config.build.cache))
-            .map(|path| absolute(&saved.root, Path::new(path)))
-            .collect::<Result<Vec<_>>>()?,
+        [
+            crate::project::SOURCE_DIRECTORY,
+            saved.config.build.cache.as_str(),
+        ]
+        .iter()
+        .map(|path| absolute(&saved.root, Path::new(path)))
+        .collect::<Result<Vec<_>>>()?,
     ) {
         if contains(&region, &object)? {
             return Err(error(
