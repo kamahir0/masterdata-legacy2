@@ -98,7 +98,7 @@ def check_external(report):
 def check_creation(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
-    assert report['checks'] == ['inline-cancel-composition', 'outside-empty-cancel-filled-create-focus', 'lost-create-reply-outside-no-retry-explicit-recheck', 'inline-table-exclusive-create',
+    assert report['checks'] == ['inline-cancel-composition', 'outside-empty-cancel-filled-create-focus', 'pending-inline-finish-respects-advanced-form-mode', 'lost-create-reply-outside-no-retry-explicit-recheck', 'inline-table-exclusive-create',
                                'empty-folder-selection', 'explicit-data-binding-yml',
                                'advanced-lossless-member', 'dirty-revisit-after-creation']
     assert report['dirty'] == ['sources/catalog-data.yaml']

@@ -64,6 +64,23 @@ export async function run({startup}:{startup:Record<string,unknown>}) {
     await until(()=>!desktop.surface.pending&&document.activeElement===outside,"outside creation stole the new focus");
     assert(desktop.surface.target===SOURCE,"outside creation changed the latest selection");
     checks.push("outside-empty-cancel-filled-create-focus");
+    await begin("テーブル","mode-switch.yaml");
+    {
+      const previewRpc=desktop.rpc.bind(desktop);let received=false,createCount=0,release=()=>{};
+      const previewGate=new Promise<void>(resolve=>{release=resolve;});
+      desktop.rpc=async function<T>(intent:Record<string,unknown>){if(intent.kind==="create")createCount++;const reply=await previewRpc<T>(intent);if(intent.kind==="creationPreview"){received=true;await previewGate;}return reply;};
+      try {
+        text(input("新しいソースのファイル名"),"mode-switch-final.yaml");await until(()=>received,"latest preview did not reach its response gate");
+        outside.focus();outside.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}));button("作成内容の詳細").click();
+        await until(()=>!!document.querySelector('[role="dialog"] input[aria-label="ソースの識別子"]'),"advanced form did not open during validation");
+        document.querySelector<HTMLButtonElement>('.ant-modal-close')!.click();
+        await until(()=>!document.querySelector<HTMLElement>('.creation-form')?.getClientRects().length,"advanced form did not return to inline input");
+        release();await ready();await frame();await frame();
+        assert(createCount===0&&!!document.querySelector('.creation-inline')&&!desktop.surface.inventory!.sources.some(source=>source.path==='sources/mode-switch-final.yaml'),"old inline finish survived the Advanced form mode change");
+        key(input("新しいソースのファイル名"),"Escape");await until(()=>!document.querySelector('.creation-inline'),"mode-switched input Cancel failed");
+      }finally{release();desktop.rpc=previewRpc;}
+    }
+    checks.push("pending-inline-finish-respects-advanced-form-mode");
     await begin("テーブル","lost-create.yaml");
     const actualRpc=desktop.rpc.bind(desktop);let createCount=0;
     desktop.rpc=async function<T>(intent:Record<string,unknown>){const reply=await actualRpc<T>(intent);if(intent.kind==="create"){createCount++;throw new Error("lost creation reply");}return reply;};

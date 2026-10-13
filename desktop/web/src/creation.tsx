@@ -37,12 +37,13 @@ const reorder = <T,>(items:T[],index:number,delta:number) => {
 export function useCreation(inventory:Inventory,epoch:number,context:string,onCreated:(path:string,folder:boolean,inputIntent:number)=>void) {
   const [choices,setChoices]=useState<Choices|null>(null),[draft,setDraft]=useState<Draft|null>(null);
   const live=useRef(draft); live.current=draft;
-  const revision=useRef(0),requestId=useRef(0),filename=useRef<HTMLInputElement|null>(null),advancedFilename=useRef<HTMLInputElement|null>(null);
+  const revision=useRef(0),modeVersion=useRef(0),requestId=useRef(0),filename=useRef<HTMLInputElement|null>(null),advancedFilename=useRef<HTMLInputElement|null>(null);
   const focusRequest=useRef<{id:number;advanced:boolean;intent:number;done:boolean}|null>(null);
   const origin=useRef<HTMLElement|null>(null),inlineElement=useRef<HTMLDivElement>(null),composing=useRef(false);
   const validation=useRef<Promise<void>>(Promise.resolve()),submitting=useRef(false);
   const patch=(change:Partial<Draft>)=>{
     const current=live.current;if(!current)return;
+    if(change.advanced!==undefined&&change.advanced!==current.advanced)modeVersion.current++;
     live.current={...current,...change};setDraft(live.current);
   };
   useEffect(()=>{
@@ -113,14 +114,14 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
     } catch(error) {if(desktop.surface.status.epoch===epoch&&live.current?.id===d.id){const known=!!error&&typeof error==="object"&&"code" in error;patch({pending:false,error:errorText(error),...(!known?{result:{source:request.path,outcome:"OutcomeUnknown",message:"結果を受信できません。保存先を再確認してください。"}}:{})});}}
   }
   async function finish(follow=false) {
-    const current=live.current;
+    const current=live.current,mode=modeVersion.current;
     if(!current||current.advanced||composing.current||submitting.current||current.result?.outcome==="OutcomeUnknown"||current.result?.outcome==="RecoveryRequired")return;
     if(!current.filename.trim()){cancel(follow);return;}
     submitting.current=true;
     try {
       let pending:Promise<void>;
       do {pending=validation.current;await pending;}while(pending!==validation.current);
-      if(live.current?.id===current.id&&epoch===desktop.surface.status.epoch)await create(false,follow);
+      if(live.current?.id===current.id&&mode===modeVersion.current&&!live.current.advanced&&epoch===desktop.surface.status.epoch)await create(false,follow);
     }finally{submitting.current=false;}
   }
   const finishRef=useRef(finish);finishRef.current=finish;

@@ -24,6 +24,8 @@ final controlled warm accepted p95はrevisit75 / same81 / cross79 / schema82 / d
 
 Self-review: Specification Conformance: Pass。Tests / Regression Evidence: 上記のsource bytes・focus・stale / uncertainty境界。Rationale Freshness: Fresh（root surface lifetime、moving popup placement、遅延focus、短いmacOS dragのIPC、二重blur / navigation commit、型write後のview刷新とcaptured Planのcomponent lifetime）。Evidence Integrity: canonical Requirement / regression参照を照合、64-bitとshared ownerを維持。Architecture: boundary violationなし。Findings: selected scopeの製品Blockingなし。Verdict: selected scopeはReady to merge: Yes、required CI reconciliation中。既存Windows actual Desktop / Unity actual Editor-runtime gatesは保持する。
 
+固定Candidate `caec78c537420c3a91790098354eb3d8af3fc53d`のfresh reviewでは、inline finishのvalidation待ち中にAdvancedへ切り替えると旧確定が残るBlockingを検出。mode revision / current modeをawait後に再確認するだけのcorrectionと、Advanced→inlineへ戻しても旧submitが復活しないno-write回帰を追加し、native creation9 checks / TypeScript / integrityがPASS。Native write authority / recovery / source semanticsは不変。初回Candidateの[implementation CI 38327384610](https://github.com/kamahir0/masterdata/actions/runs/38327384610)は全17 jobs、[integrity 38327384791](https://github.com/kamahir0/masterdata/actions/runs/38327384791)もSUCCESSだが、このfresh findingの代替にせずcorrection Candidateを別にreconcileする。
+
 ## macOS helper permission / rapid correction（2026-10-12）
 
 Product correction: `bd9ae8034fc8cdc426a96444cdb4779a8f9ba774`。Review Candidate: `5dbd3dc83e8177ec50ebeab100215fc04d86830b`。後者はWindows検証用ack publication / regression / CIだけのcorrectionで、desktop / engine / command / unityの全product treesは前者と同一。macOS rawは撮影・測定時のHEAD / binary hashを維持し、新SHAへ書き換えない。
