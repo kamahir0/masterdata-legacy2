@@ -8,6 +8,20 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 **Not cutover-ready — Windows actual Desktop、Unity actual Editor / runtimeのrequired evidence gaps。** macOSのdense input / held Escapeは下記の修正Candidateで閉じた。`f57102e`の実IME違反は`f7cf90d`で修正し、scalar / nestedのactual IMEとrequired CIで再検証した。2026-10-09にHumanがPR #16をmainへmergeしたが、未取得の外部証拠は免除していない。以下の旧Candidate evidenceは当時の記録として保持する。
 
+## sources固定・単一化（2026-10-13）
+
+Scope: Work base `6b9c6be` → exact Candidate `58adf301fd27c6c596144530ae3aa7084066df08`。[0061](../spec-changes/0061-fixed-source-directory.md)の固定化と、追加Human decision「使用Projectなし / 保守不要」による[0062](../spec-changes/0062-remove-source-config-compatibility.md)の互換維持撤回。PROJECT-SOURCE-001 / 003を共有Rust / CLI / Desktopへ適用し、root設定と移行案内を除去した。fixed directoryへのscan / write / saved-input / Publish保護境界を照合し、YAML identityとnative namespace / stale / recovery guardsを維持した。
+
+Rust workspace 183 tests、focused fixed_sources / source_path 13 tests、native .NET / MasterMemory consumer 5 tests、TypeScript / language 4 tests、fmt / workspaceおよびDesktop clippy / clean-slate integrityがPASS。frozen corpusは不変。test / measurementのtemporary Projectは現行config shapeで構成し、productionへfixture compatibility modeを追加していない。config-only Saveとsource byte expectationsは維持する。
+
+final native WebViewのcontrolled DOM evidenceはProject16 / geometry9 / creation9 / path7 / settings7がPASS。Type / 未選択状態からunsupported settingを含むProjectをOpenしても、旧workspace / sessionを保持し日本語の理由が見える。initial実画面で発見したTypeのglobal error非表示を補正した。correction adapterの初回失敗は、UI formatterがnative messageだけを保持するのにdiagnostic codeを期待したassertionによるもの。native codeとno-mutationのRust assertionsを維持し、失敗rawを成功へ改称しない。
+
+実macOS CUAは専用appとscratch Projectのみ使用。root行の省略、候補1個の作成 / 移動先「ソース直下」、Enum作成とfilename rename後のdeclared `ReviewKind`維持を確認。最終binaryで、Enumを表示したまま旧settingのOpen拒否理由を日本語で読めることと、editor pane内に収まる表示を再確認した。evidence binary SHA-256は`9c52c4ad4c9d0087df57d63ed968951773253874f7a38d10c080d3a3fed656bc`。normal Quit後の専用process0を確認し、既存Legacy app PID697を維持。Unityは起動していない。
+
+production build / tests / staged smoke / per-user installはPASS。`/Users/mahirohiratsuka/Applications/masterdata-local.app`とpackageのbinary SHA-256はともに`13cb55906246ced9c3cda4fa05631aa731c22fd5da9dbb2439a97f811ac7f3f6`。install後は起動していない。initial Candidate `f3a1e73`の全17 jobs / integrityはSUCCESS。final Candidateの[全17 jobs](https://github.com/kamahir0/masterdata/actions/runs/38413652954)と[integrity](https://github.com/kamahir0/masterdata/actions/runs/38413653302)はSUCCESS。
+
+Fresh review: Scopeは上記固定Candidateとcanonical authority。Specification Conformance: Pass。Tests / Regression Evidence: config omission、全旧setting拒否 / no-mutation、現在のbuffer / namespace / saved-input、exact source bytes、actual UIを照合。Rationale Freshness: Fresh（固定binding、observed path spelling、repair-only viewで旧workspaceを置換しない理由、native object / membership guards）。Evidence Integrity: canonical ID、ADR 0004、固定corpus、各runの元HEAD / dirty / binary hashを維持。Architecture: shared Rust semanticsとnative .NET boundaryを維持。Findings: selected scopeにNone remaining。Windows actual Desktop / Unity actual Editor-runtimeの既存gatesは保持。[machine evidence](clean-room-candidate-data.json.gz)の`fixedSources20261013`にraw / install / reviewを保持する。
+
 ## 近接編集と入力確定の統一（2026-10-13）
 
 Scope: Work base `82e6b05`から[0060](../spec-changes/0060-consistent-direct-input.md)のGUI改善。canonical ownersの入力 / navigation / mutation境界を照合し、RustのPlan / native transaction / source authorityを維持した。仕様の直接操作例外もPlan取得自体を省略しない。
