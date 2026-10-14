@@ -158,6 +158,12 @@ jobs:
           executable=target/release/masterdata-desktop
           if [ "$RUNNER_OS" = Windows ]; then executable="$executable.exe"; fi
           python verification/run_desktop.py --binary "$executable" --case focus --output verification/results/focus.json
+      - name: Native compact Explorer, bounded tree, keyboard and safe inline rename
+        shell: bash
+        run: |
+          executable=target/release/masterdata-desktop
+          if [ "$RUNNER_OS" = Windows ]; then executable="$executable.exe"; fi
+          python verification/run_desktop.py --binary "$executable" --case explorer --output verification/results/explorer.json
       - name: Native long-wide grid hit areas and sticky-layer safety
         shell: bash
         run: |

@@ -5,7 +5,7 @@
   "identifier": "dev.masterdata.desktop",
   "build": { "frontendDist": "../web/dist", "devUrl": "http://localhost:1420" },
   "app": {
-    "windows": [{ "label": "main", "title": "MasterData", "width": 1240, "height": 840, "minWidth": 720, "minHeight": 480, "titleBarStyle": "Overlay", "hiddenTitle": true }],
+    "windows": [{ "label": "main", "title": "MasterData", "width": 1240, "height": 840, "minWidth": 720, "minHeight": 480, "titleBarStyle": "Overlay", "hiddenTitle": true, "dragDropEnabled": false }],
     "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; img-src 'self' data:" }
   },
   "bundle": { "active": false }

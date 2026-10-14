@@ -22,13 +22,15 @@ Workspace Explorerは固定`sources/`またはその配下folderを対象に、�
 - Flags Enum
 - Custom Type
 
-exact icon、menu placement、toolbar/context menu併用は固定しない。fileを選択中の場合は、そのfileのparent folderをdefault destination contextとしてよい（MAY）。
+Explorer toolbarはfile kind menuとNew folderを別の短い入口で提供する。focused folder配下、focused fileのparent folder、またはclicked contextのfolderをdestinationとして固定する。空白contextは`sources/`直下とする。file選択をdomain identity変更の理由にしない。
 
 ### GUI-CREATE-LAYOUT-002
 
 file-based artifactの通常creation UIはExplorer内に未commitの仮nodeを表示し、filenameをinline編集できなければならない（MUST）。Enterで作成を開始し、Escapeでmutationなしに中止できなければならない（MUST）。kind、destination folder、filename、作成されるdomain identityの候補を作成前に識別できなければならない（MUST）。raw YAML text入力をprimary workflowにしてはならない（MUST NOT）。
 
 defaultで表現できない初期declarationはAdvanced creationから指定できなければならない（MUST）。exact componentは固定しない。
+
+通常creationはtype iconとfilenameの1行を中心にし、初期filenameのstemを選択する。kind / destination / proposed identityは近接する説明やtooltipから確認でき、必要なTable choice、pending、errorだけを近くに展開する。正常時に複数行のform / 常設説明を並べない。Advancedと確定 / Cancelは既存contractを維持する。
 
 ### GUI-CREATE-LAYOUT-003
 
@@ -64,7 +66,7 @@ Advanced creationではlogical `table`、optional `csharpName`、ordered field�
 
 ### GUI-CREATE-INT-003
 
-Data作成では既存のlogical Table identityを明示しなければならない（MUST）。現在のTable文脈から一意に決まる場合は提案してよい（MAY）が、一意でなければ作成前にTable選択を求める（MUST）。filename / folderはTable identityから独立して編集できなければならない（MUST）。成功時はempty `records`で開始し、record追加をcreationへ暗黙に含めてはならない（MUST NOT）。
+Data作成では既存のlogical Table identityを明示しなければならない（MUST）。clicked / focused fileのshared binding、または現在のTable文脈から一意に決まる場合は提案してよい（MAY）が、一意でなければ作成前にTable選択を求める（MUST）。filename / folderはTable identityから独立して編集できなければならない（MUST）。成功時はempty `records`で開始し、record追加をcreationへ暗黙に含めてはならない（MUST NOT）。
 
 ### GUI-CREATE-INT-004
 

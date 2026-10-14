@@ -448,14 +448,26 @@ class Desktop {
   }
   async sourceMoved(source: string, destination: string, epoch: number) {
     if (epoch !== this.surface.status.epoch) return;
-    const p = this.surface.projection;
+    const p = this.surface.projection, focus=document.activeElement, input=this.inputIntent;
+    const restoreEditor=focus===document.getElementById('editor-pane')||!!(focus&&this.viewport?.contains(focus));
     if (p?.source === source || p?.clicked === source) this.saveView();
     const view = this.local.get(source);
     if (view) { this.local.delete(source); this.local.set(destination, view); }
     if (this.historySource === source) this.historySource = destination;
     const clicked = this.surface.target;
+    // Fresh navigation makes the old grid inert. Hold focus on its stable pane
+    // so keyboard input remains routed while the new projection is pending.
+    if(restoreEditor)document.getElementById('editor-pane')?.focus({preventScroll:true});
     if (clicked === source) await this.selectTarget(destination, "source-path", true);
-    else if (p?.source === source || p?.table.source === source) await this.selectTarget(clicked, "source-path", true);
+    else if (p?.source === source || p?.table.source === source || this.surface.pending) await this.selectTarget(clicked, "source-path", true);
+    // Relocating a Table's data source refreshes its grid while another
+    // file remains selected. Recover only focus lost by that refresh;
+    // newer navigation or a control already holding focus takes precedence.
+    const pane=document.getElementById('editor-pane');
+    if(restoreEditor&&input===this.inputIntent&&epoch===this.surface.status.epoch&&
+      this.surface.target===(clicked===source?destination:clicked)&&
+      (document.activeElement===document.body||document.activeElement===pane))
+      (this.viewport??pane)?.focus({preventScroll:true});
   }
   choose = (title: string, description: string, actions: string[]) => {
     if (this.surface.choice) return Promise.resolve("Cancel");
@@ -617,6 +629,10 @@ class Desktop {
     if (!this.evidence && this.samples.length > (this.inputCapture?8192:256)) {this.samples.shift();this.droppedSamples++;}
     this.currentSample = sample;
     if (!same) {this.comparisonRequest++;this.interact({ focusIntent: this.interaction.focusIntent + 1 });}
+    // A pending grid becomes inert. Move its existing focus to the stable pane
+    // before that DOM update, including filesystem observation during a move.
+    if((external||!same||searching)&&document.hasFocus()&&this.viewport?.contains(document.activeElement))
+      document.getElementById('editor-pane')?.focus({preventScroll:true});
     flushSync(() =>
       this.publish({
         target: path,

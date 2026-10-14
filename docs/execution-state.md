@@ -1,17 +1,17 @@
 # Development State
 
-Stage: decision-required
-Candidate: 546ebc7146430f80d723a2bd050628b869d89f51
-Work base: 2c58ce1a64424b9bd3b8d6b12859796df5f8e9de
+Stage: implementation-ready
+Candidate: none
+Work base: 43329ffd24c17e628094cf2a9cb4538fe19cb5aa
 
 ## Active work
 
-Completed: [Unityモデルケース拡充](../samples/UnityInventory/README.md)、actual / cacheなしUnity 6 tests、native 2 tests、macOS player visual / cleanup、C# templateのLF固定、fresh review、required CI全17 jobs / integrity。[scope evidence](evidence/clean-room-candidate.md#unityモデルケース拡充2026-10-14)。In progress: None。Remaining: Windows actual Desktopと残るfull-scope Unity conformanceの既存gates。
+Completed: 起動中VSCodeの操作観察、[Explorer再構成](spec-changes/0063-vscode-explorer.md)のcanonical適用・implementation・focused tests・actual macOS visual / interaction review・self-review。In progress: Candidate / required CI。Remaining: exact Candidateのfresh verification、CI reconciliation / local app反映。Windows actual Desktopと残るfull-scope Unity conformanceの既存gatesは別scope。
 
 ## Blocking findings
 
-sample拡充scopeに既知Blockingなし。correction Candidateのrequired CI全17 jobs / integrityはSUCCESS。sampleの証拠をClean-room全scope / 全platformへ拡大しない。Cutover-ready / objective-completeは未達。
+Explorer scopeに既知Blockingなし。Cutover-ready / objective-completeは未達。
 
 ## Human decision needed
 
-[existing gaps / evidence / choices](evidence/clean-room-candidate.md#human-gates--verdict)。今回sample scopeは完了。Windows actual操作環境は未提供で、sample外の残るUnity actual conformanceは未取得。main merge / cutoverはscope外。
+Explorer scopeはHuman-selectedで実行中。[existing gaps / evidence / choices](evidence/clean-room-candidate.md#human-gates--verdict)は別scopeとして維持する。

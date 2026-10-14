@@ -105,6 +105,19 @@ def check_creation(report):
     assert not report['startup']['browserErrors']
     return {'checks': len(report['checks']), 'singleArtifactCreation': True}
 
+def check_explorer(report):
+    assert not report.get('error'), report.get('error')
+    assert report['visibility'] == 'visible' and report['focused']
+    assert report['checks'] == ['compact-hidden-root-bounded-tree', 'keyboard-resize-and-stable-row-height',
+                               'folder-focus-navigation-typeahead', 'filter-is-presentation-only', 'context-menu-closes-before-next-surface', 'file-context-freezes-data-binding', 'external-drop-is-not-source-import',
+                               'inline-rename-stem-ime-empty-conflict', 'outside-rename-waits-latest-preview-preserves-new-intent',
+                               'uncertain-rename-no-retry-explicit-recheck', 'inline-rename-scoped-dirty-guard']
+    assert report['inventoryFolders'] > 1500 and report['renderedRows'] < 60
+    assert report['dirty'] == ['sources/lost-reply.yaml']
+    assert not report['startup']['browserErrors']
+    return {'checks': len(report['checks']), 'boundedExplorerAndSafeInlineRename': True}
+
+
 def check_path(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
@@ -263,6 +276,12 @@ def run(binary: Path, output: Path, case: str):
                 (project / 'sources/unrelated-data.yaml').write_text('kind: data\ntable: item\nrecords: []\n', encoding='utf-8')
                 for file in [data, project / 'sources/catalog-schema.yaml']:
                     file.write_bytes(file.read_bytes().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
+            if case == 'explorer':
+                (project / 'sources/other-table.yaml').write_text('kind: schema\ntable: other\nfields:\n  - key: 0\n    name: id\n    type: int\nprimaryKey:\n  fields: [id]\nrecords: []\n', encoding='utf-8')
+                (project / 'sources/a-nested/deep').mkdir(parents=True)
+                (project / 'sources/a-nested/deep/catalog-extra.yaml').write_text('kind: data\ntable: item\nrecords: []\n', encoding='utf-8')
+                for index in range(1500):
+                    (project / f'sources/z-folder-{index:04d}').mkdir()
             if case == 'path':
                 (project / 'sources/moved').mkdir()
             if case == 'type':
@@ -394,7 +413,7 @@ def run(binary: Path, output: Path, case: str):
                     }
                 # A failed assertion must retain the measurements that caused it.
                 output.write_text(json.dumps(report, indent=2), encoding='utf-8')
-                report['summary'] = {'navigation': check, 'external': check_external, 'creation': check_creation, 'authoring': check_authoring, 'path': check_path, 'migration': check_migration, 'type': check_type, 'delivery': check_delivery, 'capacity': check_capacity, 'tags': check_tags, 'settings': check_settings, 'project': check_project, 'declaration': check_declaration, 'focus': check_focus, 'geometry': check_geometry}[case](report)
+                report['summary'] = {'navigation': check, 'external': check_external, 'creation': check_creation, 'authoring': check_authoring, 'path': check_path, 'migration': check_migration, 'type': check_type, 'delivery': check_delivery, 'capacity': check_capacity, 'tags': check_tags, 'settings': check_settings, 'project': check_project, 'declaration': check_declaration, 'focus': check_focus, 'geometry': check_geometry, 'explorer': check_explorer}[case](report)
                 if case == 'project':
                     assert not (temporary / 'cancelled').exists() and not (temporary / 'welcome-cancel').exists(), 'Cancel created a Project'
                     assert (removed / 'notes').read_bytes() == b'user bytes', 'Recent removal modified disk'
@@ -445,6 +464,12 @@ def run(binary: Path, output: Path, case: str):
                     assert comparison['after'].encode('utf-8') == clean.replace(b'name: Outside clean', b'name: unfinished input'), 'Compare normalized / changed non-target candidate bytes'
                     expected = initial_sources[Path('sources/catalog-data.yaml')].replace(b'name: Debug Sword', b'name: Outside restored')
                     assert (project / 'sources/catalog-data.yaml').read_bytes() == expected, 'local draft silently overwrote external source'
+                elif case == 'explorer':
+                    assert not (project / 'sources/catalog-data.yaml').exists()
+                    assert (project / 'sources/lost-reply.yaml').read_bytes() == initial_sources[Path('sources/catalog-data.yaml')]
+                    for relative, before in initial_sources.items():
+                        if relative != Path('sources/catalog-data.yaml'):
+                            assert (project / relative).read_bytes() == before
                 elif case == 'path':
                     original = Path('sources/catalog-data.yaml')
                     assert all((project / path).read_bytes() == value for path, value in initial_sources.items() if path != original), 'Move saved unrelated source'
@@ -511,7 +536,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--binary', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--case', choices=['navigation', 'authoring', 'external', 'creation', 'path', 'migration', 'type', 'delivery', 'capacity', 'tags', 'settings', 'project', 'declaration', 'focus', 'geometry'], default='navigation')
+    parser.add_argument('--case', choices=['navigation', 'authoring', 'external', 'creation', 'path', 'migration', 'type', 'delivery', 'capacity', 'tags', 'settings', 'project', 'declaration', 'focus', 'geometry', 'explorer'], default='navigation')
     args = parser.parse_args()
     if args.output.resolve().is_relative_to(ROOT / 'fixtures'):
         parser.error('frozen fixture cannot be output')

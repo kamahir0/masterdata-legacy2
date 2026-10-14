@@ -7,7 +7,6 @@ import {
   useSyncExternalStore,
   type CSSProperties,
   type MouseEvent,
-  type ComponentRef,
 } from "react";
 import {
   App as AntApp,
@@ -26,13 +25,11 @@ import {
   Select,
   Space,
   Spin,
-  Tree,
   Tooltip,
   Typography,
   Tag,
   theme,
   type MenuProps,
-  type TreeDataNode,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -40,12 +37,7 @@ import {
   DesktopOutlined,
   FileOutlined,
   TableOutlined,
-  BarsOutlined,
-  FlagOutlined,
-  ApartmentOutlined,
-  NumberOutlined,
   FolderOpenOutlined,
-  FolderOutlined,
   MoreOutlined,
   MoonOutlined,
   ReloadOutlined,
@@ -57,7 +49,6 @@ import {
   WarningOutlined,
   PlusOutlined,
   CopyOutlined,
-  EditOutlined,
   BuildOutlined,
   SettingOutlined,
   DeleteOutlined,
@@ -66,10 +57,9 @@ import {
 } from "@ant-design/icons";
 import { desktop, basename, type Preference, type Surface } from "./workspace";
 import { AuthoringGrid } from "./grid";
+import { Explorer } from "./explorer";
 import { ComplexPanel } from "./complex";
 import { TagPanel } from "./tags";
-import { useCreation } from "./creation";
-import { useSourcePath } from "./source-path";
 import { TypeSurface } from "./type-editor";
 import { DeliveryDrawer } from "./delivery";
 import { delivery } from "./delivery-state";
@@ -135,7 +125,7 @@ export function Application({ platform }: { platform: string }) {
       },
       components: {
         Button: { paddingInline: 10 },
-        Tree: { titleHeight: 30 },
+        Tree: { titleHeight: 22, indentSize: 8 },
         Modal: { borderRadiusLG: 10 },
         Drawer: { paddingLG: 16 },
       },
@@ -189,6 +179,7 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
     return()=>{dragVersion.current++;windowDrag.current=null;document.removeEventListener('mousedown',begin,true);document.removeEventListener('mouseup',finish,true);};
   },[]);
   const [explorerOpen,setExplorerOpen]=useState(true);
+  const [explorerWidth,setExplorerWidth]=useState(280);
   const explorerVisible=useRef(true),explorerFocus=useRef<number|null>(null);
   useEffect(()=>()=>{if(explorerFocus.current!==null)cancelAnimationFrame(explorerFocus.current);},[]);
   const toggleExplorer=()=>{
@@ -265,12 +256,17 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
   return (
     <div
       className={`desktop-frame ${platform === "macos" ? "mac" : ""} ${explorerOpen ? "" : "explorer-hidden"}`}
-      style={variables}
+      style={{...variables,"--md-explorer-width":explorerWidth+"px"} as CSSProperties}
       onPointerDownCapture={desktop.noteInputIntent}
       onKeyDownCapture={desktop.noteInputIntent}
       onClickCapture={desktop.inputCapture?desktop.noteClickInput:undefined}
       onKeyDown={event=>{
         if(s.inventory&&(event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="b"&&!event.nativeEvent.isComposing&&event.keyCode!==229&&!(event.target instanceof Element&&event.target.closest('.ant-modal,.ant-drawer'))){event.preventDefault();toggleExplorer();return;}
+        if(s.inventory&&(event.metaKey||event.ctrlKey)&&event.shiftKey&&event.key.toLowerCase()==="e"&&!event.nativeEvent.isComposing&&!(event.target instanceof Element&&event.target.closest('.ant-modal,.ant-drawer'))){
+          event.preventDefault();explorerVisible.current=true;setExplorerOpen(true);
+          const intent=desktop.inputIntent;
+          requestAnimationFrame(()=>{if(intent===desktop.inputIntent)document.querySelector<HTMLElement>('#explorer [role="tree"]')?.focus({preventScroll:true});});return;
+        }
         if(event.key!=="F6"||event.nativeEvent.isComposing||event.altKey||event.metaKey||event.ctrlKey)return;
         if(!(event.target instanceof Element)||!event.target.closest('#workbench'))return;
         const tree=document.querySelector<HTMLElement>('#explorer [role="tree"]');
@@ -362,7 +358,7 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
       </header>
       <div id="workbench" inert={!!s.openingProject||!!s.projectCreation||!!s.projectOpenUncertain}>
         {s.inventory && <div className="explorer-shell" inert={!explorerOpen} aria-hidden={!explorerOpen}>
-          <Explorer s={s} reveal={()=>{explorerVisible.current=true;setExplorerOpen(true);}} />
+          <Explorer s={s} width={explorerWidth} resize={setExplorerWidth} reveal={()=>{explorerVisible.current=true;setExplorerOpen(true);}} />
         </div>}
         <main id="editor-pane" aria-label="エディター" tabIndex={-1}>
           {/* A captured Type Plan can outlive navigation to a Data file. Keep
@@ -435,202 +431,6 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
       <ProjectSettings s={s}/>
       <RecoveryDrawer s={s} open={recoveryOpen && s.status.recoveryRequired} close={()=>setRecoveryOpen(false)} />
     </div>
-  );
-}
-function Explorer({ s, reveal }: { s: Surface; reveal:()=>void }) {
-  const findOptions=useMemo(()=>[
-    ...s.inventory!.logicalTables.map(table=>({value:table.source,label:`テーブル · ${table.name} — ${table.source}`})),
-    ...s.inventory!.logicalTypes.map(type=>({value:type.source,label:`型 · ${type.name} — ${type.source}`})),
-  ],[s.inventory]);
-  const [findEpoch,setFindEpoch]=useState<number|null>(null);
-  const findRestore=useRef<{input:number;epoch:number;target:string}|null>(null);
-  const closeFind=()=>{
-    findRestore.current={input:desktop.inputIntent,epoch:s.status.epoch,target:s.target};
-    setFindEpoch(null);
-  };
-
-  const [keys,setKeys]=useState<string[]>(()=>s.inventory!.folders.map(p=>`folder:${p||"."}`));
-  const [selected,setSelected]=useState(s.target);
-  const [activeKey,setActiveKey]=useState<string|null>(null);
-  const activeItem=useRef<string|null>(null);
-  // A subsequent discrete key can precede React's controlled-tree commit.
-  // Open the latest item requested by the user, never a render's older key.
-  const activate=(key:string|null)=>{activeItem.current=key;setActiveKey(key);};
-  const [focusRequest,setFocusRequest]=useState<{key:string;intent:number}|null>(null);
-  const tree=useRef<ComponentRef<typeof Tree>>(null);
-  const container=useRef<HTMLElement|null>(null);
-  useEffect(()=>setSelected(s.target),[s.target]);
-  const ancestors=(path:string)=>path.split("/").map((_,i,parts)=>`folder:${parts.slice(0,i+1).join("/")||"."}`);
-  const creation=useCreation(s.inventory!,s.status.epoch,selected||s.target,async(path,folder,inputIntent)=>{
-    if(inputIntent!==desktop.inputIntent)return;
-    const key=folder?`folder:${path}`:path;
-    setKeys(old=>[...new Set([...old,...ancestors(folder?path:path.split("/").slice(0,-1).join("/"))])]);
-    setSelected(key);
-    if(!folder)await desktop.selectTarget(path,"creation").catch(desktop.showError);
-    if(inputIntent===desktop.inputIntent) {
-      activate(key);
-      setFocusRequest({key,intent:inputIntent});
-    }
-  });
-  const creationPending=useRef(false);creationPending.current=!!creation.draft;
-  const createFromGuide=useRef(creation.begin);createFromGuide.current=creation.begin;
-  const creationReady=creation.ready&&!creation.draft&&!s.status.recoveryRequired&&!s.status.environmentError;
-  useEffect(()=>creationReady?desktop.bindSourceCreation(category=>{reveal();createFromGuide.current(category);}):undefined,[creationReady,s.status.epoch]);
-  useEffect(()=>{setKeys(s.inventory!.folders.map(path=>`folder:${path||"."}`));activate(null);setFocusRequest(null);setFindEpoch(null);findRestore.current=null;},[s.status.epoch]);
-  const pathMutation=useSourcePath(s.status.epoch,(source,destination,inputIntent)=>{
-    setKeys(old=>[...new Set([...old,...ancestors(destination.split("/").slice(0,-1).join("/"))])]);
-    if(inputIntent!==desktop.inputIntent)return;
-    setSelected(old=>old===source?destination:old);
-    activate(destination);setFocusRequest({key:destination,intent:inputIntent});
-  });
-  const selectedSource=activeItem.current??selected;
-  const sourceItems:MenuProps={items:[
-    {key:"find",label:"テーブル・型を検索…",icon:<SearchOutlined aria-hidden="true"/>,disabled:!findOptions.length||!!creation.draft||pathMutation.open},
-    {key:"refresh",label:"一覧を更新",icon:<ReloadOutlined aria-hidden="true"/>},
-    {key:"collapse",label:"フォルダーを折りたたむ",icon:<MenuFoldOutlined aria-hidden="true"/>},
-  ],onClick:({key})=>{
-    if(key==="find"){findRestore.current=null;setFindEpoch(s.status.epoch);}
-    else if(key==="collapse")setKeys([]);
-    else void desktop.refreshInventory().catch(desktop.showError);
-  }};
-  const fileMenu=(path:string):MenuProps=>({items:[{key:"move",label:"名前変更・移動…",icon:<EditOutlined aria-hidden="true"/>,disabled:!!creation.draft||pathMutation.open||s.busy||s.status.recoveryRequired||s.status.uncertain.includes(path)}],onClick:()=>void pathMutation.begin(path)});
-  useLayoutEffect(()=>{
-    if(!focusRequest)return;
-    const frame=requestAnimationFrame(()=>{
-      if(focusRequest.intent!==desktop.inputIntent||creationPending.current)return;
-      tree.current?.scrollTo({key:focusRequest.key});
-      // Ant Tree owns keyboard focus through aria-activedescendant. Its visual
-      // node wrapper is not focusable; focus the tree with the accepted new key.
-      container.current?.querySelector<HTMLElement>('[role="tree"]')?.focus();
-    });
-    return()=>cancelAnimationFrame(frame);
-  },[focusRequest]);
-  useEffect(()=>{
-    if(creation.draft)setKeys(old=>[...new Set([...old,...ancestors(creation.draft!.folder)])]);
-  },[creation.draft?.id]);
-  const nodes = useMemo(() => {
-    const roots: TreeDataNode[] = [],
-      folders = new Map<string, TreeDataNode>();
-    function ensureFolder(logical:string) {
-      let children=roots,path="";
-      for(const part of (logical||".").split("/")) {
-        path=path?`${path}/${part}`:part;
-        let folder=folders.get(path);
-        if(!folder){folder={key:`folder:${path}`,title:part,icon:props=>props.expanded?<FolderOpenOutlined aria-hidden="true"/>:<FolderOutlined aria-hidden="true"/>,children:[]};folders.set(path,folder);children.push(folder);}
-        children=folder.children!;
-      }
-      return children;
-    }
-    for(const folder of s.inventory?.folders??[])ensureFolder(folder);
-    for (const source of s.inventory?.sources ?? []) {
-      const parent=source.path.split("/").slice(0,-1).join("/");
-      const children=parent?ensureFolder(parent):folders.get(".")?.children??roots;
-      children.push({
-        key: source.path,
-        title: basename(source.path),
-        icon: <span className={`source-kind kind-${source.category??"file"}`} role="img" aria-label={source.error?"ソースエラー":source.category?sourceCategoryLabel(source.category):"ファイル"}>
-          {source.error?<WarningOutlined aria-hidden="true"/>:source.category==="table"?<TableOutlined aria-hidden="true"/>:source.category==="data"?<DatabaseOutlined aria-hidden="true"/>:source.category==="enum"?<BarsOutlined aria-hidden="true"/>:source.category==="flags"?<FlagOutlined aria-hidden="true"/>:source.category==="custom"?<ApartmentOutlined aria-hidden="true"/>:source.category==="valueObject"?<NumberOutlined aria-hidden="true"/>:<FileOutlined aria-hidden="true"/>}
-        </span>,
-        isLeaf: true,
-      });
-    }
-    if(creation.draft)ensureFolder(creation.draft.folder).push({key:"creation:temporary",title:creation.draft.filename,isLeaf:true,selectable:false});
-    return folders.get(s.inventory?.sourceDirectory??"")?.children??[];
-  }, [s.inventory,creation.draft?.folder,creation.draft?.filename,creation.draft?.id]);
-  return (
-    <aside id="explorer" ref={container} onKeyDownCapture={event=>{
-      if(event.key!=="Enter"||event.altKey||event.metaKey||event.ctrlKey)return;
-      if(!(event.target instanceof Element)||!event.target.closest('[role="tree"]')||event.target.closest('input,textarea,[contenteditable=true]'))return;
-      if(event.nativeEvent.isComposing){event.stopPropagation();return;}
-      const key=activeItem.current??selected,source=key;
-      if(!source||source.startsWith('folder:'))return;
-      event.preventDefault();event.stopPropagation();
-      setSelected(key);activate(key);
-      void desktop.selectTarget(source).catch(desktop.showError);
-      // Put focus on the stable editor pane while the fresh projection is
-      // pending. Only that pane can pass it to the accepted editor; a newer
-      // click, pane switch or selection cannot be overridden by old completion.
-      document.getElementById('editor-pane')?.focus({preventScroll:true});
-    }}>
-      <div className="pane-heading">
-        <Typography.Text type="secondary">ソース</Typography.Text>
-        <Space size={0}>
-          <Dropdown menu={creation.menu} trigger={["click"]}>
-            <Button type="text" icon={<PlusOutlined aria-hidden="true"/>} aria-label="ソースを作成" disabled={!creation.ready||s.status.recoveryRequired||!!s.status.environmentError||!!creation.draft||pathMutation.open}>新規作成</Button>
-          </Dropdown>
-          <Dropdown menu={sourceItems} trigger={["click"]}><Tooltip title="ソースの操作"><Button type="text" icon={<MoreOutlined aria-hidden="true"/>} aria-label="ソースの操作"/></Tooltip></Dropdown>
-        </Space>
-      </div>
-        <Tree
-          ref={tree}
-          aria-label="ソース"
-          activeKey={activeKey}
-          onActiveChange={key=>activate(key===null?null:String(key))}
-          treeData={nodes}
-          blockNode
-          showIcon
-          expandedKeys={keys}
-          onExpand={next=>setKeys(next.map(String))}
-          selectedKeys={[selected]}
-          onRightClick={({node})=>{const key=String(node.key);setSelected(key);activate(key);}}
-          onKeyDown={event=>{if(event.key==="F2"&&!event.nativeEvent.isComposing){event.preventDefault();if(selectedSource&&!selectedSource.startsWith("folder:"))void pathMutation.begin(selectedSource);}}}
-          onSelect={(_keys,info) => {
-            // Ant reports [] when the already selected node is clicked. The
-            // clicked node still owns keyboard intent, including after Arrow
-            // navigation to a different active item. Keep a single selection.
-            const key=String(info.node.key);setSelected(key);activate(key);
-            const source=key;
-            if(!source.startsWith("folder:")&&
-              (source!==s.target||s.pending||(!s.projection&&!s.typeProjection)))void desktop.selectTarget(source).catch(desktop.showError);
-          }}
-          titleRender={(node) => node.key==="creation:temporary"?creation.inline:(
-            <Dropdown menu={String(node.key).startsWith("folder:")?{...creation.menu,onClick:({key})=>creation.begin(key as Parameters<typeof creation.begin>[0],String(node.key))}:fileMenu(String(node.key))} trigger={["contextMenu"]}>
-            <span
-              className="source"
-              title={String(node.key)}
-              data-path={node.key}
-            >
-              <span className="source-name">{String(node.title)}</span>
-              {!String(node.key).startsWith("folder:")&&<Dropdown menu={fileMenu(String(node.key))} trigger={["click"]}><Button className="source-actions" type="text" size="small" icon={<MoreOutlined aria-hidden="true"/>} aria-label={`${basename(String(node.key))} の操作`} title="ファイルの操作" onPointerDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}/></Dropdown>}
-              <span
-                className="source-dirty"
-                role="img"
-                aria-hidden={!s.status.dirty.includes(String(node.key))}
-                aria-label={
-                  s.status.dirty.includes(String(node.key))
-                    ? "未保存"
-                    : undefined
-                }
-              >
-                {s.status.dirty.includes(String(node.key)) ? "●" : ""}
-              </span>
-            </span>
-            </Dropdown>
-          )}
-        />
-      <Modal title="テーブル・型を検索" open={findEpoch===s.status.epoch} onCancel={closeFind}
-        footer={null} width={640} destroyOnHidden focusable={{focusTriggerAfterClose:false}}
-        afterOpenChange={open=>{
-          const request=findRestore.current,current=desktop.surface;
-          if(open||!request||request.input!==desktop.inputIntent||request.epoch!==current.status.epoch||request.target!==current.target||current.openingProject||current.projectCreation)return;
-          container.current?.querySelector<HTMLElement>('[role="tree"]')?.focus();
-        }}>
-        <Select<string> aria-label="テーブルまたは型を検索" autoFocus showSearch={{optionFilterProp:"label"}}
-          placeholder="テーブル / 型名を検索" style={{width:"100%"}} options={findOptions} value={undefined}
-          onSelect={source=>{
-            if(findEpoch!==desktop.surface.status.epoch)return;
-            findRestore.current=null;setFindEpoch(null);
-            setKeys(old=>[...new Set([...old,...ancestors(source.split("/").slice(0,-1).join("/"))])]);
-            setSelected(source);activate(source);
-            // Logical names resolve through shared inventory; the selected
-            // physical source still owns the buffer and the Explorer row.
-            void desktop.selectTarget(source).catch(desktop.showError);
-            document.getElementById('editor-pane')?.focus({preventScroll:true});
-          }}/>
-      </Modal>
-      {creation.modal}
-      {pathMutation.modal}
-    </aside>
   );
 }
 function TableSurface({ s }: { s: Surface }) {

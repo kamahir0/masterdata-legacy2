@@ -12,9 +12,12 @@ function findButton(label:string){return [...document.querySelectorAll<HTMLButto
 function button(label:string){const e=findButton(label);assert(e,`missing action: ${label}`);return e;}
 async function begin(category:string,filename:string) {
   await until(()=>!button("ソースを作成").disabled,"New remained unavailable");
+  if(category==="フォルダー")button("フォルダーを作成").click();
+  else {
   button("ソースを作成").click();
   await until(()=>[...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].some(e=>e.textContent===category),"New menu missing");
   [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(e=>e.textContent===category)!.click();
+  }
   await until(()=>!!document.querySelector("input[aria-label=\"新しいソースのファイル名\"]"),"temporary Explorer node missing");
   const file=input("新しいソースのファイル名");
   await until(()=>document.activeElement===file,"creation filename was not focused once");
@@ -111,7 +114,7 @@ export async function run({startup}:{startup:Record<string,unknown>}) {
     await focusedSource('catalog-new');
     checks.push("empty-folder-selection");
     await begin("データ","storage-name.yml");
-    assert(document.querySelector('.creation-destination')!.textContent!.includes('fresh-table'),"Data did not expose explicit Table");
+    assert(input("新しいソースのファイル名").title.includes('fresh-table'),"Data did not expose explicit Table");
     key(input("新しいソースのファイル名"),"Enter");
     await until(()=>desktop.surface.target==='sources/catalog-new/storage-name.yml'&&!desktop.surface.pending&&!!desktop.surface.projection,"created Data not routed");
     created.push('sources/catalog-new/storage-name.yml');

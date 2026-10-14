@@ -11,8 +11,8 @@ function input() {const value=document.querySelector<HTMLInputElement>("input[ar
 function text(value:string) {const field=input();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(field,value);field.dispatchEvent(new Event('input',{bubbles:true}));}
 async function begin(choice?:string,source=desktop.surface.target) {
   button(`${source.split("/").at(-1)} の操作`).click();
-  await until(()=>[...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].some(item=>item.textContent==="名前変更・移動…"),"Source menu missing");
-  [...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].find(item=>item.textContent==="名前変更・移動…")!.click();
+  await until(()=>[...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].some(item=>item.textContent==="移動…"),"Source menu missing");
+  [...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].find(item=>item.textContent==="移動…")!.click();
   if(choice) {
     await until(()=>!!desktop.surface.choice&&!!findButton(choice),"rendered scoped guard missing");
     button(choice).click();

@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Alert, Button, Checkbox, Divider, Flex, Form, Input, Modal, Select, Space, Spin, Tooltip, Typography, type MenuProps } from "antd";
 import { ArrowDownOutlined, ArrowUpOutlined, CloseOutlined, DeleteOutlined, PlusOutlined, SettingOutlined } from "@ant-design/icons";
 import type { Inventory } from "./types";
+import {stemEnd} from "./explorer-model";
 import { desktop } from "./workspace";
 
 type Key = {fields:string[];nonUnique:boolean};
@@ -20,7 +21,7 @@ type Choices = {roots:{root:string;path:string}[];fieldTypes:string[];valueObjec
 type Preview = {valid:boolean;identity:string|null;category:Category;diagnostics:{code:string;message:string}[]};
 type Request = {root:string;path:string;artifact:Artifact};
 type Result = {source:string;outcome:string;message:string};
-type Draft = {id:number;root:string;folder:string;filename:string;category:Category;artifact:Artifact|null;advanced:boolean;pending:boolean;result:Result|null;error:string|null;preview:Preview|null};
+type Draft = {id:number;tableContext:string|null;root:string;folder:string;filename:string;category:Category;artifact:Artifact|null;advanced:boolean;pending:boolean;result:Result|null;error:string|null;preview:Preview|null};
 const categories: [Category,string][] = (["folder","table","data","valueObject","enum","flags","custom"] as Category[]).map(category=>[category,sourceCategoryLabel(category)]);
 const join = (folder:string,name:string) => folder && folder!=="."?`${folder}/${name}`:name;
 const parent = (path:string) => path.includes("/")?path.slice(0,path.lastIndexOf("/")):".";
@@ -61,7 +62,7 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
     const request=focusRequest.current;
     if(!request||request.done||request.id!==live.current?.id||request.advanced!==live.current.advanced||request.intent!==desktop.inputIntent)return;
     const input=request.advanced?advancedFilename.current:filename.current;
-    if(input?.isConnected){input.focus();request.done=true;}
+    if(input?.isConnected){input.focus();input.setSelectionRange(0,stemEnd(input.value));request.done=true;}
   }
   const target=(folder:string) => {
     const root=choices?.roots[0];
@@ -71,7 +72,7 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
     const mine=++revision.current;
     patch({preview:null,pending:true,error:null});
     try {
-      const artifact=propose?(await desktop.rpc<Artifact>({kind:"creationDefaults",epoch,category:next.category,path:join(next.folder,next.filename),table:desktop.surface.projection?.table.name??null})).data:next.artifact;
+      const artifact=propose?(await desktop.rpc<Artifact>({kind:"creationDefaults",epoch,category:next.category,path:join(next.folder,next.filename),table:next.artifact?.category==="data"&&next.artifact.table?next.artifact.table:next.tableContext})).data:next.artifact;
       if(mine!==revision.current||!artifact||desktop.surface.status.epoch!==epoch)return;
       const request:Request={root:next.root,path:join(next.folder,next.filename),artifact};
       const reply=await desktop.rpc<Preview>({kind:"creationPreview",epoch,request});
@@ -83,7 +84,9 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
     if(!destination)return;
     origin.current=document.activeElement as HTMLElement;composing.current=false;
     const file=category==="folder"?"new-folder":category==="table"?"new-table.yaml":category==="data"?"new-data.yaml":`${category==="valueObject"?"value-object":category==="custom"?"custom-type":category}.yaml`;
-    const next:Draft={...destination,id:++requestId.current,filename:file,category,artifact:null,advanced:false,pending:true,preview:null,result:null,error:null};
+    const selected=inventory.sources.find(source=>source.path===where);
+    const tableContext=selected&&(selected.category==="table"||selected.category==="data")?selected.binding:desktop.surface.projection?.table.name??null;
+    const next:Draft={...destination,tableContext,id:++requestId.current,filename:file,category,artifact:null,advanced:false,pending:true,preview:null,result:null,error:null};
     live.current=next;setDraft(next); validation.current=validate(next,true);
   }
   function cancel(restore=true) {
@@ -133,13 +136,17 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
   const folders=inventory.folders;
   const uncertain=draft?.result?.outcome==="OutcomeUnknown"||draft?.result?.outcome==="RecoveryRequired";
   const committing=!!draft?.pending&&!!draft.artifact&&!!draft.preview;
-  const content=draft&&<div ref={inlineElement} className="creation-inline" onClick={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}>
-    <Flex justify="space-between" align="center"><Typography.Text type="secondary">{categories.find(([kind])=>kind===draft.category)?.[1]}</Typography.Text><Space size={0}><Tooltip title="作成内容の詳細"><Button type="text" icon={<SettingOutlined aria-hidden="true"/>} aria-label="作成内容の詳細" disabled={committing||uncertain} onClick={()=>patch({advanced:true})}/></Tooltip><Tooltip title="作成をキャンセル"><Button type="text" icon={<CloseOutlined aria-hidden="true"/>} aria-label="作成をキャンセル" disabled={committing||uncertain} onClick={()=>cancel()}/></Tooltip></Space></Flex>
-    {/* Ant Input recreates its input when the affix structure changes. Keep the
-        suffix mounted so preview completion cannot discard focus or composition. */}
-    <Input ref={r=>{filename.current=r?.input??null;}} aria-label="新しいソースのファイル名" value={draft.filename} disabled={committing||uncertain} suffix={<span className="creation-pending">{draft.pending?<Spin size="small"/>:null}</span>} onChange={e=>change({filename:e.target.value},!draft.advanced)} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}} onKeyDown={e=>{if(e.nativeEvent.isComposing||composing.current||e.keyCode===229)return;if(e.key==="Escape"){e.preventDefault();cancel();}if(e.key==="Enter"||e.key==="Tab"){if(e.key==="Enter")e.preventDefault();void finish(e.key==="Enter");}}}/>
-    <Typography.Text type="secondary" className="creation-destination" title={draft.folder}>{sourceFolderLabel(draft.folder,inventory.sourceDirectory)} · {draft.preview?.identity??(draft.category==="folder"?"フォルダー":"…")}</Typography.Text>
-    {draft.artifact?.category==="data"&&<Select aria-label="データのテーブル" value={draft.artifact.table||undefined} placeholder="テーブルを選択" options={options(choices?.tables??[])} disabled={committing||uncertain} onChange={table=>change({artifact:{category:"data",table}})}/>}
+  const creationLabel=draft?sourceCategoryLabel(draft.category)+" · "+join(draft.folder,draft.filename)+(draft.preview?.identity?" · 識別子: "+draft.preview.identity:""):"";
+  const content=draft&&<div ref={inlineElement} className="creation-inline" title={creationLabel} data-path="creation:temporary" onClick={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}>
+    <div className="explorer-input-row">
+      {/* A mounted suffix keeps Ant Input's DOM stable across preview completion. */}
+      <Input ref={r=>{filename.current=r?.input??null;}} aria-label="新しいソースのファイル名" title={creationLabel} value={draft.filename} disabled={committing||uncertain} status={draft.error||draft.preview?.diagnostics.length?"error":undefined}
+        suffix={<span className="creation-pending">{draft.pending?<Spin size="small"/>:null}</span>} onChange={e=>change({filename:e.target.value},!draft.advanced)} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}}
+        onKeyDown={e=>{if(e.nativeEvent.isComposing||composing.current||e.keyCode===229)return;if(e.key==="Escape"){e.preventDefault();cancel();}if(e.key==="Enter"||e.key==="Tab"){if(e.key==="Enter")e.preventDefault();void finish(e.key==="Enter");}}}/>
+      <Tooltip title="作成内容の詳細"><Button type="text" size="small" icon={<SettingOutlined aria-hidden="true"/>} aria-label="作成内容の詳細" disabled={committing||uncertain} onClick={()=>patch({advanced:true})}/></Tooltip>
+      <Tooltip title="作成をキャンセル"><Button type="text" size="small" icon={<CloseOutlined aria-hidden="true"/>} aria-label="作成をキャンセル" disabled={committing||uncertain} onClick={()=>cancel()}/></Tooltip>
+    </div>
+    {draft.artifact?.category==="data"&&!draft.artifact.table&&<Select aria-label="データのテーブル" value={draft.artifact.table||undefined} placeholder="テーブルを選択" options={options(choices?.tables??[])} disabled={committing||uncertain} onChange={table=>change({artifact:{category:"data",table}})}/>}
     {!draft.advanced&&<Feedback draft={draft}/>}
     {uncertain&&<Button onClick={()=>void create(true)} loading={draft.pending}>保存先を再確認</Button>}
   </div>;

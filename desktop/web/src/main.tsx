@@ -33,6 +33,11 @@ if (boot.evidence||boot.inputCapture) {
     errors.push(String(event.reason?.stack ?? event.reason)),
   );
 }
+// Windows' native file-drop handler suppresses HTML tree drag events, so the
+// window disables it. Keep external files from navigating the WebView instead.
+for(const type of ["dragover","drop"] as const)document.addEventListener(type,event=>{
+  if(event.dataTransfer?.types.includes("Files")){event.preventDefault();event.stopPropagation();}
+},true);
 await desktop.start();
 flushSync(() =>
   createRoot(document.getElementById("app")!).render(
@@ -104,7 +109,9 @@ export function acceptedInteraction(sample: SelectionSample) {
 }
 if (boot.evidence) {
   const evidence =
-    boot.evidenceKind === "authoring"
+    boot.evidenceKind === "explorer"
+      ? await import("./explorer-evidence")
+      : boot.evidenceKind === "authoring"
       ? await import("./authoring-evidence")
       : boot.evidenceKind === "external"
         ? await import("./external-evidence")
