@@ -20,11 +20,11 @@ export async function run({
   const presentation: Record<string, unknown>[] = [];
   const interaction: Record<string, unknown> = {};
   let stage='foreground';
-  // Preserve a failed run's actual stop point before the runner's 240s limit.
+  // Preserve a failed run's actual stop point before the runner's 360s limit.
   // This is failure-only evidence, never a partial passing measurement.
   const stalled=setTimeout(()=>{
     void invoke('evidence_write',{report:{format:1,error:'navigation did not complete before runner deadline',stage,samples,startup,presentation,interaction,visibility:document.visibilityState,focused:document.hasFocus(),active:document.activeElement?.outerHTML.slice(0,500),target:desktop.surface.target,pending:desktop.surface.pending}});
-  },230000);
+  },350000);
   try {
     if(!document.hasFocus())await new Promise<void>((resolve,reject)=>{
       // Background WebViews can suspend rAF; the failure deadline must still

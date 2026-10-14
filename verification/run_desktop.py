@@ -370,7 +370,10 @@ def run(binary: Path, output: Path, case: str):
             process = subprocess.Popen([str(executable), *project_args,
                                         '--evidence-output', str(report_path), '--evidence-kind', case], stdout=log, stderr=log)
             try:
-                deadline = time.monotonic() + 240
+                # Navigation measures 1,800 requests. Hosted macOS completed
+                # 1,426 with valid foreground samples before the old 240s cap;
+                # allow that sustained benchmark, leaving other cases bounded.
+                deadline = time.monotonic() + (360 if case == 'navigation' else 240)
                 while True:
                     assert process.poll() is None, f'native host exited: {process.returncode}'
                     if case == 'capacity' and platform.system() == 'Windows':
