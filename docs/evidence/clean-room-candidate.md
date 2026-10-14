@@ -8,6 +8,26 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 **Not cutover-ready — Windows actual Desktop、Unity actual Editor / runtimeのrequired evidence gaps。** macOSのdense input / held Escapeは下記の修正Candidateで閉じた。`f57102e`の実IME違反は`f7cf90d`で修正し、scalar / nestedのactual IMEとrequired CIで再検証した。2026-10-09にHumanがPR #16をmainへmergeしたが、未取得の外部証拠は免除していない。以下の旧Candidate evidenceは当時の記録として保持する。
 
+## VSCodeを参考にしたExplorer（2026-10-15）
+
+Scope: Work base `43329ffd24c17e628094cf2a9cb4538fe19cb5aa` → initial Candidate `73263d49701e27e93b672e5f0cc99c5e8ebbf949` → GUI correction `32eeb90e2b7fab6e6a0b1c149beedb7ae18b93f0` → final verification Candidate `4b7e6f4d0754174b7d061fd5a752ea860ab229f2`。[0063](../spec-changes/0063-vscode-explorer.md)と[Explorer canonical](../gui/explorer/spec.md)に対する有限scope。`32eeb90`以降はverification adapter / runnerだけの変更で、GUI製品codeは同一。
+
+起動中VSCodeと別の検証workspaceをComputer Useで実操作し、toolbar、folder / file / 空白のmenu、keyboard focusとselection、inline作成・renameの空入力 / outside確定 / duplicate error、長い一覧、sticky ancestor、幅変更を観察した。検証用VSCode windowは閉じ、元から開いていたwindowと利用者のsourceを維持した。採用semanticsはcanonicalへ反映し、研究記録へ複製しない。
+
+native WebViewでは1,500超のfolder inventoryに対してmounted rowsを60未満に保ち、22px行、keyboard resize、filterのno-write、contextのData binding、行menu終了、IME / Conflict / dirty guard、outside確定中の新しい選択・focus、lost reply後の明示Recheckを11 checksで照合。related Creation 9 / Path 7 / Project 16と、correction後のMigration 6 / Focus 6もPASS。TypeScript / 9 unit tests、Desktop Rust 10 tests、fmt / clippy / clean-slate integrityはPASS。frozen 621 assetsとsample sourcesは変更していない。
+
+actual macOS操作ではLight / Dark、F2でstemだけを選択する行内renameとEscape、絞り込み、幅drag `280 → 357px`、file contextのMove / Cancelとmenu終了を確認した。検証bundleは通常終了とPID消失を照合。production appをper-user locationへ更新し、sampleのfile選択・F2 / Escapeを再確認した。file dragのOS実操作はComputer Useの`noWindowsAvailable`により未確認であり、実操作成功とは扱わない。外部drop拒否・既存Move reviewのcontrolled検証と、OSでのfile drag操作は区別する。motion / reduced-motionの既存方針を維持した。
+
+initial [CI](https://github.com/kamahir0/masterdata/actions/runs/38595564845)では、Windowsの新しいExplorer検証がdirty guardのstate publicationをmodal描画完了と扱ってFAIL。さらにmacOSの既存Migration検証が、追加列のmountより先に固定2frameのfocus復帰を試みてFAIL。前者は表示されたdialog control待ち、後者はgridのcommit / scroll layoutがfocusを復帰するcorrectionとした。epoch / target / newer inputのguardを維持し、assertion / timeoutを緩和していない。
+
+Fresh verification: `43329ff → 32eeb90`の確定diffをcanonicalと照合。Specification Conformance / Architecture: Pass（shared inventory / Rust creation・path authority、native clipboard、既存write recovery）。Tests / Regression: 上記focused native checksとexact source bytes。Rationale Freshness: Fresh（preview epoch、消えたold pathのrecovery row、WebKitのfocus保持、menu lifecycle、追加列のcommitted layout）。Evidence Integrity: canonical Requirement・regression・dependency参照、CI headとraw capture時のhead / dirty / binary hashを区別。Findings: selected scopeに既知Blockingなし。required CI reconciliation中。
+
+GUI correctionの[CI](https://github.com/kamahir0/masterdata/actions/runs/38597982739)では16 jobsがSUCCESSで、Windows nativeの全検証とproduction packagingもSUCCESS。macOS navigationは初回と再実行で240秒のmeasurement未取得timeout。診断Candidate `37f9ae8`の[failure-only capture](https://github.com/kamahir0/masterdata/actions/runs/38602096339)では、visible / focusedを維持し、warm 1,200件とdirty 200件を終えてrapidの6組目まで進行していた（1,426要求）。停止やforeground喪失とは扱わず、hosted runnerで固定約1,800要求の合計時間が旧上限を超えたresource sensitivityとして分類する。`4b7e6f4`でnavigationだけ360秒へ調整し、他caseの240秒上限、サンプル数、assertion、計測境界は維持した。partial metricsをPASSへ改称しない。
+
+localのGUI correction Candidateではcontrolled warm accepted p95が85 / 92 / 90 / 92 / 94 / 69ms、warmのproject-wide discovery / enumeration / YAML parse / validationは0。OS入力分布の再測定とは呼ばない。final Candidateの[implementation CI全17 jobs](https://github.com/kamahir0/masterdata/actions/runs/38603920875)と[integrity CI](https://github.com/kamahir0/masterdata/actions/runs/38603920669)はSUCCESS。macOS / Windowsとも1802 requestsのnavigation、Explorer 11 / Migration 6 / Focus 6と全related categories、production packaging / staged smokeがPASS。hosted macOSのcontrolled accepted p95は160 / 166 / 163 / 170 / 195 / 130msで、local / OS入力 / reference targetの達成値へ置換しない。[machine evidence](clean-room-candidate-data.json.gz)の`vscodeExplorer20261015`にcapture時のprovenance、failure、両OSのfinal reportsを保持する。
+
+Final fresh verification: GUI製品diffと`32eeb90 → 4b7e6f4`のverification-only diffを別に照合。Conformance / Architecture / Evidence Integrity: Pass。Rationale Freshness: Fresh（unchanged metricsとaggregate runtimeの区別、failure-only captureを含む）。Findings: selected scopeにBlockingなし。Verdict: **Ready to merge: Yes within selected scope**。production appは`host`で更新、binary SHA-256 `ea29a51d8effb122a84eae7f7ca32cc171da816f7b08ad4140c2d57d23ce71d4`。その後の変更はverification adapter / runnerだけで、GUI codeは同一。Unityは今回起動せず、検証用Desktop processは終了確認済み。利用者用の更新アプリはsampleを開いて維持した。既存Windows actual Desktopとfull-scope Unity gatesは維持する。
+
 ## Unityモデルケース拡充（2026-10-14）
 
 Scope: Work base `2c58ce1` → correction Candidate `546ebc7146430f80d723a2bd050628b869d89f51`。Human-selected [Unityモデルケース](../../samples/UnityInventory/README.md)を拡充。Approved Type System / Table-Key / Reference / Build Selection / Unity deliveryを既存boundaryでcompositionし、product coreの新機能・source format変更は行わない。
