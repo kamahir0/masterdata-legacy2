@@ -19,17 +19,27 @@ export async function run({
 }: Controls) {
   const presentation: Record<string, unknown>[] = [];
   const interaction: Record<string, unknown> = {};
-  if (!document.hasFocus())
-    await new Promise<void>((resolve) =>
-      window.addEventListener("focus", () => resolve(), { once: true }),
-    );
+  let stage='foreground';
+  // Preserve a failed run's actual stop point before the runner's 240s limit.
+  // This is failure-only evidence, never a partial passing measurement.
+  const stalled=setTimeout(()=>{
+    void invoke('evidence_write',{report:{format:1,error:'navigation did not complete before runner deadline',stage,samples,startup,presentation,interaction,visibility:document.visibilityState,focused:document.hasFocus(),active:document.activeElement?.outerHTML.slice(0,500),target:desktop.surface.target,pending:desktop.surface.pending}});
+  },230000);
   try {
+    if(!document.hasFocus())await new Promise<void>((resolve,reject)=>{
+      // Background WebViews can suspend rAF; the failure deadline must still
+      // report whether the real window ever gained keyboard focus.
+      const timer=setTimeout(()=>{window.removeEventListener('focus',ready);reject(new Error('native WebView foreground unavailable'));},8000);
+      function ready(){if(document.hasFocus()){clearTimeout(timer);window.removeEventListener('focus',ready);resolve();}}
+      window.addEventListener('focus',ready);ready();
+    });
     const paths = [
       "sources/a-1.yaml",
       "sources/a-2.yaml",
       "sources/b-schema.yaml",
       "sources/c-schema.yaml",
     ];
+    stage='firstSource';
     const first = await selectTarget(paths[0], "firstSource", false);
     acceptedInteraction(first);
     desktop.viewport!.dispatchEvent(
@@ -67,6 +77,7 @@ export async function run({
       throw new Error(
         "editor cancel did not preserve the clean source and grid focus",
       );
+    stage='presentation';
     const original = desktop.surface.theme;
     for (const appearance of ["dark", "light"] as const) {
       await desktop.setTheme(appearance);
@@ -97,9 +108,11 @@ export async function run({
           ["crossTable", paths[2]],
           ["schema", paths[3]],
         ]) {
+          stage=caseName+':'+run+':'+n;
           const s = await selectTarget(path, caseName, false);
           acceptedInteraction(s);
         }
+    stage='dirtySetup';
     await selectTarget(paths[0], "dirtySetup", false);
     const p = view()!;
     await rpc({
@@ -112,11 +125,13 @@ export async function run({
       text: "999999",
     });
     for (let n = 0; n < 100; n++) {
+      stage='dirtyRevisit:'+n;
       await selectTarget(paths[1], "dirtyAway", false);
       const s = await selectTarget(paths[0], "dirtyRevisit", false);
       acceptedInteraction(s);
     }
     for (let n = 0; n < 100; n++) {
+      stage='rapid:'+n;
       const results = await Promise.all(
         [...paths.slice(0, 3), "sources/c-2.yaml"].map((p) =>
           selectTarget(p, "rapid", false),
@@ -144,6 +159,8 @@ export async function run({
       report: {
         format: 1,
         error: String(e),
+        stage,
+        active:document.activeElement?.outerHTML.slice(0,500),
         samples,
         startup,
         presentation,
@@ -152,5 +169,5 @@ export async function run({
         focused: document.hasFocus(),
       },
     });
-  }
+  } finally {clearTimeout(stalled);}
 }
