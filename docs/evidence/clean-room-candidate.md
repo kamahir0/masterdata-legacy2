@@ -10,13 +10,15 @@ Review Candidate: `f7cf90d857124602a918bdcad1dda2ef2e031850`（2026-10-07、実I
 
 ## Unityモデルケース拡充（2026-10-14）
 
-Scope: Work base `2c58ce1`から、Human-selected [Unityモデルケース](../../samples/UnityInventory/README.md)を拡充。Approved Type System / Table-Key / Reference / Build Selection / Unity deliveryを既存boundaryでcompositionし、product coreの新機能・source format変更は行わない。
+Scope: Work base `2c58ce1` → correction Candidate `546ebc7146430f80d723a2bd050628b869d89f51`。Human-selected [Unityモデルケース](../../samples/UnityInventory/README.md)を拡充。Approved Type System / Table-Key / Reference / Build Selection / Unity deliveryを既存boundaryでcompositionし、product coreの新機能・source format変更は行わない。
 
 fresh native生成物とのC# / binary exact matchと4 Profileの選択検証がPASS。Unity 6000.6.4f1のPlayMode 6 testsと、Library / NuGet cacheなしcopyでの同じ6 testsがPASS。8 primitive・5 Value Object・4 underlyingのEnum / Flagsの各modifier、Nullable / composite / nonunique参照、カスタム型配列と多段ネスト、1-field Custom、スクロール後の128行目 / 70列目へのEventSystem raycast / clickを確認した。フォント収録testにより日本語と表示文字を照合し、Regularの同梱fontでOS fontへ依存しない。
 
 macOS player buildとactual画面の確認もPASS。初回画面で見つけたscrollbarのはみ出し、表と詳細の幅配分、Value Objectのcell表示を修正して再確認した。mouse実操作の記録とはせず、EventSystem inputと実描画の証拠を分ける。capture専用の一時scriptは配布sourceへ残さない。Editor / 専用関連process / playerは通常終了後に残存0を照合した。
 
-Self-review: Conformance / Architecture: Pass（shared Rust / native .NET / caller-owned Unity database）。Rationale: Fresh（TMP import待機、preferred height、native asset bytes）。Findings: selected sample scopeにBlockingなし。fmt / clippy / clean-slate integrityがPASS、frozen corpus 621 assetsは不変。[machine evidence](clean-room-candidate-data.json.gz)の`unityInventoryModels20261014`へactual / clone / visual / cleanupを保持する。required CIはCandidate push後に照合する。既存のWindows actual Desktopとfull-scope Unity gatesは維持する。
+initial Candidate `e662710`のWindows CIでは、`include_str!`で埋め込むC#配列helperにcheckout時のCRLFが18行混入し、exact match testがFAIL。templateをLF固定にして補正し、検証を維持する。sample / actual UIのsourceと配布生成物はcorrectionで変更していない。
+
+Fresh review: Conformance / Architecture: Pass（shared Rust / native .NET / caller-owned Unity database）。Rationale: Fresh（TMP import待機、preferred height、native asset bytes、templateのLF固定）。Findings: selected sample scopeにBlockingなし。fmt / clippy / clean-slate integrityがPASS、frozen corpus 621 assetsは不変。[machine evidence](clean-room-candidate-data.json.gz)の`unityInventoryModels20261014`へactual / clone / visual / cleanupを保持する。correction Candidateの[required CI全17 jobs](https://github.com/kamahir0/masterdata/actions/runs/38484899979)と[integrity](https://github.com/kamahir0/masterdata/actions/runs/38484899895)はSUCCESS。既存のWindows actual Desktopとfull-scope Unity gatesは維持する。
 
 ## Unity込みsample（2026-10-14）
 
