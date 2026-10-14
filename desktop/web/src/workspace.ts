@@ -1261,21 +1261,30 @@ class Desktop {
       if(epoch === this.surface.status.epoch) this.publish({busy:false});
     }
   }
+  private addedFieldFocus: {name:string;target:string;epoch:number;intent:number}|null = null;
+  focusAddedField() {
+    const request=this.addedFieldFocus;
+    if(!request)return;
+    if(request.target!==this.surface.target||request.epoch!==this.surface.status.epoch||request.intent!==this.inputIntent){this.addedFieldFocus=null;return;}
+    const viewport=this.viewport,column=this.surface.projection?.columns.findIndex(c=>c.field.name===request.name)??-1;
+    if(!viewport||column<0||this.surface.pending||this.surface.busy)return;
+    const left=GRID.identity+column*GRID.column;
+    if(left<viewport.scrollLeft)viewport.scrollLeft=left;
+    else if(left+GRID.column>viewport.scrollLeft+viewport.clientWidth)viewport.scrollLeft=left+GRID.column-viewport.clientWidth;
+    const button=viewport.querySelector<HTMLButtonElement>(`.column[data-field="${CSS.escape(request.name)}"] .field-name-button`);
+    if(button&&!button.disabled&&!button.closest('[inert]')&&button.getClientRects().length){button.focus({preventScroll:true});this.addedFieldFocus=null;}
+  }
   async fieldAction(operation: FieldOperation, expected: Projection) {
     const intent=this.inputIntent;
     try {
       const review=await this.fieldOperation(operation,expected);
       const name=review?.command.declaration?.name;
       if(name && this.surface.target===expected.clicked && this.inputIntent===intent) {
-        const column=this.surface.projection?.columns.findIndex(c=>c.field.name===name) ?? -1, viewport=this.viewport;
-        if(viewport && column>=0) {
-          const left=GRID.identity+column*GRID.column;
-          if(left<viewport.scrollLeft)viewport.scrollLeft=left;
-          else if(left+GRID.column>viewport.scrollLeft+viewport.clientWidth)viewport.scrollLeft=left+GRID.column-viewport.clientWidth;
-        }
-        requestAnimationFrame(()=>requestAnimationFrame(() => {
-          if(this.surface.target===expected.clicked && this.inputIntent===intent) this.viewport?.querySelector<HTMLButtonElement>(`.column[data-field="${CSS.escape(name)}"] .field-name-button`)?.focus();
-        }));
+        // A new tail column can mount after scroll / projection publication,
+        // especially in WebKit. The grid's committed layout owns focus rather
+        // than assuming that two animation frames made its button available.
+        this.addedFieldFocus={name,target:expected.clicked,epoch:expected.sessionEpoch,intent};
+        this.focusAddedField();
       }
     } catch(e) { this.showError(e); }
   }

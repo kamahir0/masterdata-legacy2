@@ -81,6 +81,7 @@ export const AuthoringGrid = memo(function AuthoringGrid({
       if(document.activeElement===document.getElementById('editor-pane'))viewport.current?.focus({preventScroll:true});
     }
   }, [p, pending]);
+  useLayoutEffect(()=>desktop.focusAddedField(),[p,pending,busy,columns]);
   useEffect(() => {
     const v = viewport.current;
     if (!v) return;

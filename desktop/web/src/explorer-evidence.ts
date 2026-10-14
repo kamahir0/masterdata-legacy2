@@ -115,7 +115,11 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     const projection=desktop.surface.projection!;
     await desktop.rpc({kind:'editText',source:projection.source,revision:projection.revision,generation:projection.generation,row:projection.rows[0].id,field:'name',text:'Explorer dirty guard'});
     await showSource('sources/lost-reply.yaml');tree().focus();key(tree(),'F2');
-    await until(()=>!!desktop.surface.choice,'inline rename bypassed dirty guard');button('キャンセル').click();
+    await until(()=>!!desktop.surface.choice,'inline rename bypassed dirty guard');
+    // Published state precedes React's modal commit on WebView2. Wait for the
+    // observable guard control, rather than treating the state as rendered UI.
+    await until(()=>[...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].some(element=>element.textContent==='キャンセル'&&element.getClientRects().length>0),'dirty guard Cancel not rendered');
+    button('キャンセル').click();
     await until(()=>!desktop.surface.choice,'dirty Cancel not accepted');assert(desktop.surface.status.dirty.includes('sources/lost-reply.yaml')&&!document.querySelector('.source-path-inline'),'dirty Cancel lost buffer or opened rename');
     checks.push('inline-rename-scoped-dirty-guard');
     assert((startup.browserErrors as string[]).length===0,'browser errors');
