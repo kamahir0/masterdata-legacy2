@@ -1,17 +1,13 @@
 # Development State
 
-Stage: decision-required
-Candidate: 4b7e6f4d0754174b7d061fd5a752ea860ab229f2
-Work base: 43329ffd24c17e628094cf2a9cb4538fe19cb5aa
+Stage: verification-ready
+Candidate: 5b9cf25a447e2f6164a1bf1eb5654dac33217440
+Work base: a955f11ad47228e850875167abde9fbb323c1b20
 
 ## Active work
 
-Completed: [Explorer再構成](spec-changes/0063-vscode-explorer.md)の実操作research・canonical適用・implementation・actual macOS review・fresh verification・production local app更新。[selected scope evidence](evidence/clean-room-candidate.md#vscodeを参考にしたexplorer2026-10-15)とexact Candidateのrequired CI全17 jobs / integrityはSUCCESS。Explorer scopeは完了。Remaining: Windows actual Desktopと残るfull-scope Unity conformanceの既存gates。
+Completed: [TOML picker](spec-changes/0064-project-file-picker.md)のimplementation / focused tests / macOS実操作 / production local app更新。Remaining: exact Candidateのfresh review / required CI。Explorer scopeは完了済み。Windows actual Desktopと残るfull-scope Unity conformanceの既存gatesを維持する。
 
 ## Blocking findings
 
-Explorer scopeに既知Blockingなし。Cutover-ready / objective-completeは未達。scope外のrequired evidence gapsを維持する。
-
-## Human decision needed
-
-Explorer scopeは完了。[existing gaps / evidence / choices](evidence/clean-room-candidate.md#human-gates--verdict)は別scopeとして維持する。
+TOML picker scopeに既知Blockingなし。Cutover-ready / objective-completeは未達。[existing gaps](evidence/clean-room-candidate.md#human-gates--verdict)は別scopeとして維持する。
