@@ -25,7 +25,8 @@ fn cancelling_addition_restores_exact_bytes_including_empty_style_and_no_final_n
         let v = w.select(PATH, 0, 32).unwrap();
         let row = v.rows.iter().find(|r| r.id == added).unwrap();
         assert!(row.added);
-        assert!(row.cells.iter().all(|c| c.display == "null" && !c.valid));
+        assert!(row.cells.iter().all(|c| c.valid));
+        assert_eq!(row.cells[1].display, "\"\"");
         w.delete_row(PATH, v.revision, v.generation, &added)
             .unwrap();
         assert_eq!(w.current_doc(PATH).unwrap().bytes.as_ref(), bytes);

@@ -16,6 +16,61 @@ pub enum Input {
     Sequence { value: Vec<Input> },
     Mapping { value: Vec<(String, Input)> },
 }
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum Action {
+    Default,
+    Materialize,
+    Flag {
+        symbol: String,
+        enabled: bool,
+        members: Vec<String>,
+    },
+}
+pub fn from_value(value: Value) -> Input {
+    match value {
+        Value::Null => Input::Null,
+        Value::Text(text) | Value::Literal(text) => Input::Scalar { text },
+        Value::Sequence(value) => Input::Sequence {
+            value: value.into_iter().map(from_value).collect(),
+        },
+        Value::Mapping(value) => Input::Mapping {
+            value: value.into_iter().map(|(k, v)| (k, from_value(v))).collect(),
+        },
+    }
+}
+pub fn flags_members(
+    shape: &Shape,
+    mut members: Vec<String>,
+    symbol: String,
+    enabled: bool,
+) -> Result<Vec<String>> {
+    if shape.array || shape.category != "flags" || !shape.members.contains(&symbol) {
+        return Err(Error::new(
+            "E-FLAGS-MEMBER",
+            "declared Flags member required",
+        ));
+    }
+    if enabled {
+        members.retain(|s| {
+            !shape.members.contains(s)
+                || if symbol == "None" {
+                    s == "None"
+                } else {
+                    s != "None"
+                }
+        });
+        if !members.contains(&symbol) {
+            members.push(symbol);
+        }
+    } else {
+        members.retain(|s| s != &symbol);
+    }
+    if !members.iter().any(|s| shape.members.contains(s)) {
+        members.push("None".into());
+    }
+    Ok(members)
+}
 fn invalid(message: impl Into<String>) -> Error {
     Error::new("E-INITIALIZER", message)
 }

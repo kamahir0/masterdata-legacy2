@@ -39,7 +39,7 @@ export function explorerEntries(inventory:Pick<Inventory,'sources'|'folders'|'so
   }
   for(const path of inventory.folders)ensure(path);
   for(const source of inventory.sources) {
-    ensure(parentPath(source.path))?.children!.push({key:source.path,path:source.path,name:source.path.split('/').at(-1)!,folder:false,category:source.category,error:source.error});
+    ensure(parentPath(source.path))?.children!.push({key:source.path,path:source.path,name:source.category&&!source.error?source.path.split('/').at(-1)!.replace(/\.ya?ml$/i,''):source.path.split('/').at(-1)!,folder:false,category:source.category,error:source.error});
   }
   const query=filter.trim().toLocaleLowerCase();
   function arrange(nodes:ExplorerEntry[]):ExplorerEntry[] {

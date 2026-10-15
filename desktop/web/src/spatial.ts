@@ -203,6 +203,8 @@ function sameContext(p: Projection, strict = true) {
 function cleanClone(node: HTMLElement) {
   const clone = node.cloneNode(true) as HTMLElement;
   for (const element of [clone, ...clone.querySelectorAll<HTMLElement>("*")]) {
+    element.classList.remove("spatial-origin", "spatial-displaced");
+    element.style.removeProperty("visibility");
     element.removeAttribute("id");
     element.removeAttribute("aria-selected");
     if (element.matches("button,input,select,textarea,[tabindex]"))
@@ -355,10 +357,12 @@ function begin(
       ghost = gesture.preview();
       ghost.inert = true;
       ghost.setAttribute("aria-hidden", "true");
+      ghost.classList.remove("spatial-origin");
+      ghost.style.visibility = "visible";
       ghost.classList.add("spatial-ghost");
       overlay.append(ghost);
-      (gesture.scroll.closest("#grid-area") ??
-        gesture.scroll.closest(".ant-drawer-content"))!.append(overlay);
+      (gesture.scroll.closest(".near-value-popover,.ant-drawer-content") ??
+        gesture.scroll.closest("#grid-area"))!.append(overlay);
       hideOriginals();
       try {
         capture?.setPointerCapture(pointer);

@@ -171,3 +171,6 @@ code/document workflowで扱ってよい。semantic boundaryが不明な場合�
 このindexはcurrent implementation inventoryや進捗status databaseを所有しない。implementation reality、test evidence、CI status、
 および未実装境界はcurrent code / tests / Gitからfreshに確認する。canonical specificationへ実装statusのmirrorを追加せず、
 normative rule、stable rationale、observable acceptance expectationだけをここまたは各specificationに残す。
+
+- [Authoring Defaults](authoring-defaults.md) — 新規typed値とunique key、Flags操作
+- [Source Trash](source-trash.md) — 復元可能なsource file削除

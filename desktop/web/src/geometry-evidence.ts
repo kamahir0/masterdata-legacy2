@@ -95,9 +95,16 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     const columnScrolled=addColumn.getBoundingClientRect(),rowScrolled=addRow.getBoundingClientRect();
     assert(Math.abs(columnPosition.right-columnScrolled.right)<1&&Math.abs(columnPosition.top-columnScrolled.top)<1&&
       Math.abs(rowPosition.left-rowScrolled.left)<1&&Math.abs(rowPosition.bottom-rowScrolled.bottom)<1&&
-      rowScrolled.left<view.left+view.width/2&&columnScrolled.right<=view.right&&rowScrolled.bottom<=view.bottom,'Add actions did not stay at viewport right / bottom-left');
+      rowScrolled.left<view.left+view.width/2&&columnScrolled.left>=view.right-1&&rowScrolled.top>=view.bottom-1,'Add actions did not stay in reserved space outside scrollable data');
     for(const action of [addColumn,addRow]){const r=action.getBoundingClientRect();assert(action.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)),'viewport-fixed Add action obstructed');}
     checks.push('viewport-fixed-add-actions');
+    const beforeProblems=viewport.clientHeight;
+    desktop.toggleProblems();await until(()=>viewport.clientHeight<beforeProblems-100,'Problems did not reduce the real drag viewport');
+    const problemTop=document.getElementById('problems')!.getBoundingClientRect().top;
+    const rail=document.querySelector<HTMLElement>('.add-row')!.getBoundingClientRect();
+    assert(viewport.getBoundingClientRect().bottom<=problemTop&&rail.bottom<=problemTop+1,'Problems covers data / Add row hit areas');
+    desktop.toggleProblems();await until(()=>viewport.clientHeight===beforeProblems,'closing Problems did not restore viewport');
+    viewport.scrollTop=viewport.scrollHeight-viewport.clientHeight;await until(()=>!!document.getElementById('cell-1999-19'),'last row did not return');
     const last=document.getElementById('cell-1999-19')!;
     const identity=last.closest('[role="row"]')!.querySelector<HTMLElement>('[role="rowheader"]')!;
     assert(Math.abs(head.top-view.top)<=1&&Math.abs(identity.getBoundingClientRect().left-view.left)<=1,'sticky context detached from viewport');

@@ -6,6 +6,7 @@ mod path;
 pub mod publish;
 mod set;
 mod setup;
+pub mod trash;
 use crate::{
     Error, Result,
     project::{io_error, relative_safe},

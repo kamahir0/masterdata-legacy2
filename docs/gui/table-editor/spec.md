@@ -73,3 +73,7 @@ Tauri frontendはschema Plan derivation、YAML patch、dependency resolution、l
 ## 検証
 
 inline sourceと分離Data sourceの同等操作、複数source切替え、空Table、header直接操作、keyboard、dirty gate、stale、失敗・復旧、source-preserving、2千件以上のbounded row DOM、Problems移動をfocused testとDesktop実操作で確認する。
+
+### GUI-UNIFIED-009 — Explicit record destination
+
+record-set selectorはSchema内recordsと独立Data sourceの名前/pathを識別できる。Schemaにrecordsが未定義でも空の保存先として選択できる。選択だけではdirtyを作らず、明示Add Rowで初めてrecordsを追加する。sourceごとのbuffer/history/Save ownershipとsource-preserving安全契約を維持する。

@@ -257,3 +257,9 @@ None identified for the existing-record Data Editor contract. Programmable View 
 ## Rewrite transition
 
 [Rewrite baseline](../rewrite-baseline.md)が日常surfaceの範囲を所有する。旧独立Diff / Typed Filter / View Sort / Advanced Batch / Overviewのcapabilityはcurrent implementationに一時的に残ってよいが、clean implementationの必須surfaceではない。
+
+### GUI-DATA-EDIT-005 — Typed control consistency
+
+boolはネスト内外で同じswitch表現を使う。Nullableの未設定と値ありを明示し、nested値の明示生成/解除を近接した操作で行える。生成は[Authoring Defaults](../../specs/authoring-defaults.md)に従い、一操作/一Undoとする。opening/navigationだけでは既存値を変えない。Enum、可変長の型候補・tag等の単一選択はsearchable selectorを使う。Array modifierは[]とし、Nullable/Arrayの有効/無効を色だけに依存せず表示する。
+
+配列shape不一致は元値とdiagnosticを保持して明示修復へ到達でき、空配列へ置き換える対象と影響を説明する。修復はUndo可能とし、unsafe localizationを理由なく迂回しない。Flagsの選択制御は[Authoring Defaults](../../specs/authoring-defaults.md)へ委譲する。

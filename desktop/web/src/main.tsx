@@ -109,7 +109,9 @@ export function acceptedInteraction(sample: SelectionSample) {
 }
 if (boot.evidence) {
   const evidence =
-    boot.evidenceKind === "explorer"
+    boot.evidenceKind === "interaction"
+      ? await import("./interaction-evidence")
+      : boot.evidenceKind === "explorer"
       ? await import("./explorer-evidence")
       : boot.evidenceKind === "authoring"
       ? await import("./authoring-evidence")

@@ -69,6 +69,8 @@ async function drag(handle: HTMLElement, destination: HTMLElement) {
   );
   await frame();
   const ghost = find(".spatial-ghost");
+  assert(getComputedStyle(ghost).visibility==='visible'&&getComputedStyle(ghost).display!=='none'&&!ghost.classList.contains('spatial-origin'),"drag ghost inherited invisible origin state");
+  const box=ghost.getBoundingClientRect();assert(box.width>0&&box.height>0,"drag ghost has no painted extent");
   assert(
     ghost.inert && ghost.closest("[aria-hidden=true]"),
     "drag duplicated interactive controls",
@@ -101,7 +103,7 @@ async function neighbourMotion(axis:"x"|"y",sign:number) {
 async function settle() {
   await until(
     () =>
-      !desktop.surface.busy &&
+      !desktop.mutating &&
       !desktop.surface.pending &&
       !document.querySelector(".spatial-ghost"),
     "operation did not settle",
@@ -426,7 +428,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
       (await bytes()).after ===
         base.after.replace(
           'numbers: [1, "1", -2]',
-          'numbers: [invalid, "1", -2, null]',
+          'numbers: [invalid, "1", -2, 0]',
         ),
       "composed Complex operation changed non-target bytes",
     );
@@ -463,7 +465,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     await until(
       () =>
         document.querySelectorAll(".complex-item").length === 4 &&
-        !desktop.surface.busy &&
+        !desktop.mutating &&
         document.querySelector(':is(.ant-drawer-body,.near-value-body) [aria-busy="false"]') !== null,
       "second Add did not finish",
     );
@@ -626,11 +628,11 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     assert(!desktop.surface.projection!.rows[0].cells[col("optionalCode")].isNull,"explicit empty string remained null");await undo();assert((await bytes()).after===base.after,"empty string Undo lost null");
     record("null-scalar-inline-empty-outside-and-explicit-string");
     await desktop.addRow();await until(()=>desktop.surface.projection!.totalRows===3&&!desktop.surface.busy,"Added row missing");
-    await focusCell(2,col("enabled"));key(desktop.viewport!,"Enter");await until(()=>!!document.querySelector('.null-bool-editor'),"null bool did not expose inline choices");
-    assert(desktop.surface.projection!.rows[2].cells[col("enabled")].isNull&&!desktop.interaction.complex,"opening null bool materialized a default or opened a pane");
-    find('[aria-label="enabled 行 3 をfalseにする"]').click();await until(()=>desktop.surface.projection!.rows[2].cells[col("enabled")].display==="false"&&!desktop.surface.busy,"explicit bool choice failed");await settle();await undo();
-    assert(desktop.surface.projection!.rows[2].cells[col("enabled")].isNull,"bool choice was not one Undo");await undo();assert((await bytes()).after===base.after,"Added-row bool workflow changed the restored source");
-    record("added-null-boolean-inline-choice-and-exact-undo");
+    assert(desktop.surface.projection!.rows[2].cells.every(cell=>cell.valid),"new record contains invalid defaults");
+    await focusCell(2,col("enabled"));assert(desktop.surface.projection!.rows[2].cells[col("enabled")].display==="false","new bool did not default to false");
+    find('#cell-2-'+col("enabled")+' button.cell-bool').click();await until(()=>desktop.surface.projection!.rows[2].cells[col("enabled")].display==="true","default bool toggle failed");await settle();await undo();
+    assert(desktop.surface.projection!.rows[2].cells[col("enabled")].display==="false","bool toggle was not one Undo");await undo();assert((await bytes()).after===base.after,"Added-row defaults workflow changed restored bytes");
+    record("added-valid-defaults-boolean-toggle-and-exact-undo");
 
 
     await focusCell(0,col("reward"));key(desktop.viewport!,"Enter");

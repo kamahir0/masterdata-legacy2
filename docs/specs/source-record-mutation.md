@@ -24,7 +24,7 @@ Source Record Editの`SOURCE-EDIT-007`から`SOURCE-EDIT-016`が定義するfile
 ### SOURCE-RECORD-001
 
 record追加・削除はexactなbase snapshotとselected record-bearing source fileに対して実行しなければならない（MUST）。existing recordの削除対象はbase snapshot内のrecord occurrenceとして識別しなければならず（MUST）、Primary Key valueだけ、logical Table内のrecord identityだけ、または他Data fileを含むmerged dataset上の位置だけで対象を選んではならない（MUST NOT）。
-`records`を明示したschema fileもselected sourceとして同じrecord mutationを受けられなければならない（MUST）。この場合もschema declarationをrecord mutationへ暗黙に含めず、file単位Saveとlost-update preflightを適用する。
+`records`を明示したschema fileもselected sourceとして同じrecord mutationを受けられなければならない（MUST）。records未定義のschemaを明示選択した場合は、empty record destinationとして扱い、最初のAddでrecordsを局所追加する。この場合もschema declarationをrecord mutationへ暗黙に含めず、file単位Saveとlost-update preflightを適用する。
 
 同一Primary Key valueを持つrecordが同一または別Data documentに共存しても、選択したsource occurrence以外を削除してはならない（MUST NOT）。
 
@@ -44,9 +44,7 @@ Primary Key / Secondary Key構成fieldをaddition requestから省略しては�
 
 Added record draftのfield valueは[Source Record Edit](source-edit.md)の`SOURCE-EDIT-016`と同じlossless typed value representationをapplication boundaryで使用しなければならない（MUST）。特に任意のnested positionにある`long` / `ulong`は全64-bit rangeをroundingなしで保持しなければならず（MUST）、frontend等でIEEE-754 `number`へ強制変換してはならない（MUST NOT）。
 
-Added record draftのまだ入力されていないtyped valueはSave candidate上でYAML `null`として表現しなければならない（MUST）。field entry自体を省略してはならず（MUST NOT）、first Enum member、numeric zero、empty string、empty Array、Custom Type default等のdomain valueを暗黙defaultとして発明してはならない（MUST NOT）。Nullable fieldの`null`はApproved Type Systemに従ってvalidであり、Required / Arrayまたはnon-nullを要求するvalue positionの`null`はdomain-invalidとしてshared validation diagnosticへ渡さなければならない（MUST）。そのvalidation errorだけを理由にSave candidate生成またはfile Saveを禁止してはならない（MUST NOT）。
-
-Custom Type等のcompound draftを利用者が具体的なmapping valueとしてmaterializeした場合、そのmappingはdeclared field entryを保持し、まだ入力されていないnested typed valueにも同じ`null` placeholder ruleを再帰的に適用しなければならない（MUST）。Array value自体が未入力なら`null` placeholderであり、利用者がArray valueをmaterializeした後のempty sequence `[]`はApproved Type Systemが定めるvalid empty Arrayとして扱う。
+Added record draftの初期値とkey allocationは[Authoring Defaults](authoring-defaults.md)の共有Rust生成を使う。frontendで未入力placeholderをdomain valueへ読み替えない。明示入力後のdomain-invalid valueもlosslessに保持し、そのvalidation errorだけでcandidate生成またはfile Saveを禁止しない。Custom Type materialize、Array item追加も同じownerへ従う。
 
 ### SOURCE-RECORD-005
 

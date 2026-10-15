@@ -335,8 +335,10 @@ fn source_creation_keeps_ordered_keys_schema_only_and_lossless_enum_members() {
     }
     assert_eq!(w.create_source(&request).unwrap().outcome, Outcome::Success);
     let source = w.select(&request.path, 0, 32).unwrap();
-    assert!(source.source.is_none());
-    assert!(!source.can_add);
+    assert_eq!(source.source.as_deref(), Some(request.path.as_str()));
+    assert!(source.can_add);
+    assert_eq!(source.total_rows, 0);
+    assert!(!source.dirty);
     assert_eq!(source.table.primary.fields, ["code", "id"]);
     assert_eq!(
         source

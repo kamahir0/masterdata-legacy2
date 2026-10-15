@@ -18,6 +18,7 @@ mod batch;
 pub mod complex;
 mod config;
 mod creation;
+mod defaults;
 mod migration;
 mod path;
 mod table_declaration;
@@ -253,6 +254,7 @@ pub struct Workspace {
     move_plans: BTreeMap<u64, native::MovePlan>,
     move_observations: BTreeMap<u64, native::MovePlan>,
     pending_moves: BTreeMap<u64, native::MovePlan>,
+    trash_pending: BTreeMap<String, String>,
     migration_plans: BTreeMap<u64, native::SourceSetPlan>,
     migration_results: BTreeMap<u64, native::SetResult>,
     completed_recoveries: BTreeMap<String, (native::RecoveryInfo, bool)>,
@@ -332,6 +334,7 @@ impl Workspace {
             move_plans: BTreeMap::new(),
             move_observations: BTreeMap::new(),
             pending_moves: BTreeMap::new(),
+            trash_pending: BTreeMap::new(),
             migration_plans: BTreeMap::new(),
             migration_results: BTreeMap::new(),
             completed_recoveries: BTreeMap::new(),
@@ -863,7 +866,10 @@ impl Workspace {
         }
         let table = self.current_table(table_name)?;
         let types = self.current_types()?;
-        let sources = self.read.record_sources(table_name);
+        let mut sources = self.read.record_sources(table_name);
+        if !sources.contains(&table.source) {
+            sources.push(table.source.clone());
+        }
         let record_source = if selected.kind.as_deref() == Some("data")
             || selected
                 .document
@@ -1539,6 +1545,7 @@ impl Workspace {
             })
             .map(|(path, _)| path.clone())
             .chain(self.creations.keys().cloned())
+            .chain(self.trash_pending.values().cloned())
             .chain(
                 self.pending_moves
                     .values()

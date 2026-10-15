@@ -74,7 +74,7 @@ def check_authoring(report):
     assert [item['name'] for item in report['checks']] == [
         'scalar-composition', 'pointer-range', 'row-drag-cancel', 'row-drag-drop',
         'bidirectional-row-motion', 'between-frame-row-drop', 'column-drag-drop', 'bidirectional-column-motion', 'array-drag-drop', 'complex-typing-add', 'complex-focus-intent', 'nested-problem-focus', 'complex-navigation', 'readable-table-context', 'inline-enum-choice-and-undo', 'boolean-direct-toggle-one-undo', 'boolean-active-control',
-        'nearby-flags-direct-operation', 'nullable-direct-null-and-undo', 'null-scalar-inline-empty-outside-and-explicit-string', 'added-null-boolean-inline-choice-and-exact-undo', 'near-editor-zero-gap-scroll-and-stable-surface', 'nearby-custom-open-is-read-only', 'nearby-array-and-nested-continuity',
+        'nearby-flags-direct-operation', 'nullable-direct-null-and-undo', 'null-scalar-inline-empty-outside-and-explicit-string', 'added-valid-defaults-boolean-toggle-and-exact-undo', 'near-editor-zero-gap-scroll-and-stable-surface', 'nearby-custom-open-is-read-only', 'nearby-array-and-nested-continuity',
     ], report['checks']
     assert report['source']['before'] == report['source']['after']
     assert report['schema']['before'] == report['schema']['after']
@@ -217,7 +217,7 @@ def check_project(report):
     assert report['checks'] == ['welcome-recent-and-appearance-entry', 'welcome-create-cancel-focus', 'welcome-recents-explicit-open-remove', 'unknown-open-reply-explicit-reopen',
                                'sidebar-whole-pane-state-preserved', 'source-only-tree-contextual-find-cancel', 'source-settings-error-visible-retains-type', 'contextual-find-type-table-warm-zero', 'create-all-dirty-guard-cancel',
                                'create-form-cancel-composition', 'nonempty-failure-retains-workspace',
-                               'unknown-creation-reply-explicit-open', 'source-settings-error-visible-retains-empty', 'guided-schema-explicit-no-record-source',
+                               'unknown-creation-reply-explicit-open', 'source-settings-error-visible-retains-empty', 'guided-schema-explicit-empty-inline-destination',
                                'explicit-data-logical-navigation-shared-draft', 'recent-canonical-root-order-dedup']
     assert not report['startup']['browserErrors']
     return {'checks': len(report['checks']), 'explicitProjectAndArtifactLifecycles': True}
@@ -254,6 +254,16 @@ def check_geometry(report):
                                'contextual-popup-remains-interactive']
     assert report['mountedRows'] <= 64 and not report['dirty'] and not report['startup']['browserErrors']
     return {'checks': len(report['checks']), 'stickyHitAreasProtected': True}
+
+
+def check_interaction(report):
+    assert not report.get('error'), report.get('error')
+    assert report['visibility'] == 'visible' and report['focused']
+    assert report['checks'] == ['new-source-origin-explicit-schema-and-defaults', 'nullable-boolean-choice-and-focus',
+        'save-commits-input-retains-focus-and-reports-target', 'nested-nullable-direct-create-cancel-and-exact-undo',
+        'flags-none-automatic-exclusion', 'invalid-array-explicit-repair-and-undo', 'file-pointer-threshold-folder-and-root-direct-move', 'explorer-delete-and-persisted-restore-wiring']
+    assert not report['dirty'] and not report['startup']['browserErrors']
+    return {'checks': len(report['checks']), 'safeDirectInteraction': True}
 
 
 def run(binary: Path, output: Path, case: str):
@@ -293,6 +303,10 @@ def run(binary: Path, output: Path, case: str):
             if case == 'declaration':
                 schema = project / 'sources/catalog-schema.yaml'
                 schema.write_bytes(schema.read_bytes().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
+        if case == 'interaction':
+            (project / 'sources/moved').mkdir()
+            (project / 'sources/interaction-schema.yaml').write_text('kind: schema\ntable: interaction\nfields:\n  - {key: 0, name: id, type: int}\n  - {key: 1, name: enabled, type: bool, nullable: true}\n  - {key: 2, name: details, type: Reward, nullable: true}\n  - {key: 3, name: numbers, type: int, array: true}\n  - {key: 4, name: flags, type: ItemTags}\nprimaryKey:\n  fields: [id]\n', encoding='utf-8')
+            (project / 'sources/interaction-data.yaml').write_text('kind: data\ntable: interaction\nrecords:\n  - id: 1\n    enabled: null\n    details: null\n    numbers: broken\n    flags: [None]\n  - id: 2\n    enabled: false\n    details: null\n    numbers: [1, 2, 3]\n    flags: [Fire]\n', encoding='utf-8')
         initial_sources = {path.relative_to(project): path.read_bytes() for path in project.rglob('*.yaml')}
         if case == 'settings':
             # Exercise preservation of CRLF plus the external LF comment on both
@@ -407,7 +421,7 @@ def run(binary: Path, output: Path, case: str):
                     oracle = ROOT / 'fixtures/rewrite-oracle/v1/capacity.json'
                     report['implementation']['oracleSha256'] = hashlib.sha256(oracle.read_bytes()).hexdigest()
                     report['dimensions'] = json.loads(oracle.read_text())['input']
-                if case in ['migration', 'type', 'declaration']:
+                if case in ['migration', 'type', 'declaration', 'interaction']:
                     report['sourceByteEvidence'] = {
                         str(path).replace('\\', '/'): {
                             'before': before.decode('utf-8'),
@@ -416,7 +430,7 @@ def run(binary: Path, output: Path, case: str):
                     }
                 # A failed assertion must retain the measurements that caused it.
                 output.write_text(json.dumps(report, indent=2), encoding='utf-8')
-                report['summary'] = {'navigation': check, 'external': check_external, 'creation': check_creation, 'authoring': check_authoring, 'path': check_path, 'migration': check_migration, 'type': check_type, 'delivery': check_delivery, 'capacity': check_capacity, 'tags': check_tags, 'settings': check_settings, 'project': check_project, 'declaration': check_declaration, 'focus': check_focus, 'geometry': check_geometry, 'explorer': check_explorer}[case](report)
+                report['summary'] = {'navigation': check, 'external': check_external, 'creation': check_creation, 'authoring': check_authoring, 'path': check_path, 'migration': check_migration, 'type': check_type, 'delivery': check_delivery, 'capacity': check_capacity, 'tags': check_tags, 'settings': check_settings, 'project': check_project, 'declaration': check_declaration, 'focus': check_focus, 'geometry': check_geometry, 'explorer': check_explorer, 'interaction': check_interaction}[case](report)
                 if case == 'project':
                     assert not (temporary / 'cancelled').exists() and not (temporary / 'welcome-cancel').exists(), 'Cancel created a Project'
                     assert (removed / 'notes').read_bytes() == b'user bytes', 'Recent removal modified disk'
@@ -539,7 +553,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--binary', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--case', choices=['navigation', 'authoring', 'external', 'creation', 'path', 'migration', 'type', 'delivery', 'capacity', 'tags', 'settings', 'project', 'declaration', 'focus', 'geometry', 'explorer'], default='navigation')
+    parser.add_argument('--case', choices=['navigation', 'authoring', 'external', 'creation', 'path', 'migration', 'type', 'delivery', 'capacity', 'tags', 'settings', 'project', 'declaration', 'focus', 'geometry', 'explorer', 'interaction'], default='navigation')
     args = parser.parse_args()
     if args.output.resolve().is_relative_to(ROOT / 'fixtures'):
         parser.error('frozen fixture cannot be output')

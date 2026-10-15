@@ -376,6 +376,8 @@ const ColumnHeader = memo(
               <Select
                 aria-label={`${field.name} の型`}
                 variant="borderless"
+                showSearch
+                optionFilterProp="label"
                 value={field.typeName}
                 options={options}
                 disabled={busy}
@@ -404,7 +406,7 @@ const ColumnHeader = memo(
                 <Button
                   type="text"
                   className={field.array ? "modifier active" : "modifier"}
-                  icon={<SwapOutlined aria-hidden="true" />}
+                  icon={<span aria-hidden="true">[]</span>}
                   aria-label={`${field.name} 配列`}
                   aria-pressed={field.array}
                   disabled={busy}
@@ -578,7 +580,7 @@ const GridRow = memo(function GridRow({
               cell.value && "value" in cell.value && typeof cell.value.value==="string" && ["true","false"].includes(cell.value.value) ?
               <button className="cell-bool" role="switch" aria-checked={cell.value.value==="true"} aria-label={`${p.columns[column].field.name} 行 ${row.viewIndex+1} を切り替え`}
                 onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();if(!e.shiftKey&&!e.metaKey&&!e.ctrlKey&&!consumeSpatialClick(e.detail))void desktop.toggleBoolean(p,row.id,p.columns[column].field.name);}}>
-                <span className="bool-indicator" aria-hidden="true"/>{cell.display}
+                <span className="bool-indicator" aria-hidden="true"><span/></span>{cell.display}
               </button> : <span className="cell-value">{complexSummary(cell.display, cell.value === null)}</span>}
           </div>
         );
@@ -717,7 +719,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
       }}
     >
       {nullBoolean ? <div className="null-bool-editor" role="group" aria-label={`${editor.field} 行 ${editor.rowIndex+1}`} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();cancel();desktop.viewport?.focus();}}}>
-        {["true","false"].map((choice,index)=><Button key={choice} autoFocus={index===0} onPointerDown={e=>{e.stopPropagation();e.preventDefault();}} aria-label={`${editor.field} 行 ${editor.rowIndex+1} を${choice}にする`} disabled={desktop.surface.busy} onClick={()=>{value.current=choice;setText(choice);void commit();}}>{choice}</Button>)}
+        {["true","false"].map((choice,index)=><Button key={choice} autoFocus={index===0} onPointerDown={e=>{e.stopPropagation();e.preventDefault();}} aria-label={`${editor.field} 行 ${editor.rowIndex+1} を${choice}にする`} disabled={desktop.surface.busy} onClick={()=>{value.current=choice;setText(choice);void commit().then(ok=>{if(ok)desktop.viewport?.focus({preventScroll:true});});}}>{choice}</Button>)}
       </div> : boolean ? <span onKeyDown={e => { if(e.key === "Escape") {e.preventDefault();e.stopPropagation();cancel();desktop.viewport?.focus();} }}><Switch autoFocus aria-label={`${editor.field} 行 ${editor.rowIndex + 1}`} checked={text === "true"} checkedChildren="true" unCheckedChildren="false"
         onChange={checked => { value.current = checked ? "true" : "false"; setText(value.current); void commit().then(ok => {if(ok)desktop.viewport?.focus({preventScroll:true});}); }}
         /></span> : <Input
@@ -773,7 +775,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
           }
         }}
       />}
-      {editor.isNull&&(shape?.typeName==="string"||shape?.underlying==="string")&&<button className="explicit-empty" aria-label="空文字にする" title="空文字にする" onPointerDown={e=>e.preventDefault()} onClick={()=>void desktop.edit(editor,"",true)}>""</button>}
+      {editor.isNull&&(shape?.typeName==="string"||shape?.underlying==="string")&&<button className="explicit-empty" aria-label="空文字にする" title="空文字にする" onPointerDown={e=>e.preventDefault()} onClick={()=>void desktop.edit(editor,"",true).then(ok=>{if(ok)desktop.viewport?.focus({preventScroll:true});})}>""</button>}
     </div>
   );
 }

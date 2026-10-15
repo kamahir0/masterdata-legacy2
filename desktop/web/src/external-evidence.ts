@@ -20,13 +20,15 @@ function text(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 const name = () => desktop.surface.projection?.rows[0]?.cells.find((_cell, i) => desktop.surface.projection?.columns[i].field.name === "name")?.display;
-// Textarea's API value uses LF, even when its raw input contains CRLF. Only
-// this presentation assertion adapts it; Rust / disk evidence stays exact.
-// https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element
-const textAreaValue = (bytes: string) => bytes.replace(/\r\n?/g, "\n");
-async function phase(phase: string) {
-  await invoke("evidence_write", { report: { phase } });
+// Diff rows present LF line breaks; comparison payload / disk assertions
+// below continue to require exact original CRLF bytes.
+function comparedText(side:number){return [...document.querySelectorAll<HTMLElement>(`.diff-row>div:nth-child(${side})`)].filter(row=>row.querySelector('.diff-number')?.textContent).map(row=>[Number(row.querySelector('.diff-number')!.textContent),row.querySelector('code')!.textContent??''] as const);}
+async function compareVisibleSource(side:number){
+ const el=document.querySelector<HTMLElement>('.diff-body')!;const lines=new Map<number,string>();
+ for(let top=0;top<el.scrollHeight;top+=Math.max(22,el.clientHeight/2)){el.scrollTop=top;await frame();for(const [n,text] of comparedText(side))lines.set(n,text);}
+ el.scrollTop=0;await frame();assert(document.querySelectorAll('.diff-row').length<100,'Diff mounted an unbounded source');return [...lines].sort((a,b)=>a[0]-b[0]).map(([,text])=>text).join('\n');
 }
+async function phase(phase:string){await invoke("evidence_write",{report:{phase}});}
 export async function run({ startup }: { startup: Record<string, unknown> }) {
   const checks: string[] = [];
   let sourceComparison: Compare | null = null;
@@ -60,22 +62,16 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     assert(name() === "unfinished input" && desktop.surface.projection!.canUndo, "Conflict discarded local draft/history");
     checks.push("dirty-conflict");
     await desktop.compare(SOURCE);
-    await until(() => {
-      const compared=desktop.surface.comparison;
-      return !!compared?.conflict && document.querySelector<HTMLTextAreaElement>("[aria-label=\"ディスク上のソース\"]")?.value===textAreaValue(compared.before) &&
-        document.querySelector<HTMLTextAreaElement>("[aria-label=\"保存候補\"]")?.value===textAreaValue(compared.after);
-    },"Conflict comparison did not identify the current external source");
+    await until(()=>!!desktop.surface.comparison?.conflict&&!!document.querySelector('.diff-row'),"Conflict comparison did not identify the current external source");
+    assert(await compareVisibleSource(1)===desktop.surface.comparison!.before.replace(/\r\n?/g,"\n")&&await compareVisibleSource(2)===desktop.surface.comparison!.after.replace(/\r\n?/g,"\n"),'Diff changed visible source bytes');
     sourceComparison=desktop.surface.comparison!;
     assert([sourceComparison.base,sourceComparison.before,sourceComparison.after].every(bytes=>bytes.includes('\r\n')),
       "comparison payload normalized the arranged physical source's CRLF");
     assert(desktop.surface.comparison!.base!==desktop.surface.comparison!.before,
       "Conflict comparison lost the distinct editing base");
     await desktop.compare("sources/catalog-schema.yaml");
-    await until(() => {
-      const compared=desktop.surface.comparison;
-      return compared?.source==="sources/catalog-schema.yaml" && !compared.conflict &&
-        document.querySelector<HTMLTextAreaElement>("[aria-label=\"編集元のソース\"]")?.value===textAreaValue(compared.base);
-    },"clean physical source inherited another source's Conflict / external comparison");
+    await until(()=>desktop.surface.comparison?.source==="sources/catalog-schema.yaml"&&!desktop.surface.comparison.conflict&&!!document.querySelector('.diff-row'),"clean physical source inherited another source's Conflict / external comparison");
+    assert(await compareVisibleSource(1)===desktop.surface.comparison!.base.replace(/\r\n?/g,"\n"),'clean Diff changed visible base bytes');
     assert(![...document.querySelectorAll<HTMLButtonElement>('.ant-modal button')].some(button=>button.textContent?.includes("上書き")),
       "another physical source's Conflict exposed Overwrite");
     checks.push("compare-isolates-physical-source");
@@ -98,10 +94,12 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
       observed=false;paused=new Promise<void>(resolve=>release=resolve);
       const closing=desktop.compare('sources/catalog-schema.yaml');
       await until(()=>observed,'closing comparison reply was not captured');
-      desktop.closeCompare();release();await closing;
+      document.querySelector<HTMLButtonElement>('.ant-modal-footer button')!.click();
+      await frame();assert(document.activeElement===desktop.viewport,"closing Diff did not restore keyboard focus before its exit animation");
+      release();await closing;
       assert(!desktop.surface.comparison,'late comparison reopened a closed surface');
     } finally {release();desktop.rpc=transport;}
-    await until(()=>!document.querySelector("[aria-label=\"ディスク上のソース\"]"),"comparison did not close");
+    await until(()=>!document.querySelector(".source-diff"),"comparison did not close");
     checks.push("obsolete-compare-cannot-replace-or-reopen");
     desktop.setSelection(0, desktop.surface.projection!.columns.findIndex(c => c.field.name === "name"));
     desktop.beginEditor();
@@ -140,8 +138,8 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     await invoke("evidence_write", { report: {kind: "external", checks, sourceComparison, startup, visibility: document.visibilityState, focused: document.hasFocus(), mountedRows: document.querySelectorAll(".grid-row").length, dirty: desktop.surface.status.dirty, conflict: desktop.surface.projection!.conflict} });
   } catch (error) {
     await invoke("evidence_write", {report: {kind: "external", error: String(error), checks, sourceComparison, comparison: desktop.surface.comparison,
-      comparedText: {external: document.querySelector<HTMLTextAreaElement>("[aria-label=\"ディスク上のソース\"]")?.value,
-        base: document.querySelector<HTMLTextAreaElement>("[aria-label=\"編集元のソース\"]")?.value},
+      comparedText: {external: comparedText(1),
+        base: comparedText(1)},
       startup, status: desktop.surface.status, surfaceError: desktop.surface.error, projection: desktop.surface.projection, interaction: desktop.interaction, active: document.activeElement?.outerHTML.slice(0, 1500)}});
   }
 }

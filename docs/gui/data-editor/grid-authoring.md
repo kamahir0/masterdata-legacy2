@@ -71,3 +71,9 @@ typed paste、境界超過・unsafe時のall-or-none、Searchと編集のcomposi
 ## Rewrite transition
 
 [Rewrite baseline](../rewrite-baseline.md)が日常surfaceの範囲を所有する。旧独立Diff / Typed Filter / View Sort / Advanced Batch / Overviewのcapabilityはcurrent implementationに一時的に残ってよいが、clean implementationの必須surfaceではない。
+
+### GUI-GRID-009 — Visible editing continuity
+
+未訪問sourceのselectionは他sourceの座標を継承せず、そのsourceの初期状態とする。keyboard editor開始前にactive cellを可視化する。Save、nullable確定、明示empty string、nested typing取消でcontrolが消える場合も、origin cellまたは対応する表示controlへfocusを戻す。outside clickは新しいfocus intentを保持する。inactive selection、keyboard focus、typingを視覚的に区別する。
+
+行/列追加actionはgrid右/下の専用sticky領域に配置し、末尾data、context操作、scrollbarを覆わない。Problems開閉後のvisible viewportとdrag auto-scroll/preview clipの境界を一致させる。Array dragでoriginと連続したpreviewを可視に保つ。

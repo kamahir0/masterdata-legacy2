@@ -62,7 +62,7 @@ export async function run({startup}:{startup:Record<string,unknown>}){
 
     await desktop.selectTarget(SOURCE,'project-setup',false);
     const treeLabels=[...document.querySelectorAll<HTMLElement>('#explorer .source')].map(e=>e.textContent!.trim()).sort();
-    const physicalLabels=desktop.surface.inventory!.sources.map(source=>source.path.split('/').at(-1)!).sort();
+    const physicalLabels=desktop.surface.inventory!.sources.map(source=>(source.category&&!source.error?source.path.split('/').at(-1)!.replace(/\.ya?ml$/i,''):source.path.split('/').at(-1)!)).sort();
     assert(JSON.stringify(treeLabels)===JSON.stringify(physicalLabels),'Explorer mixed domain groups into the physical source hierarchy');
     assert(desktop.surface.inventory!.sourceDirectory==='sources'&&!document.querySelector('#explorer [data-path="folder:sources"]'),'Explorer retained the fixed root row');
     const selection=desktop.interaction.selection;
@@ -154,9 +154,9 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     [...document.querySelectorAll<HTMLLabelElement>('.ant-modal label')].find(e=>shown(e)&&e.textContent==="空のインラインレコード")!.click();
     await until(()=>!button("作成").disabled,'schema-only preview not ready');button("作成").click();
     await until(()=>!!desktop.surface.projection&&!desktop.surface.pending&&!document.querySelector('.creation-inline'),'guided Table did not open');
-    assert(Number(desktop.surface.inventory!.sources.length)===1&&desktop.surface.projection!.totalRows===0&&!desktop.surface.projection!.canAdd,'schema creation invented a record destination');
+    assert(Number(desktop.surface.inventory!.sources.length)===1&&desktop.surface.projection!.totalRows===0&&desktop.surface.projection!.canAdd&&!desktop.surface.projection!.dirty,'empty Schema lacks its explicit inline record destination');
     const table=desktop.surface.inventory!.logicalTables[0];assert(table&&table.name===desktop.surface.projection!.table.name,'logical Table identity was derived from filename');
-    checks.push('guided-schema-explicit-no-record-source');
+    checks.push('guided-schema-explicit-empty-inline-destination');
 
     button("ソースを作成").click();await until(()=>[...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].some(e=>shown(e)&&e.textContent==="データ"),'Data menu missing');
     [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(e=>shown(e)&&e.textContent==="データ")!.click();

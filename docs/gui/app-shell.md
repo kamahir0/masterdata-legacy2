@@ -142,3 +142,7 @@ None identified for the initial Desktop existing-record authoring shell. window 
 
 
 [Rewrite baseline](rewrite-baseline.md)はlegacy surfaceのtransitionを所有する。
+
+### GUI-SHELL-FEEDBACK-001
+
+routine buffer更新で画面全体のcontrolsをflash/fadeさせない。短い保存feedbackは保存対象を示し、終了guardはdirty sourceとProject Settingsの対象を表示する。Problemsはbasename:0だけでなくsource/occurrence/pathを伝え、原因と波及を理解できるようにする。比較画面は全文を保持しつつ変更行を識別可能にする。

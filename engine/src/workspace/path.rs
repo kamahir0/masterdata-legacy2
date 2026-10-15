@@ -11,10 +11,11 @@ pub struct MoveReview {
 }
 impl Workspace {
     pub(super) fn check_pending_move(&self, path: &str) -> Result<()> {
-        if self
-            .pending_moves
-            .values()
-            .any(|p| p.source == path || p.destination == path)
+        if self.trash_pending.values().any(|p| p == path)
+            || self
+                .pending_moves
+                .values()
+                .any(|p| p.source == path || p.destination == path)
         {
             return Err(Error::new(
                 "E-OUTCOME-UNKNOWN",
@@ -258,5 +259,96 @@ impl Workspace {
         self.snapshots.insert(path.into(), actual);
         self.external_version += 1;
         Ok(())
+    }
+}
+
+impl Workspace {
+    pub fn source_trash(&mut self) -> Result<Vec<native::trash::Entry>> {
+        self.check_config()?;
+        let entries = native::trash::entries(&self.read.root, &self.read.roots)?;
+        for entry in &entries {
+            if self.trash_pending.contains_key(&entry.id) && entry.state != "OutcomeUnknown" {
+                self.trash_pending.remove(&entry.id);
+                if entry.state == "Stored" || entry.state == "Conflict" {
+                    self.accept_source_removal(&entry.source);
+                }
+                if self.read.root.join(&entry.source).exists() {
+                    self.refresh_paths(&[self.read.root.join(&entry.source)]);
+                }
+            }
+        }
+        Ok(entries
+            .into_iter()
+            .filter(|e| e.state != "Restored")
+            .collect())
+    }
+    fn accept_source_removal(&mut self, source: &str) {
+        self.drafts.remove(source);
+        self.snapshots.remove(source);
+        self.views.remove(source);
+        self.unavailable.remove(source);
+        self.search_indexes.remove(source);
+        self.last_source.retain(|_, path| path != source);
+        let read = Arc::make_mut(&mut self.read);
+        read.sources.remove(source);
+        read.rebuild_declarations();
+        read.generation += 1;
+        self.authoring_views.clear();
+        self.generation += 1;
+        self.external_version += 1;
+        self.diagnostics_pending = true;
+    }
+    pub fn trash_source(&mut self, source: &str) -> Result<serde_json::Value> {
+        self.trash_source_with_fault(source, Fault::None)
+    }
+    pub fn trash_source_with_fault(
+        &mut self,
+        source: &str,
+        fault: Fault,
+    ) -> Result<serde_json::Value> {
+        self.path_gate(source)?;
+        let actual = native::capture(&self.read.root, &self.read.roots, source)?;
+        if actual.bytes != self.read.sources[source].bytes {
+            return Err(Error::new(
+                "E-SOURCE-CONFLICT",
+                "source changed before deletion",
+            ));
+        }
+        let (receipt, result) = native::trash::archive_with_fault(
+            &self.read.root,
+            &self.read.roots,
+            source,
+            self.snapshots.get(source).unwrap_or(&actual),
+            fault,
+            || self.check_config(),
+        )?;
+        if result.outcome == Outcome::Success {
+            self.accept_source_removal(source);
+        } else if result.outcome == Outcome::OutcomeUnknown {
+            self.trash_pending.insert(receipt.id.clone(), source.into());
+        }
+        Ok(serde_json::json!({"receipt":receipt,"result":result}))
+    }
+    pub fn restore_source(&mut self, id: &str) -> Result<WriteResult> {
+        self.check_config()?;
+        if self.recovery_required || native::has_pending_recovery(&self.read.root)? {
+            return Err(Error::new("E-RECOVERY-REQUIRED", "source restore is gated"));
+        }
+        if self.trash_pending.contains_key(id) {
+            return Err(Error::new(
+                "E-OUTCOME-UNKNOWN",
+                "recheck trash before restore",
+            ));
+        }
+        let (source, result) =
+            native::trash::restore(&self.read.root, &self.read.roots, id, || {
+                self.check_config()
+            })?;
+        if result.outcome == Outcome::Success {
+            self.refresh_paths(&[self.read.root.join(&source)]);
+        } else if result.outcome == Outcome::OutcomeUnknown {
+            self.trash_pending.insert(id.into(), source);
+        }
+        Ok(result)
     }
 }

@@ -44,3 +44,10 @@ test('inline filenameのstem選択は拡張子とdotfileを保持する',()=>{
   assert.equal(stemEnd('Item.yaml'),4);assert.equal(stemEnd('item.part.yml'),9);
   assert.equal(stemEnd('folder'),6);assert.equal(stemEnd('.hidden'),7);
 });
+test('認識済みsourceの表示だけで拡張子を省略し、unknownとpath identityを保持する',()=>{
+  const nodes=explorerEntries(inventory),known=nodes.find(n=>n.key==='sources/entry1.yaml');
+  assert.equal(known.name,'entry1');assert.equal(known.path,'sources/entry1.yaml');
+  const items=nodes[0].children;
+  assert.equal(items.find(n=>n.key==='sources/items/readme.yaml').name,'readme.yaml');
+  assert.equal(items.find(n=>n.key==='sources/items/schema.yaml').name,'schema');
+});

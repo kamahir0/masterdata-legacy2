@@ -189,7 +189,17 @@ impl Document {
     }
 
     pub fn records(&self) -> Result<&[Item]> {
-        self.root.required("records")?.items()
+        match self.root.get("records") {
+            Some(records) => records.items(),
+            None if self
+                .root
+                .get("kind")
+                .is_some_and(|n| n.text().is_ok_and(|s| s == "schema")) =>
+            {
+                Ok(&[])
+            }
+            None => Err(Error::new("E-YAML-MEMBER", "records required")),
+        }
     }
 
     pub fn edit_occurrence(

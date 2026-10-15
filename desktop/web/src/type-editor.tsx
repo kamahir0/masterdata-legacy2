@@ -17,6 +17,7 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
   const [height,setHeight]=useState(420),[draft,setDraft]=useState<Draft|null>(null);
   const live=useRef(draft);live.current=draft;
   const ids=useRef(0),version=useRef(0),shapeVersion=useRef(0);
+  const [initializerPending,setInitializerPending]=useState(false);
   const planFocus=useRef<{token:string;intent:number}|null>(null);
   const inputFocus=useRef<{id:number;intent:number}|null>(null),focusedInput=useRef<number|null>(null);
   const wasOverlay=useRef(false),nameComposing=useRef(false),restoreAfterApply=useRef(true),nameCommit=useRef<Promise<boolean>|null>(null);
@@ -126,14 +127,28 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
   const field=draft?.command.operation==="addCustomField"?draft.command.declaration:null;
   useEffect(()=>{
     const current=live.current;if(!current||current.command.operation!=="addCustomField")return;
-    const mine=++shapeVersion.current;
-    void desktop.rpc<Shape>({kind:"typeInitializer",epoch:current.target.sessionEpoch,source:current.target.source,identity:current.target.identity,declaration:current.command.declaration}).then(reply=>{
-      if(mine===shapeVersion.current&&live.current?.id===current.id&&reply.host.epoch===desktop.surface.status.epoch)patch({shape:reply.data,shapeError:null});
-    }).catch(error=>{if(mine===shapeVersion.current&&live.current?.id===current.id)patch({shape:null,shapeError:message(error)});});
+    const mine=++shapeVersion.current,declaration=current.command.declaration;
+    const valid=()=>mine===shapeVersion.current&&live.current?.id===current.id&&current.target.sessionEpoch===desktop.surface.status.epoch;
+    setInitializerPending(true);
+    void (async()=>{
+      try {
+        const reply=await desktop.rpc<Shape>({kind:"typeInitializer",epoch:current.target.sessionEpoch,source:current.target.source,identity:current.target.identity,declaration});
+        if(!valid())return;
+        patch({shape:reply.data,shapeError:null});
+        const input=live.current!.input;
+        if(input.kind==='unset'){
+          const initial=await desktop.rpc<ConstantInput>({kind:'initializerValue',epoch:current.target.sessionEpoch,source:current.target.source,identity:current.target.identity,declaration,path:[],action:{kind:'default'}});
+          // An explicit edit, including Unset, owns the temporary initializer;
+          // a late default reply must not replace that newer input.
+          if(valid()&&live.current!.input===input)patch({input:initial.data});
+        }
+      }catch(error){if(valid())patch({shape:null,shapeError:message(error)});}
+      finally{if(valid())setInitializerPending(false);}
+    })();
     return()=>{shapeVersion.current++;};
   },[draft?.id,field?.typeName,field?.nullable,field?.array]);
   async function plan(replan=false) {
-    const current=live.current;if(!current||current.applying||current.uncertain||current.pending)return;
+    const current=live.current;if(!current||current.applying||current.uncertain||current.pending||current.command.operation==='addCustomField'&&initializerPending)return;
     const mine=++version.current;
     const intent=desktop.inputIntent;
     patch({pending:true,review:replan?current.review:null,error:null,outcome:null});
@@ -282,7 +297,7 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
         <Button disabled={draft.applying} onClick={()=>{version.current++;inputFocus.current={id:draft.id,intent:desktop.inputIntent};focusedInput.current=null;patch({review:null});}}>入力を修正</Button>
         {draft.stale&&<Button title="現在の対象ソースから変更計画を取得します" loading={draft.pending} disabled={draft.applying} onClick={()=>void plan(true)}>計画を作り直す</Button>}
         <Button type="primary" danger={draft.review.destructive} loading={draft.applying} disabled={draft.pending||!!dirty.length||s.status.recoveryRequired||draft.stale||s.pending} onClick={()=>void apply()}>適用</Button>
-      </>:<Button type="primary" loading={draft.pending} disabled={draft.applying||s.status.recoveryRequired||s.pending} onClick={()=>void plan(draft.stale)}>{draft.stale?"計画を作り直す":"変更を確認"}</Button>}
+      </>:<Button type="primary" loading={draft.pending||command?.operation==='addCustomField'&&initializerPending} disabled={draft.applying||s.status.recoveryRequired||s.pending||command?.operation==='addCustomField'&&initializerPending} onClick={()=>void plan(draft.stale)}>{draft.stale?"計画を作り直す":"変更を確認"}</Button>}
     </Space>}>
       <Typography.Paragraph type="secondary" className="type-source">{draft.target.source}</Typography.Paragraph>{draft.uncertain&&<Typography.Paragraph>{uiTerms.sourceRecheckDescription}</Typography.Paragraph>}
       {!draft.review?<Form layout="vertical" className="type-operation" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing&&e.target instanceof HTMLInputElement){e.preventDefault();void plan(draft.stale);}}}>
@@ -291,9 +306,9 @@ export function TypeSurface({s,footer}:{s:Surface;footer:ReactNode}) {
         {command?.operation==="addEnumMember"&&<Form.Item label="数値を明示"><Input aria-label="メンバーの数値" readOnly={draft.pending} inputMode="numeric" value={command.value} onChange={e=>change({...command,value:e.target.value})}/></Form.Item>}
         {command?.operation==="addCustomField"&&<>
           <Flex gap={12}><Form.Item label="MessagePackキー"><Input aria-label="Custom Typeフィールドのキー" readOnly={draft.pending} value={command.declaration.key} onChange={e=>fieldChange({key:e.target.value})}/></Form.Item><Form.Item label="名前" className="type-field-name"><Input aria-label="Custom Typeフィールドの名前" readOnly={draft.pending} value={command.declaration.name} onChange={e=>fieldChange({name:e.target.value})}/></Form.Item></Flex>
-          <Form.Item label="基になる型"><Select aria-label="Custom Typeフィールドの基になる型" disabled={draft.pending} value={command.declaration.typeName} options={draft.choices.map(type=>({value:type,label:type}))} onChange={typeName=>fieldChange({typeName})}/></Form.Item>
+          <Form.Item label="基になる型"><Select showSearch optionFilterProp="label" aria-label="Custom Typeフィールドの基になる型" disabled={draft.pending} value={command.declaration.typeName} options={draft.choices.map(type=>({value:type,label:type}))} onChange={typeName=>fieldChange({typeName})}/></Form.Item>
           <Form.Item label="修飾子"><Radio.Group disabled={draft.pending} value={command.declaration.array?"array":command.declaration.nullable?"nullable":"required"} options={[{value:"required",label:"必須"},{value:"nullable",label:"nullを許可"},{value:"array",label:"配列"}]} onChange={e=>fieldChange({nullable:e.target.value==="nullable",array:e.target.value==="array"})}/></Form.Item>
-          {draft.shape?<TypedInitializer key={`${command.declaration.typeName}:${command.declaration.nullable}:${command.declaration.array}`} shape={draft.shape} value={draft.input} disabled={draft.pending} onChange={input=>change(command,input)}/>:draft.shapeError?<Alert type="error" showIcon title={uiMessage(draft.shapeError)}/>:<Spin size="small"/>}
+          {draft.shape?<TypedInitializer key={`${command.declaration.typeName}:${command.declaration.nullable}:${command.declaration.array}`} shape={draft.shape} value={draft.input} disabled={draft.pending||initializerPending} request={async(path,action)=>(await desktop.rpc<ConstantInput>({kind:'initializerValue',epoch:draft.target.sessionEpoch,source:draft.target.source,identity:draft.target.identity,declaration:command.declaration,path:path.map(String),action})).data} onChange={input=>change(command,input)}/>:draft.shapeError?<Alert type="error" showIcon title={uiMessage(draft.shapeError)}/>:<Spin size="small"/>}
         </>}
         {(command?.operation==="dropEnumMember"||command?.operation==="dropCustomField")&&<Typography.Paragraph>削除対象: <Typography.Text strong>{targetLabel(command)}</Typography.Text></Typography.Paragraph>}
       </Form>:<PlanPanel token={draft.review.token} focus={focusPlan}>

@@ -26,7 +26,7 @@ Added record draftはschema declaration orderの全fieldをrowとして表示し
 
 Added record draftのinputは[Source Record Edit](../../specs/source-edit.md)の`SOURCE-EDIT-016`に従うlossless typed valueとしてshared application boundaryへ渡さなければならない（MUST）。任意のnested positionにある`long` / `ulong`をJavaScript `number`等へ変換してはならない（MUST NOT）。
 
-まだ入力されていないtyped valueは[Source Record Mutation](../../specs/source-record-mutation.md)の`SOURCE-RECORD-004`に従いSave candidate上でYAML `null` placeholderとして扱わなければならない（MUST）。初期未入力stateまたはdomain-invalid stateを理由にcell edit、draft保持、file Saveを禁止してはならない（MUST NOT）。invalid stateはshared validation diagnosticとして表示する。
+初期値は[Source Record Mutation](../../specs/source-record-mutation.md)の`SOURCE-RECORD-004`と[Authoring Defaults](../../specs/authoring-defaults.md)へ従う。domain-invalid stateを理由にcell edit、draft保持、file Saveを禁止せず、shared validation diagnosticを表示する。
 
 ### GUI-DATA-ROW-004
 

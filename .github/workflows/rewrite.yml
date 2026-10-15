@@ -218,6 +218,12 @@ jobs:
           executable=target/release/masterdata-desktop
           if [ "$RUNNER_OS" = Windows ]; then executable="$executable.exe"; fi
           python verification/run_desktop.py --binary "$executable" --case creation --output verification/results/creation.json
+      - name: Native direct interaction, defaults, repair and recoverable source deletion
+        shell: bash
+        run: |
+          executable=target/release/masterdata-desktop
+          if [ "$RUNNER_OS" = Windows ]; then executable="$executable.exe"; fi
+          python verification/run_desktop.py --binary "$executable" --case interaction --output verification/results/interaction.json
       - name: Native source path mutation with physical-source Save / Discard guard
         shell: bash
         run: |

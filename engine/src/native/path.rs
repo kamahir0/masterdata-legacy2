@@ -7,6 +7,7 @@ pub struct MovePlan {
     pub base: Snapshot,
     root: PathBuf,
     selected_root: PathBuf,
+    destination_root: PathBuf,
     target: PathBuf,
     parent: Arc<Identity>,
 }
@@ -55,20 +56,11 @@ pub fn prepare_move(
     destination: &str,
     expected: &Snapshot,
 ) -> Result<MovePlan> {
-    let base = preflight(root, roots, source, expected)?;
-    if !exact_entry(&base.path)? {
-        return Err(Error::new(
-            "E-PATH-STALE",
-            "source spelling is no longer current",
-        ));
-    }
     let selected_root = roots
         .iter()
-        .find(|r| base.physical.starts_with(r))
-        .ok_or_else(|| Error::new("E-PATH-SCOPE", "configured source root required"))?
-        .clone();
-    let target = creation_path(root, &selected_root, destination)?;
-    if !target
+        .find(|r| expected.physical.starts_with(r))
+        .ok_or_else(|| Error::new("E-PATH-SCOPE", "source root required"))?;
+    if !Path::new(destination)
         .extension()
         .and_then(|e| e.to_str())
         .is_some_and(|e| matches!(e, "yaml" | "yml"))
@@ -78,19 +70,43 @@ pub fn prepare_move(
             "destination must be .yaml or .yml",
         ));
     }
+    prepare_transfer(
+        root,
+        selected_root,
+        selected_root,
+        source,
+        destination,
+        expected,
+    )
+}
+pub(super) fn prepare_transfer(
+    root: &Path,
+    source_root: &Path,
+    destination_root: &Path,
+    source: &str,
+    destination: &str,
+    expected: &Snapshot,
+) -> Result<MovePlan> {
+    let base = preflight(root, &[source_root.to_path_buf()], source, expected)?;
+    if !exact_entry(&base.path)? {
+        return Err(Error::new("E-PATH-STALE", "source spelling changed"));
+    }
+    let target = creation_path(root, destination_root, destination)?;
     let parent = Arc::new(path_identity(target.parent().unwrap()).map_err(io_error)?);
     let plan = MovePlan {
         source: source.into(),
         destination: destination.into(),
         base,
         root: root.into(),
-        selected_root,
+        selected_root: source_root.into(),
+        destination_root: destination_root.into(),
         target,
         parent,
     };
     destination_available(&plan)?;
     Ok(plan)
 }
+
 impl MovePlan {
     pub fn destination_matches(&self, snapshot: &Snapshot) -> bool {
         snapshot.file == self.base.file
@@ -104,7 +120,7 @@ impl MovePlan {
             &self.source,
             &self.base,
         )?;
-        if creation_path(&self.root, &self.selected_root, &self.destination)? != self.target
+        if creation_path(&self.root, &self.destination_root, &self.destination)? != self.target
             || path_identity(self.target.parent().unwrap())
                 .map_err(io_error)?
                 .ne(self.parent.as_ref())
@@ -198,7 +214,7 @@ fn rename_exclusive(plan: &MovePlan) -> std::io::Result<()> {
 pub fn observe_move(plan: &MovePlan) -> WriteResult {
     let new = capture(
         &plan.root,
-        std::slice::from_ref(&plan.selected_root),
+        std::slice::from_ref(&plan.destination_root),
         &plan.destination,
     );
     let old = capture(

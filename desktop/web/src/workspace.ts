@@ -148,6 +148,7 @@ export interface Surface {
   deliveryMutating: boolean;
   deliveryCapturing: boolean;
   error: string | null;
+  saveNotice: string | null;
   status: Status;
   query: string;
   queryPending: boolean;
@@ -183,7 +184,7 @@ const initialStatus: Status = {
   externalVersion: 0,
   environmentError: null,
 };
-const errorText = (e: unknown) =>
+export const errorText = (e: unknown) =>
   typeof e === "object" && e && "message" in e ? String(e.message) : String(e);
 export const basename = (path: string) => path.split("/").at(-1) ?? path;
 
@@ -205,6 +206,7 @@ class Desktop {
     pending: false,
     externalPending: false,
     busy: false,
+    saveNotice: null,
     deliveryMutating: false,
     deliveryCapturing: false,
     error: null,
@@ -373,6 +375,24 @@ class Desktop {
     const attempt=this.surface.projectOpenUncertain;if(!attempt)return;
     const epoch=await invoke<number>("project_epoch");
     await this.openProject(path,attempt.discard,epoch);
+  }
+  async sourceRemoved(source:string,epoch:number) {
+    if(epoch!==this.surface.status.epoch)return;
+    this.local.delete(source);
+    const p=this.surface.projection;
+    if(this.surface.target===source||p?.source===source||p?.table.source===source){
+      this.token++;this.readToken++;this.interact({editor:null,complex:null,tags:null,anchor:null,selection:{row:0,column:0,id:null,field:null}});
+      this.publish({target:"",projection:null,typeProjection:null,pending:false,queryPending:false,query:"",error:null});
+    }
+    await this.refreshInventory();
+  }
+  async selectRecordSource(source:string) {
+    const epoch=this.surface.status.epoch,intent=this.inputIntent;
+    try {
+      if(!(await this.commit()))return;
+      await this.rpc({kind:"recordSource",epoch,source});
+      if(epoch===this.surface.status.epoch&&intent===this.inputIntent){await this.selectTarget(source);if(intent===this.inputIntent&&[document.body,document.documentElement].includes(document.activeElement as HTMLElement))this.viewport?.focus({preventScroll:true});}
+    }catch(error){this.showError(error);}
   }
   async openRecent(path:string) {
     try {const guard=await this.guard();if(guard!=="cancel")await this.openProject(path,guard==="discard");}
@@ -640,6 +660,7 @@ class Desktop {
         externalPending: external,
         queryPending: searching,
         error: same ? this.surface.error : null,
+        saveNotice: same ? this.surface.saveNotice : null,
         comparison: null,
         typeProjection: same ? this.surface.typeProjection : null,
       }),
@@ -711,7 +732,7 @@ class Desktop {
           ? (this.local.get(p.source ?? "") ?? previous)
           : undefined;
       let row = Math.max(0, Math.min(
-        saved?.selection.row ?? this.interaction.selection.row,
+        saved?.selection.row ?? 0,
         Math.max(0, p.totalRows - 1),
       ));
       const visibleIdentity = p.rows.find((row) => row.id === saved?.selection.id);
@@ -738,7 +759,7 @@ class Desktop {
         : Math.max(
             0,
             Math.min(
-              saved?.selection.column ?? this.interaction.selection.column,
+              saved?.selection.column ?? 0,
               p.columns.length - 1,
             ),
           );
@@ -871,30 +892,22 @@ class Desktop {
       this.surface.projection?.rowStart ?? 0,
     );
   }
-  async operation(
-    intent: Record<string, unknown>,
-    refresh = true,
-  ): Promise<boolean> {
-    if (this.surface.busy) return false;
-    const target = this.surface.target,
-      epoch = this.surface.status.epoch;
-    this.publish({ busy: true, error: null });
+  private operationPending=false;
+  get mutating(){return this.operationPending||this.surface.busy;}
+  async operation(intent: Record<string, unknown>, refresh=true):Promise<boolean> {
+    if(this.mutating)return false;
+    const target=this.surface.target,epoch=this.surface.status.epoch;
+    this.operationPending=true;
+    this.publish({error:null,saveNotice:null});
+    // Fast buffer edits must not disable/re-enable every control and steal
+    // focus. The immediate private gate still serializes mutation requests.
+    const pending=setTimeout(()=>{if(epoch===this.surface.status.epoch)this.publish({busy:true});},180);
     try {
       await this.rpc(intent);
-      if (
-        refresh &&
-        target === this.surface.target &&
-        epoch === this.surface.status.epoch &&
-        !this.surface.pending
-      )
-        await this.refresh();
+      if(refresh&&target===this.surface.target&&epoch===this.surface.status.epoch&&!this.surface.pending)await this.refresh();
       return true;
-    } catch (e) {
-      if (epoch === this.surface.status.epoch) this.showError(e);
-      return false;
-    } finally {
-      if (epoch === this.surface.status.epoch) this.publish({ busy: false });
-    }
+    }catch(error){if(epoch===this.surface.status.epoch)this.showError(error);return false;}
+    finally{clearTimeout(pending);this.operationPending=false;if(epoch===this.surface.status.epoch&&this.surface.busy)this.publish({busy:false});}
   }
   setSelection(row: number, column: number, extend = false) {
     const p = this.surface.projection;
@@ -1002,7 +1015,7 @@ class Desktop {
       s = this.interaction.selection;
     if (
       !p?.source ||
-      this.surface.busy ||
+      this.mutating ||
       this.surface.pending ||
       this.surface.queryPending ||
       this.interaction.editor
@@ -1017,6 +1030,7 @@ class Desktop {
       });
       return;
     }
+    this.move(0, 0);
     const r = p.rows.find((r) => r.viewIndex === s.row),
       cell = r?.cells[s.column],
       column = p.columns[s.column];
@@ -1214,7 +1228,7 @@ class Desktop {
   }
   async fieldOperation(operation: FieldOperation, expected: Projection, ignoreTemporary = false) {
     const epoch = expected.sessionEpoch;
-    if (this.surface.busy || this.surface.status.recoveryRequired || this.surface.uncertainField || epoch !== this.surface.status.epoch) throw new Error("現在この操作を開始できません。未確定の結果は結果を再確認してください。");
+    if (this.mutating || this.surface.status.recoveryRequired || this.surface.uncertainField || epoch !== this.surface.status.epoch) throw new Error("現在この操作を開始できません。未確定の結果は結果を再確認してください。");
     if (!ignoreTemporary && !(await this.commit())) throw new Error("入力を確定できません。");
     const p = this.surface.projection;
     if (!p || p.clicked !== expected.clicked || p.sessionEpoch !== epoch) throw new Error("対象が変更されています。もう一度確定してください。");
@@ -1320,6 +1334,7 @@ class Desktop {
     if(this.surface.openingProject||this.surface.projectCreation||this.surface.projectOpenUncertain)return;
     if(this.surface.settingsOpen) {await this.settingsHooks?.save();return;}
     const p = this.surface.projection;
+    const restore = !!document.activeElement?.closest('#viewport,.active-cell-editor'), intent = this.inputIntent;
     if (!p || !(await this.commit())) return;
     await this.saveIntent({
       kind: "save",
@@ -1327,6 +1342,7 @@ class Desktop {
       table: p.table.name,
       source: p.source,
     });
+    if(restore && intent===this.inputIntent && this.surface.target===p.clicked)this.viewport?.focus({preventScroll:true});
   };
   saveAll = async () => {
     if(this.surface.openingProject||this.surface.projectCreation||this.surface.projectOpenUncertain)return;
@@ -1335,7 +1351,7 @@ class Desktop {
   };
   private async saveIntent(intent: Record<string, unknown>) {
     if(this.surface.openingProject)return;
-    if (this.surface.busy) return;
+    if (this.mutating) return;
     if (this.surface.deliveryCapturing) {this.showError("保存済み入力の取得中です。完了後に保存を再操作してください。");return;}
     const epoch = this.surface.status.epoch;
     this.publish({ busy: true, error: null });
@@ -1347,6 +1363,7 @@ class Desktop {
       const failures = r.data.filter((r) => r.outcome !== "Success");
       if (this.surface.status.epoch === r.host.epoch) {
         await this.refresh();
+        if (!failures.length) this.publish({saveNotice:r.data.map(item=>item.source).join("\n")||"保存済み"});
         if (failures.length)
           this.showError(
             failures
@@ -1394,7 +1411,7 @@ class Desktop {
         return "saved" as const;
       const choice = await this.choose(
         "未保存の変更",
-        "ソースとプロジェクト設定の変更をどう扱いますか。",
+        "次の未保存変更をどう扱いますか。\n" + [...latest.data.dirty, ...(latest.data.configDirty||this.settingsHooks?.dirty() ? ["masterdata.toml（プロジェクト設定）"] : [])].join("\n"),
         ["Save All", "Don't Save", "Cancel"],
       );
       if (choice === "Cancel") return "cancel" as const;

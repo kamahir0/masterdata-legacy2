@@ -1,11 +1,13 @@
 import {useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef} from 'react';
 import {Button, Dropdown, Input, Modal, Select, Spin, Tooltip, Tree, type MenuProps, type TreeDataNode} from 'antd';
-import {ApartmentOutlined, BarsOutlined, CheckOutlined, CloseOutlined, CopyOutlined, DatabaseOutlined, EditOutlined, FileAddOutlined, FileOutlined, FlagOutlined, FolderAddOutlined, FolderOpenOutlined, FolderOutlined, MoreOutlined, NumberOutlined, ReloadOutlined, SearchOutlined, TableOutlined, WarningOutlined, AimOutlined, RightOutlined} from '@ant-design/icons';
+import {ApartmentOutlined, BarsOutlined, CheckOutlined, CloseOutlined, DeleteOutlined, CopyOutlined, DatabaseOutlined, EditOutlined, FileAddOutlined, FileOutlined, FlagOutlined, FolderAddOutlined, FolderOpenOutlined, FolderOutlined, MoreOutlined, NumberOutlined, ReloadOutlined, SearchOutlined, TableOutlined, WarningOutlined, AimOutlined, RightOutlined} from '@ant-design/icons';
 import {invoke} from '@tauri-apps/api/core';
 import {basename, desktop, type Surface} from './workspace';
 import {sourceCategoryLabel} from './language';
 import {useCreation} from './creation';
 import {useSourcePath} from './source-path';
+import {explorerDrag} from './explorer-drag';
+import {useSourceTrash} from './source-trash';
 import {ancestorKeys, entryPath, explorerEntries, folderKey, matchingAncestors, nextPrefix, parentPath, visibleEntries, type ExplorerEntry, type ExplorerSort} from './explorer-model';
 
 function CollapseFoldersIcon(){return <svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' strokeWidth='1.2' aria-hidden='true' focusable='false'><path d='M5 2h8v8'/><rect x='2' y='5' width='8' height='8' rx='.6'/><path d='M4 9h4'/></svg>;}
@@ -31,7 +33,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   const filterInput=useRef<ComponentRef<typeof Input>>(null),prefix=useRef({text:'',time:0});
   const [context,setContext]=useState<string>(folderKey(root)),[contextOpen,setContextOpen]=useState(false);
   const [findEpoch,setFindEpoch]=useState<number|null>(null),findRestore=useRef<{input:number;epoch:number;target:string}|null>(null);
-  const [resizing,setResizing]=useState(false),dragWidth=useRef<{pointer:number;x:number;width:number}|null>(null),dragSource=useRef<string|null>(null);
+  const [resizing,setResizing]=useState(false),dragWidth=useRef<{pointer:number;x:number;width:number}|null>(null),fileDrag=useRef<(()=>void)|null>(null),suppressClick=useRef(0);
   const contextKey=()=>activeItem.current||selected||s.target||folderKey(root);
   const focusItem=(key:string,focus=true)=>{activate(key);setFocusRequest({key,intent:desktop.inputIntent,focus});};
   const revealPath=(path=s.target,focus=true)=>{
@@ -82,6 +84,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     setSelected(old=>old===source?destination:old);
     if(focus){setFilter('');focusItem(destination);}
   });
+  const trash=useSourceTrash(s,source=>{setSelected(old=>old===source?'':old);if(activeItem.current===source)activate(null);},source=>{setKeys(old=>[...new Set([...old,...ancestorKeys(source,root)])]);setSelected(source);focusItem(source);});
   const canCreate=creation.ready&&!creation.draft&&!pathMutation.open&&!s.status.recoveryRequired&&!s.status.environmentError;
   const canMove=(path:string)=>!creation.draft&&!pathMutation.open&&!s.busy&&!s.status.recoveryRequired&&!s.status.environmentError&&!s.status.uncertain.includes(path);
   const beginCreation=(category:Parameters<typeof creation.begin>[0],key=contextKey())=>{setFilter('');creation.begin(category,key);};
@@ -97,7 +100,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     setKeys(old=>[...new Set([...old,...ancestorKeys(pathMutation.draft!.source,root)])]);
     setFocusRequest({key:pathMutation.draft.source,intent:desktop.inputIntent,focus:false});
   },[pathMutation.draft?.id,inventory.generation,inventory.externalVersion]);
-  const entries=useMemo(()=>explorerEntries(inventory,sort,filter),[inventory,sort,filter]);
+  const entries=useMemo(()=>explorerEntries(inventory,sort,filter),[inventory.sources,inventory.folders,inventory.sourceDirectory,sort,filter]);
   const expanded=useMemo(()=>filter.trim()?matchingAncestors(entries):keys,[filter,entries,keys]);
   const visible=useMemo(()=>visibleEntries(entries,new Set(expanded)),[entries,expanded]);
   useEffect(()=>{
@@ -128,13 +131,14 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   const menuFor=(key:string):MenuProps=>({items:[
     ...newItems(),{type:'divider'},
     ...(!key.startsWith('folder:')?[{key:'rename',label:<span className='explorer-menu-label'>名前の変更…<span>F2</span></span>,icon:<EditOutlined aria-hidden='true'/>,disabled:!canMove(key)},
-      {key:'move',label:'移動…',icon:<FolderOpenOutlined aria-hidden='true'/>,disabled:!canMove(key)},{type:'divider' as const}]:[]),
+      {key:'move',label:'移動…',icon:<FolderOpenOutlined aria-hidden='true'/>,disabled:!canMove(key)},{key:'trash',label:'削除…',danger:true,icon:<CloseOutlined aria-hidden='true'/>,disabled:!canMove(key)},{type:'divider' as const}]:[]),
     {key:'copyRelative',label:'相対パスをコピー',icon:<CopyOutlined aria-hidden='true'/>},
     {key:'copyAbsolute',label:'パスをコピー',icon:<CopyOutlined aria-hidden='true'/>},
   ],onClick:({key:action})=>{
     setContextOpen(false);
     if(action==='rename')void pathMutation.begin(key,{inline:true});
     else if(action==='move')void pathMutation.begin(key);
+    else if(action==='trash')void trash.remove(key);
     else if(action==='copyRelative'||action==='copyAbsolute')copyPath(key,action==='copyAbsolute');
     else beginCreation(action as Parameters<typeof creation.begin>[0],key);
   }});
@@ -144,10 +148,11 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     {key:'find',label:'テーブル・型を検索…',icon:<SearchOutlined aria-hidden='true'/>,disabled:!findOptions.length||!!creation.draft||pathMutation.open},
     {type:'divider'},
     {key:'sort',label:'並べ替え',disabled:!!creation.draft||pathMutation.open,children:[{key:'sortName',label:'名前',icon:sort==='name'?<CheckOutlined aria-hidden='true'/>:null},{key:'sortType',label:'種類',icon:sort==='type'?<CheckOutlined aria-hidden='true'/>:null}]},
+    {key:'trashList',label:'削除したファイルを復元…',icon:<ReloadOutlined aria-hidden='true'/>},
     {key:'refresh',label:'一覧を更新',icon:<ReloadOutlined aria-hidden='true'/>},
     {key:'collapse',label:'フォルダーをすべて折りたたむ',icon:<CollapseFoldersIcon/>,disabled:!!creation.draft||pathMutation.open},
   ],onClick:({key})=>{
-    if(key==='reveal')revealPath();else if(key==='filter')openFilter();
+    if(key==='trashList')void trash.open();else if(key==='reveal')revealPath();else if(key==='filter')openFilter();
     else if(key==='find'){findRestore.current=null;setFindEpoch(s.status.epoch);}
     else if(key==='sortName'||key==='sortType')setSort(key==='sortName'?'name':'type');
     else if(key==='collapse'){setFilter('');setKeys([]);setSticky(null);}
@@ -186,6 +191,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='f'){event.preventDefault();event.stopPropagation();openFilter();return;}
     if(event.metaKey||event.ctrlKey||event.altKey||!event.target.closest('[role="tree"]'))return;
     const key=activeItem.current??selected;
+    if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();event.stopPropagation();if(key&&!key.startsWith('folder:')&&canMove(key))void trash.remove(key);return;}
     if(event.key==='F2'){event.preventDefault();event.stopPropagation();if(key&&!key.startsWith('folder:')&&canMove(key))void pathMutation.begin(key,{inline:true});return;}
     if(event.key==='Enter') {
       event.preventDefault();event.stopPropagation();if(!key)return;
@@ -211,9 +217,10 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     const key=first?.querySelector<HTMLElement>('[data-path]')?.dataset.path;
     const parent=key?parentPath(entryPath(key)):root;setSticky(parent&&parent!==root?parent:null);
   }
+  useEffect(()=>()=>fileDrag.current?.(),[]);
   function moveTo(source:string,folder:string) {
     if(!canMove(source)||parentPath(source)===folder)return;
-    void pathMutation.begin(source,{folder});dragSource.current=null;
+    void pathMutation.begin(source,{folder,direct:true});
   }
   const maxWidth=()=>Math.max(200,Math.min(520,(document.getElementById('workbench')?.clientWidth??840)-320));
   const clamp=(value:number)=>Math.max(200,Math.min(maxWidth(),value));
@@ -241,22 +248,19 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
         const key=row?.querySelector<HTMLElement>('[data-path]')?.dataset.path??folderKey(root);
         if(key==='creation:temporary')return;
         setContext(key);if(row){setSelected(key);activate(key);}
-      }} onDragOver={event=>{if(dragSource.current&&!((event.target as Element).closest('.ant-tree-treenode'))){event.preventDefault();event.dataTransfer.dropEffect='move';}}}
-        onDrop={event=>{if(dragSource.current&&!((event.target as Element).closest('.ant-tree-treenode'))){event.preventDefault();moveTo(dragSource.current,root);}}}>
+      }} onPointerDownCapture={event=>{fileDrag.current?.();fileDrag.current=explorerDrag(event,root,canMove,moveTo,()=>{suppressClick.current=performance.now()+400;});}}
+        onClickCapture={event=>{if(event.detail>0&&performance.now()<suppressClick.current){event.preventDefault();event.stopPropagation();suppressClick.current=0;}}}
+        onDragStart={event=>event.preventDefault()} onDragOver={event=>event.preventDefault()} onDrop={event=>event.preventDefault()}>
         {!nodes.length&&<div className='explorer-empty'>{filter?'一致するソースがありません':'ソースはまだありません'}</div>}
         <Tree ref={tree} aria-label='ソース' activeKey={activeKey} onActiveChange={key=>activate(key===null?null:String(key))}
-          treeData={nodes} height={height} itemHeight={22} virtual blockNode showIcon expandedKeys={expanded} selectedKeys={[selected]}
+          treeData={nodes} height={height} itemHeight={22} virtual blockNode showIcon motion={null} expandedKeys={expanded} selectedKeys={[selected]}
           onExpand={next=>{if(!filter.trim())setKeys(next.map(String));setSticky(null);}}
           onSelect={(_keys,info)=>{
             const key=String(info.node.key);setSelected(key);activate(key);
             if(key.startsWith('folder:'))toggleFolder(key);
             else if(key!==s.target||s.pending||(!s.projection&&!s.typeProjection))void desktop.selectTarget(key).catch(desktop.showError);
           }} onScroll={updateSticky}
-          draggable={{icon:false,nodeDraggable:node=>!String(node.key).startsWith('folder:')&&node.key!=='creation:temporary'&&canMove(String(node.key))}}
-          allowDrop={({dropPosition})=>dropPosition===0}
-          onDragStart={({node,event})=>{dragSource.current=String(node.key);event.dataTransfer?.setData('application/x-masterdata-source',String(node.key));}}
-          onDragEnd={()=>{dragSource.current=null;}}
-          onDrop={({dragNode,node})=>moveTo(String(dragNode.key),String(node.key).startsWith('folder:')?entryPath(String(node.key)):parentPath(String(node.key)))}
+
           titleRender={node=>node.key==='creation:temporary'?creation.inline:<span className='source' data-path={node.key} title={inventory.root+'/'+entryPath(String(node.key))}>
             {pathMutation.draft?.inline&&pathMutation.draft.source===node.key?pathMutation.inline:<>
               <span className='source-name'>{String(node.title)}</span>
@@ -268,6 +272,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
         {sticky&&!filter.trim()&&<button className='explorer-sticky' title={inventory.root+'/'+sticky} aria-label= {basename(sticky)+' フォルダーへ戻る'} onClick={()=>{setSelected(folderKey(sticky));focusItem(folderKey(sticky));setSticky(null);}}><RightOutlined rotate={90} aria-hidden='true'/><SourceIcon category='folder' expanded/><span>{basename(sticky)}</span></button>}
       </div>
     </Dropdown>
+    {trash.feedback}{trash.drawer}
     <div className='explorer-resize-handle' role='separator' aria-label='エクスプローラーの幅' aria-orientation='vertical' tabIndex={0} aria-valuemin={200} aria-valuemax={maxPaneWidth} aria-valuenow={width}
       onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();dragWidth.current={pointer:event.pointerId,x:event.clientX,width};event.currentTarget.setPointerCapture(event.pointerId);setResizing(true);}}
       onPointerMove={event=>{const drag=dragWidth.current;if(drag?.pointer===event.pointerId)resize(clamp(drag.width+event.clientX-drag.x));}}

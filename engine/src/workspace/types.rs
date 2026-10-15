@@ -171,6 +171,50 @@ impl Workspace {
         crate::migration::field_resolution(&project, &field)?;
         semantic::shape(&field, &project.types)
     }
+    pub fn type_initializer_value(
+        &mut self,
+        source: &str,
+        identity: &str,
+        declaration: &crate::creation::Declaration,
+        path: &[String],
+        action: crate::initializer::Action,
+    ) -> Result<crate::initializer::Input> {
+        let mut shape = self.type_initializer_shape(source, identity, declaration)?;
+        for step in path {
+            if shape.array {
+                shape.array = false;
+                shape.nullable = false;
+            } else {
+                shape = shape
+                    .fields
+                    .iter()
+                    .find(|(f, _)| f.name == *step)
+                    .map(|(_, s)| s.clone())
+                    .ok_or_else(|| Error::new("E-INITIALIZER", "initializer path changed"))?;
+            }
+        }
+        if let crate::initializer::Action::Flag {
+            symbol,
+            enabled,
+            members,
+        } = action
+        {
+            return Ok(crate::initializer::Input::Sequence {
+                value: crate::initializer::flags_members(&shape, members, symbol, enabled)?
+                    .into_iter()
+                    .map(|text| crate::initializer::Input::Scalar { text })
+                    .collect(),
+            });
+        }
+        if matches!(action, crate::initializer::Action::Materialize) {
+            shape.nullable = false;
+        }
+        let project = self.type_input_project(source, identity)?;
+        Ok(crate::initializer::from_value(super::defaults::value(
+            &shape,
+            &project.types,
+        )?))
+    }
     fn type_input_project(&self, source: &str, identity: &str) -> Result<Project> {
         let project = Project::open(&self.read.root)?;
         let target = project

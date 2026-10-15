@@ -30,7 +30,7 @@ async function focusedSource(label:string) {
   await until(()=>{
     const tree=document.activeElement;
     const target=tree?.getAttribute('aria-activedescendant');
-    return tree?.getAttribute('role')==='tree'&&!!target&&!!document.getElementById(target)?.textContent?.includes(label);
+    return tree?.getAttribute('role')==='tree'&&!!target&&!!document.getElementById(target)?.textContent?.includes(label.replace(/\.ya?ml$/i,''));
   },`created ${label} was not the active keyboard target`);
 }
 async function choose(label:string,value:string) {

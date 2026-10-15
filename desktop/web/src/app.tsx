@@ -14,6 +14,7 @@ import {
   Badge,
   Button,
   ConfigProvider,
+  Collapse,
   Dropdown,
   Drawer,
   Empty,
@@ -56,6 +57,7 @@ import {
   MenuUnfoldOutlined,
 } from "@ant-design/icons";
 import { desktop, basename, type Preference, type Surface } from "./workspace";
+import { SourceDiff } from "./source-comparison";
 import { AuthoringGrid } from "./grid";
 import { Explorer } from "./explorer";
 import { ComplexPanel } from "./complex";
@@ -137,7 +139,7 @@ export function Application({ platform }: { platform: string }) {
     document.documentElement.dataset.reducedMotion = String(reduced);
   }, [dark, reduced]);
   return (
-    <ConfigProvider locale={jaJP} button={{autoInsertSpace:false}} theme={appearance} componentSize="small">
+    <ConfigProvider locale={jaJP} wave={{disabled:true}} button={{autoInsertSpace:false}} theme={appearance} componentSize="small">
       <AntApp className="desktop-app">
         <ThemeFrame platform={platform} s={s} />
       </AntApp>
@@ -255,7 +257,7 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
   ];
   return (
     <div
-      className={`desktop-frame ${platform === "macos" ? "mac" : ""} ${explorerOpen ? "" : "explorer-hidden"}`}
+      className={`desktop-frame ${platform === "macos" ? "mac" : ""} ${explorerOpen ? "" : "explorer-hidden"} ${s.problemsOpen ? "problems-visible" : ""}`}
       style={{...variables,"--md-explorer-width":explorerWidth+"px"} as CSSProperties}
       onPointerDownCapture={desktop.noteInputIntent}
       onKeyDownCapture={desktop.noteInputIntent}
@@ -483,10 +485,11 @@ function TableSurface({ s }: { s: Surface }) {
             value={p.source}
             options={p.sources.map((source) => ({
               value: source,
-              label: basename(source),
+              label: source===p.table.source ? "Schema内のレコード" : basename(source).replace(/\.ya?ml$/i,""),
+              title: source,
             }))}
             onChange={(path) =>
-              void desktop.selectTarget(path).catch(desktop.showError)
+              void desktop.selectRecordSource(path)
             }
           />
         )}
@@ -655,6 +658,11 @@ function HeldInputs({s}: {s: Surface}) {
 function ProblemsBar({ s }: { s: Surface }) {
   const { selection } = useInteraction(),
     p = s.projection;
+  const primary=s.problems.filter(problem=>!problem.code.startsWith('E-REFERENCE-'));
+  const references=s.problems.filter(problem=>problem.code.startsWith('E-REFERENCE-'));
+  const problemItem=(problem:Surface['problems'][number],i:number)=><Button key={`${problem.generation}:${problem.source}:${problem.occurrence}:${problem.code}:${i}`} type="text" className="problem-item" icon={<WarningOutlined aria-hidden="true"/>} onClick={()=>void desktop.focusProblem(problem)}>
+    <Typography.Text type="secondary">{problem.source}{problem.occurrence ? ` · 行 ${problem.occurrence}` : problem.line ? `:${problem.line}` : ""}{problem.fieldPath?.length ? ` · ${problem.fieldPath.join(".")}` : ""}</Typography.Text><span>{problem.code} · {uiMessage(problem.message)}</span>
+  </Button>;
   return (
     <>
       <div id="problems-bar">
@@ -669,7 +677,7 @@ function ProblemsBar({ s }: { s: Surface }) {
           問題{s.status.problemCount ? ` (${s.status.problemCount})` : ""}
         </Button>
         <span className={`background-status ${s.status.diagnosticsPending ? "status-pending" : ""}`} role="status">
-          {s.status.diagnosticsPending && <><Spin size="small"/>確認中…</>}
+          {s.status.diagnosticsPending ? '確認中…' : s.status.dirty.length||s.status.configDirty ? `未保存 ${s.status.dirty.length+(s.status.configDirty?1:0)}件` : s.saveNotice ? <span title={s.saveNotice}>✓ {s.saveNotice.includes("\n")?`${s.saveNotice.split("\n").length}ファイルを保存`:s.saveNotice==="保存済み"?"保存済み":`${basename(s.saveNotice)}を保存`}</span> : ''}
         </span>
         <span id="position" aria-live="polite">
           {!s.pending && p
@@ -699,22 +707,7 @@ function ProblemsBar({ s }: { s: Surface }) {
           (s.status.diagnosticsPending ? (
             <div className="quiet-empty">確認中…</div>
           ) : s.problems.length ? (
-            s.problems.map((problem, i) => (
-              <Button
-                key={`${problem.generation}:${i}`}
-                type="text"
-                className="problem-item"
-                icon={<WarningOutlined aria-hidden="true" />}
-                onClick={() => void desktop.focusProblem(problem)}
-              >
-                <Typography.Text type="secondary">
-                  {basename(problem.source)}:{problem.line}
-                </Typography.Text>
-                <span>
-                  {problem.code} · {uiMessage(problem.message)}
-                </span>
-              </Button>
-            ))
+            <div className="problem-groups">{primary.map(problemItem)}{references.length>3&&primary.length>0?<Collapse ghost size="small" items={[{key:'references',label:`関連する参照エラー (${references.length}) · 原因の修正後に再確認`,children:references.map(problemItem)}]}/>:references.map(problemItem)}</div>
           ) : (
             <div className="quiet-empty">問題はありません。</div>
           ))}
@@ -769,7 +762,17 @@ function CompareModal({ s }: { s: Surface }) {
   const origin=useRef<{element:HTMLElement|null;epoch:number;target:string}|null>(null);
   const closing=useRef<{input:number;epoch:number;target:string}|null>(null);
   useEffect(()=>{if(c)origin.current={element:document.activeElement as HTMLElement,epoch:s.status.epoch,target:s.target};},[!!c]);
-  const close=()=>{closing.current={input:desktop.inputIntent,epoch:s.status.epoch,target:s.target};desktop.closeCompare();};
+  const restoreFocus=()=>{
+        const request=closing.current,current=desktop.surface;
+        if(!request||request.input!==desktop.inputIntent||request.epoch!==current.status.epoch||request.target!==current.target||current.comparison||current.choice||current.projectCreation||current.openingProject)return;
+        // The structural editor owns its reopened overlay's focus. Ant's
+        // unconditional return could otherwise beat that or a newer input.
+        if(document.querySelector('.ant-drawer-open,.type-operation'))return;
+        const saved=origin.current,element=saved?.element;
+        if(saved?.epoch===current.status.epoch&&saved.target===current.target&&element?.isConnected&&element.matches('button,input,select,textarea,a[href],[tabindex]')&&!element.closest('.ant-modal-wrap,[role="dialog"],[role="menu"]')&&element.getClientRects().length)element.focus();
+        else if(!current.pending){if(current.projection)desktop.viewport?.focus();else document.querySelector<HTMLElement>("[aria-label=\"型エディター\"],button[aria-label=\"テーブルの操作\"]")?.focus();}
+  };
+  const close=()=>{closing.current={input:desktop.inputIntent,epoch:s.status.epoch,target:s.target};desktop.closeCompare();requestAnimationFrame(restoreFocus);};
   const sources = c?.migration?.sources ?? (p
     ? [...new Set([p.table.source, ...(p.source ? [p.source] : [])])]
     : []);
@@ -779,16 +782,7 @@ function CompareModal({ s }: { s: Surface }) {
       open={!!c}
       onCancel={close}
       focusable={{focusTriggerAfterClose:false}}
-      afterOpenChange={open=>{
-        const request=closing.current,current=desktop.surface;
-        if(open||!request||request.input!==desktop.inputIntent||request.epoch!==current.status.epoch||request.target!==current.target||current.comparison||current.choice||current.projectCreation||current.openingProject)return;
-        // The structural editor owns its reopened overlay's focus. Ant's
-        // unconditional return could otherwise beat that or a newer input.
-        if(document.querySelector('.ant-drawer-open,.type-operation'))return;
-        const saved=origin.current,element=saved?.element;
-        if(saved?.epoch===current.status.epoch&&saved.target===current.target&&element?.isConnected&&element.matches('button,input,select,textarea,a[href],[tabindex]')&&!element.closest('.ant-modal-wrap,[role="dialog"],[role="menu"]')&&element.getClientRects().length)element.focus();
-        else if(!current.pending){if(current.projection)desktop.viewport?.focus();else document.querySelector<HTMLElement>("[aria-label=\"型エディター\"],button[aria-label=\"テーブルの操作\"]")?.focus();}
-      }}
+      afterOpenChange={open=>{if(!open)restoreFocus();}}
       width="min(1000px, 94vw)"
       destroyOnHidden
       footer={
@@ -815,24 +809,7 @@ function CompareModal({ s }: { s: Surface }) {
             onChange={(source) => {if(c.migration)void desktop.migrationCompare(c.migration.token,source,c.migration.sources).catch(desktop.showError);else void desktop.compare(source);}}
             className="compare-source"
           />
-          <div className="compare-panes">
-            <label>
-              {c.migration ? "レビューしたソース" : c.conflict ? "ディスク上の内容" : "編集元のソース"}
-              <Input.TextArea
-                aria-label={c.migration ? "確認済みのソース" : c.conflict ? "ディスク上のソース" : "編集元のソース"}
-                readOnly
-                value={c.migration || c.conflict ? c.before : c.base}
-              />
-            </label>
-            <label>
-              {c.migration ? "変更候補" : "保存候補"}
-              <Input.TextArea
-                aria-label="保存候補"
-                readOnly
-                value={c.after}
-              />
-            </label>
-          </div>
+          <SourceDiff key={c.source} before={c.migration || c.conflict ? c.before : c.base} after={c.after} leftLabel={c.migration ? "レビューしたソース" : c.conflict ? "ディスク上の内容" : "編集元のソース"} rightLabel={c.migration ? "変更候補" : "保存候補"}/>
         </>
       )}
     </Modal>

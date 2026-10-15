@@ -914,12 +914,13 @@ impl Project {
                         continue;
                     }
                     if nulls > 0 {
-                        diagnostics.push(row_diagnostic(
+                        diagnostics.push(reference_diagnostic(
                             row,
                             name,
                             self.generation,
                             "E-REFERENCE-PARTIAL-NULL",
-                            r.name.clone(),
+                            format!("参照 {}: {} の一部だけが未設定です。すべて設定するか、すべて未設定にしてください。",r.name,r.fields.join(", ")),
+                            &r.fields,
                         ));
                         continue;
                     }
@@ -930,23 +931,25 @@ impl Project {
                     let key = match record_key(&row.values, &required, &r.fields, &self.types) {
                         Ok(key) => key,
                         Err(e) => {
-                            diagnostics.push(row_diagnostic(
+                            diagnostics.push(reference_diagnostic(
                                 row,
                                 name,
                                 self.generation,
                                 e.code,
                                 e.message,
+                                &r.fields,
                             ));
                             continue;
                         }
                     };
                     if !target_keys.contains(&key) {
-                        diagnostics.push(row_diagnostic(
+                        diagnostics.push(reference_diagnostic(
                             row,
                             name,
                             self.generation,
                             "E-REFERENCE-MISSING",
-                            r.name.clone(),
+                            format!("参照 {}: {} に一致する {} の {} が見つかりません。参照先の値や入力エラーを確認してください。",r.name,r.fields.join(", "),r.target_table,r.target_fields.join(", ")),
+                            &r.fields,
                         ));
                     }
                 }
@@ -999,6 +1002,19 @@ fn row_diagnostic(
         generation,
     }
 }
+fn reference_diagnostic(
+    row: &Row,
+    table: &str,
+    generation: u64,
+    code: &str,
+    message: String,
+    fields: &[String],
+) -> Diagnostic {
+    let mut diagnostic = row_diagnostic(row, table, generation, code, message);
+    diagnostic.field_path = fields.first().cloned().into_iter().collect();
+    diagnostic
+}
+
 pub fn locate(d: &mut Diagnostic, doc: &Document, at: usize) {
     d.line = doc.point(at).row + 1;
     d.column = doc.column(at) + 1;

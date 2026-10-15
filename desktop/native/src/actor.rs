@@ -113,6 +113,16 @@ pub enum Intent {
     RecheckCreationRequest {
         request: masterdata_engine::creation::Request,
     },
+    RecordSource {
+        source: String,
+    },
+    SourceTrash,
+    TrashSource {
+        source: String,
+    },
+    RestoreSource {
+        id: String,
+    },
     PathMoveChoices {
         source: String,
     },
@@ -160,6 +170,13 @@ pub enum Intent {
         source: String,
         identity: String,
         declaration: masterdata_engine::creation::Declaration,
+    },
+    InitializerValue {
+        source: String,
+        identity: String,
+        declaration: masterdata_engine::creation::Declaration,
+        path: Vec<String>,
+        action: masterdata_engine::initializer::Action,
     },
     FieldScope {
         source: String,
@@ -379,6 +396,8 @@ impl Intent {
                 | Self::Create { .. }
                 | Self::CreateProject { .. }
                 | Self::MoveSource { .. }
+                | Self::TrashSource { .. }
+                | Self::RestoreSource { .. }
         )
     }
     fn token(&self) -> Option<u64> {
@@ -916,6 +935,13 @@ fn execute(
         Intent::RecheckCreationRequest { request } => {
             convert(w.recheck_creation_request(&request)?)
         }
+        Intent::RecordSource { source } => {
+            w.select_record_source(&source)?;
+            Ok(serde_json::Value::Null)
+        }
+        Intent::SourceTrash => convert(w.source_trash()?),
+        Intent::TrashSource { source } => Ok(w.trash_source(&source)?),
+        Intent::RestoreSource { id } => convert(w.restore_source(&id)?),
         Intent::PathMoveChoices { source } => Ok(w.path_move_choices(&source)?),
         Intent::PathMovePreview {
             source,
@@ -945,6 +971,13 @@ fn execute(
             command,
             input,
         } => convert(w.prepare_type_migration_input(&source, &identity, command, input)?),
+        Intent::InitializerValue {
+            source,
+            identity,
+            declaration,
+            path,
+            action,
+        } => convert(w.type_initializer_value(&source, &identity, &declaration, &path, action)?),
         Intent::TypeInitializer {
             source,
             identity,

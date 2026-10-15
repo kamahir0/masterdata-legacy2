@@ -2,6 +2,24 @@ use super::*;
 use crate::source::{Node, Style, matches_value};
 
 impl Workspace {
+    pub fn select_record_source(&mut self, source: &str) -> Result<()> {
+        self.check_config()?;
+        let source = self
+            .read
+            .sources
+            .get(source)
+            .ok_or_else(|| Error::new("E-SOURCE-MISSING", source))?;
+        if !matches!(source.kind.as_deref(), Some("schema" | "data")) {
+            return Err(Error::new("E-SOURCE-KIND", "record source required"));
+        }
+        let table = source
+            .binding
+            .as_ref()
+            .ok_or_else(|| Error::new("E-TABLE-MISSING", "table required"))?;
+        self.last_source.insert(table.clone(), source.path.clone());
+        Ok(())
+    }
+
     pub fn next_row(&mut self, path: &str, row: &str) -> Result<Option<String>> {
         self.ensure_draft(path)?;
         let d = &self.drafts[path];
@@ -82,8 +100,20 @@ impl Workspace {
         for field in &table.fields {
             semantic::shape(field, &types)?;
         }
+        let value = self.new_record_value(&table, &types)?;
         let d = &self.drafts[path];
-        let records = record_sequence(&d.document)?;
+        let mut initial = (*d.document).clone();
+        if initial.root.get("records").is_none() {
+            let mut patches = vec![];
+            initial.derive_member_add(
+                &initial.root,
+                "records",
+                &Value::Sequence(vec![]),
+                &mut patches,
+            )?;
+            initial = initial.patched(patches)?;
+        }
+        let records = record_sequence(&initial)?;
         if records.style != Style::Block && !records.items()?.is_empty() {
             return Err(Error::new(
                 "E-SOURCE-UNSAFE",
@@ -105,14 +135,7 @@ impl Workspace {
             .take(position)
             .filter(|id| !d.pending.contains_key(*id))
             .count();
-        let value = Value::Mapping(
-            table
-                .fields
-                .iter()
-                .map(|f| (f.name.clone(), Value::Null))
-                .collect(),
-        );
-        let candidate = d.document.insert_sequence(records, at, &value)?;
+        let candidate = initial.insert_sequence(records, at, &value)?;
         verify_insert(records, record_sequence(&candidate)?, at, &value)?;
         let origin = d.origin.clone().unwrap_or_else(|| {
             Arc::new(AdditionOrigin {
@@ -411,8 +434,13 @@ fn restore_cancelled_addition(
     no_pending: bool,
 ) -> Result<Document> {
     let original = &origin.document;
-    let old = record_sequence(original)?;
     let now = record_sequence(current)?;
+    if original.root.get("records").is_none() && now.items()?.is_empty() {
+        let mut patches = vec![];
+        current.derive_member_drop(&current.root, "records", &mut patches)?;
+        return current.patched(patches);
+    }
+    let old = record_sequence(original)?;
     if old.items()?.is_empty() && now.items()?.is_empty() {
         let old_start = original.line_start(old.span.start);
         let now_start = current.line_start(now.span.start);

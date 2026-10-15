@@ -8,7 +8,7 @@ import {parentPath, stemEnd} from './explorer-model';
 type Choices = {root:string;folders:string[];filename:string};
 type Review = {token:string;source:string;destination:string};
 type Result = {source:string;outcome:string;message:string};
-type Draft = {id:number;source:string;folder:string;filename:string;choices:Choices;inline:boolean;review:Review|null;pending:boolean;committing:boolean;result:Result|null;error:string|null};
+type Draft = {id:number;source:string;folder:string;filename:string;choices:Choices;inline:boolean;direct:boolean;review:Review|null;pending:boolean;committing:boolean;result:Result|null;error:string|null};
 const join = (folder:string,filename:string) => folder && folder!=='.' ? folder+'/'+filename : filename;
 const errorText = (error:unknown) => error&&typeof error==='object'&&'message' in error ? ('code' in error?String(error.code)+': ':'')+String(error.message) : String(error);
 
@@ -45,15 +45,20 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
     });
     return()=>cancelAnimationFrame(frame);
   },[draft?.id,draft?.inline]);
-  async function begin(source:string,options:{inline?:boolean;folder?:string}={}) {
+  async function begin(source:string,options:{inline?:boolean;folder?:string;direct?:boolean}={}) {
     const id=++ids.current;
     origin.current=document.activeElement as HTMLElement;composing.current=false;
     try {
       if(!(await desktop.guardSource(source,epoch))||id!==ids.current)return;
       const reply=await desktop.rpc<Choices>({kind:'pathMoveChoices',epoch,source});
       if(epoch!==desktop.surface.status.epoch||id!==ids.current)return;
-      const next:Draft={id,source,folder:options.folder??parentPath(source),filename:reply.data.filename,choices:reply.data,inline:!!options.inline,review:null,pending:true,committing:false,result:null,error:null};
+      const next:Draft={id,source,folder:options.folder??parentPath(source),filename:reply.data.filename,choices:reply.data,inline:!!options.inline,direct:!!options.direct,review:null,pending:true,committing:false,result:null,error:null};
       live.current=next;setDraft(next);review(next);
+      if(options.direct) {
+        await validation.current;
+        if(live.current?.id===id && live.current.review)await apply(true);
+        else if(live.current?.id===id)patch({direct:false});
+      }
     } catch(error) {if(epoch===desktop.surface.status.epoch)desktop.showError(error);}
   }
   function review(next=live.current) {
@@ -96,7 +101,7 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
       const reply=await desktop.rpc<Result>({kind:recheck?'recheckMove':'moveSource',epoch,token});
       if(epoch!==desktop.surface.status.epoch||live.current?.id!==current.id)return;
       desktop.protectWriteView(protection,reply.data.outcome==='OutcomeUnknown');
-      patch({committing:false,result:reply.data,review:reply.data.outcome==='OutcomeUnknown'?current.review:null});
+      patch({direct:false,committing:false,result:reply.data,review:reply.data.outcome==='OutcomeUnknown'?current.review:null});
       if(reply.data.outcome==='Success') {
         const restore=restoreFocus.current;
         if(restore?.editor&&restore.intent===desktop.inputIntent&&restore.target===desktop.surface.target&&document.activeElement===document.body)document.getElementById('editor-pane')?.focus({preventScroll:true});
@@ -110,7 +115,7 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
       if(epoch===desktop.surface.status.epoch&&live.current?.id===current.id) {
         const knownRejection=error&&typeof error==='object'&&'code' in error;
         desktop.protectWriteView(protection,recheck||!knownRejection);
-        patch({committing:false,review:recheck||!knownRejection?current.review:null,error:errorText(error),result:!knownRejection?{source:current.source,outcome:'OutcomeUnknown',message:'結果を受信できませんでした。変更前・変更後のパスを再確認してください。'}:current.result});
+        patch({direct:false,committing:false,review:recheck||!knownRejection?current.review:null,error:errorText(error),result:!knownRejection?{source:current.source,outcome:'OutcomeUnknown',message:'結果を受信できませんでした。変更前・変更後のパスを再確認してください。'}:current.result});
       }
     }
   }
@@ -149,14 +154,14 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
     {feedback}
     {uncertain&&<Button loading={draft.committing} onClick={()=>void apply()}>変更前・変更後のパスを再確認</Button>}
   </div>;
-  const modal=draft&&!draft.inline&&<Modal title='ソースの名前変更・移動' open width={520} focusTriggerAfterClose={false} afterOpenChange={open=>{if(open){filename.current?.focus();filename.current?.setSelectionRange(0,stemEnd(draft.filename));}}} onCancel={()=>cancel()} keyboard={!draft.committing&&!uncertain} mask={{closable:!draft.committing&&!uncertain}} footer={<Space>
+  const modal=draft&&!draft.inline&&!draft.direct&&<Modal title='ソースの名前変更・移動' open width={520} focusTriggerAfterClose={false} afterOpenChange={open=>{if(open){filename.current?.focus();filename.current?.setSelectionRange(0,stemEnd(draft.filename));}}} onCancel={()=>cancel()} keyboard={!draft.committing&&!uncertain} mask={{closable:!draft.committing&&!uncertain}} footer={<Space>
     <Button onClick={()=>cancel()} disabled={draft.committing||uncertain}>キャンセル</Button>
     {!uncertain&&!draft.review&&!draft.pending&&<Button onClick={()=>review()}>現在のソースを確認</Button>}
     <Button type='primary' loading={draft.committing||draft.pending} disabled={draft.pending||!draft.review} onClick={()=>void apply()}>{uncertain?'変更前・変更後のパスを再確認':'移動'}</Button>
   </Space>}>
     <Typography.Paragraph type='secondary' className='source-path-origin'>{draft.source}</Typography.Paragraph>
     <Form layout='vertical' disabled={draft.committing||uncertain}>
-      <Form.Item label='フォルダー'>{draft.choices.folders.length>1?<Select aria-label='ソースの移動先フォルダー' value={draft.folder} options={draft.choices.folders.map(folder=>({value:folder,label:sourceFolderLabel(folder,draft.choices.root),title:folder}))} onChange={folder=>change({folder})}/>:<Typography.Text aria-label='ソースの移動先フォルダー' title={draft.folder}>{sourceFolderLabel(draft.folder,draft.choices.root)}</Typography.Text>}</Form.Item>
+      <Form.Item label='フォルダー'>{draft.choices.folders.length>1?<Select showSearch optionFilterProp="label" aria-label='ソースの移動先フォルダー' value={draft.folder} options={draft.choices.folders.map(folder=>({value:folder,label:sourceFolderLabel(folder,draft.choices.root),title:folder}))} onChange={folder=>change({folder})}/>:<Typography.Text aria-label='ソースの移動先フォルダー' title={draft.folder}>{sourceFolderLabel(draft.folder,draft.choices.root)}</Typography.Text>}</Form.Item>
       <Form.Item label='ファイル名'><Input aria-label='移動後のソースファイル名' ref={r=>{filename.current=r?.input??null;}} value={draft.filename} onChange={e=>change({filename:e.target.value})} onKeyDown={e=>{if(e.nativeEvent.isComposing)return;if(e.key==='Enter'){e.preventDefault();void apply();}}}/></Form.Item>
     </Form>
     <Typography.Paragraph type='secondary'>{join(draft.folder,draft.filename)}</Typography.Paragraph>

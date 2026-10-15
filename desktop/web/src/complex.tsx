@@ -334,10 +334,12 @@ export function ComplexPanel() {
       e.preventDefault();
       e.stopPropagation();
       if (typing.current && typing.current.text !== typing.current.initial) {
+        const path=typing.current.path;
         typing.current.cancel();
         typing.current = null;
         setActive(null);
         setNonNull(false);
+        requestAnimationFrame(()=>{const control=[...body.current?.querySelectorAll<HTMLElement>('[data-value-path]')??[]].find(element=>element.dataset.valuePath===JSON.stringify(path));(control?.querySelector<HTMLElement>('button,input,[role=combobox]')??control)?.focus({preventScroll:true});});
       } else if (active || nonNull) {
         void close();
       } else if (menu) setMenu(null);
@@ -360,7 +362,7 @@ export function ComplexPanel() {
       void desktop.undo(true);
     }
   };
-  const control = (node: EditorNode) => {
+  const leafControl = (node: EditorNode) => {
     if (!node.editable || !node.shape)
       return (
         <Typography.Text type="secondary" title={uiMessage(node.reason ?? undefined)}>
@@ -370,7 +372,7 @@ export function ComplexPanel() {
     if (!node.shape.array && node.kind !== "null" && (node.shape.typeName === "bool" || node.shape.underlying === "bool") && ["true", "false"].includes(node.input ?? ""))
       return <Switch aria-label={node.label} checked={node.input === "true"} checkedChildren="true" unCheckedChildren="false" onChange={checked => void change(node.path, {kind:"text",text:checked ? "true" : "false"})} />;
     if (!node.shape.array && node.shape.category === "enum")
-      return <Select aria-label={node.label} showSearch value={node.input ?? undefined} options={node.shape.members?.map(value=>({value,label:value}))} status={node.valid?undefined:"error"} onChange={symbol=>void change(node.path,{kind:"enum",symbol})} className="complex-enum" />;
+      return <Select aria-label={node.label} showSearch optionFilterProp="label" placeholder="未設定（null）" allowClear={node.shape.nullable} value={node.input ?? undefined} options={node.shape.members?.map(value=>({value,label:value}))} status={node.valid?undefined:"error"} onChange={symbol=>void change(node.path,symbol===undefined?{kind:"null"}:{kind:"enum",symbol})} className="complex-enum" />;
     if (
       node.shape.array ||
       ["custom", "flags"].includes(node.shape.category)
@@ -398,7 +400,7 @@ export function ComplexPanel() {
           }}
           commit={commit}
           enumSelect={(symbol) =>
-            void change(node.path, { kind: "enum", symbol })
+            void change(node.path, symbol===null?{kind:"null"}:{ kind: "enum", symbol })
           }
         />
       );
@@ -415,6 +417,22 @@ export function ComplexPanel() {
         {complexSummary(node.display, node.kind === "sequence" || node.kind === "mapping")}
       </Button>
     );
+  };
+  const control = (node:EditorNode) => {
+    if(!node.shape?.nullable||!node.editable)return leafControl(node);
+    if(!node.shape.array&&node.shape.category==='enum')return leafControl(node);
+    if(node.kind==='null'&&!node.shape.array&&(node.shape.typeName==='bool'||node.shape.underlying==='bool'))return <div className="nullable-value-control"><span className="null-value">未設定</span>{['true','false'].map(text=><Button key={text} size="small" aria-label={`${node.label} を${text}にする`} onClick={()=>void change(node.path,{kind:'text',text})}>{text}</Button>)}</div>;
+    return <div className="nullable-value-control">
+      {node.kind==="null" ? <Button type="text" className="null-value" aria-label={`${node.label} の値を設定`} onClick={()=>{
+        const previous=desktop.interaction.complex,intent=desktop.inputIntent;
+        void change(node.path,{kind:"materialize"}).then(ok=>{
+          if(!ok||previous!==desktop.interaction.complex||intent!==desktop.inputIntent)return;
+          if(node.shape?.array||["custom","flags"].includes(node.shape?.category??""))void navigate(node.path);
+          else if(node.shape?.typeName!=="bool"&&node.shape?.underlying!=="bool")setActive(node.path);
+        });
+      }}><span>未設定</span><PlusOutlined aria-hidden="true"/>値を設定</Button> : leafControl(node)}
+      {node.kind!=="null"&&<Button type="text" className="nullable-clear" aria-label={`${node.label} を未設定にする`} title="未設定（null）にする" onClick={()=>void change(node.path,{kind:"null"})}>×</Button>}
+    </div>;
   };
   const root =
     target &&
@@ -626,34 +644,20 @@ export function ComplexPanel() {
                   showIcon
                   title={uiMessage(root.problem.message)}
                   className="value-problem"
+                  description={root.shape?.array&&root.kind!=="sequence" ? `元の値：${root.display}。下の修復操作で空の配列へ置き換えます。元に戻すで復元できます。` : undefined}
                 />
               )}
               {root.shape?.nullable && !(root.shape.category==="enum"&&!root.shape.array&&target?.path.length===1) && (
-                <Checkbox
-                  aria-label={`${root.label} null`}
-                  disabled={!root.editable}
-                  checked={root.kind === "null" && !nonNull}
-                  onChange={(e) => {
-                    if (e.target.checked)
-                      void change(root.path, { kind: "null" });
-                    else if (
-                      root.shape?.array ||
-                      ["custom", "flags"].includes(root.shape?.category ?? "")
-                    )
-                      void change(root.path, { kind: "materialize" });
-                    else {
-                      setNonNull(true);
-                      setActive(root.path);
-                    }
-                  }}
-                >
-                  null
-                </Checkbox>
+                <div className="value-null-state"><Tag>{root.kind==="null"?"未設定（null）":"値あり"}</Tag>
+                  <Button size="small" disabled={!root.editable} onClick={()=>void change(root.path,{kind:root.kind==="null"?"materialize":"null"})}>{root.kind==="null"?"初期値で設定":"未設定にする"}</Button>
+                </div>
               )}
               {!root.shape || !root.editable ? (
                 <Typography.Paragraph type="secondary">
                   {root.display} · {uiMessage(root.reason)}
                 </Typography.Paragraph>
+              ) : root.kind === "null" && root.shape.nullable ? (
+                <Typography.Paragraph type="secondary">値を設定すると、この型の初期値から編集できます。</Typography.Paragraph>
               ) : root.shape.array && root.kind === "sequence" ? (
                 <>
                   {arrayItems()}
@@ -748,7 +752,7 @@ export function ComplexPanel() {
                   }
                 >
                   {root.shape.array
-                    ? "配列を作成"
+                    ? "空の配列へ置き換えて修復"
                     : root.shape.category === "flags"
                       ? "Flagsの値を作成"
                       : "Custom Typeの値を作成"}
@@ -769,7 +773,7 @@ export function ComplexPanel() {
                     }}
                     commit={commit}
                     enumSelect={(symbol) =>
-                      void change(root.path, { kind: "enum", symbol })
+                      void change(root.path, symbol===null?{kind:"null"}:{ kind: "enum", symbol })
                     }
                   />
                 </div>
@@ -860,7 +864,7 @@ function LeafInput({
   nonNull?: boolean;
   update: (typing: Typing) => void;
   commit: () => Promise<boolean>;
-  enumSelect: (symbol: string) => void;
+  enumSelect: (symbol: string | null) => void;
 }) {
   const input = useRef<InputRef>(null),
     initial = useRef(nonNull ? "" : (node.input ?? "")),
@@ -907,7 +911,8 @@ function LeafInput({
         value={node.input ?? undefined}
         placeholder={complexSummary(node.display, node.kind === "sequence" || node.kind === "mapping")}
         options={node.shape.members?.map((value) => ({ value, label: value }))}
-        onChange={enumSelect}
+        allowClear={node.shape?.nullable}
+        onChange={symbol=>enumSelect(symbol??null)}
         className="complex-enum"
         status={node.valid ? undefined : "error"}
       />

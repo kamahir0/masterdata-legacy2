@@ -248,24 +248,12 @@ impl Workspace {
                 {
                     return Ok(false);
                 }
-                let value = if target.shape.array || target.shape.category == "flags" {
+                let mut shape = target.shape.clone();
+                shape.nullable = false;
+                let value = super::defaults::value(&shape, &types)?;
+                if matches!(value, Value::Sequence(_)) {
                     ids = Some(vec![]);
-                    Value::Sequence(vec![])
-                } else if target.shape.category == "custom" {
-                    Value::Mapping(
-                        target
-                            .shape
-                            .fields
-                            .iter()
-                            .map(|(f, _)| (f.name.clone(), Value::Null))
-                            .collect(),
-                    )
-                } else {
-                    return Err(Error::new(
-                        "E-VALUE-INPUT",
-                        "enter a scalar value explicitly",
-                    ));
-                };
+                }
                 d.document
                     .edit_occurrence(record + 1, &target.actual, &value)?
             }
@@ -290,40 +278,56 @@ impl Workspace {
                     ));
                 }
                 let items = target.node.items()?;
-                let selected = items
+                let wanted = crate::initializer::flags_members(
+                    &target.shape,
+                    items
+                        .iter()
+                        .filter_map(|i| i.value.text().ok())
+                        .map(str::to_owned)
+                        .collect(),
+                    symbol,
+                    enabled,
+                )?;
+                let existing = items
                     .iter()
-                    .enumerate()
-                    .filter(|(_, i)| i.value.text().is_ok_and(|s| s == symbol))
-                    .map(|(i, _)| i)
+                    .filter_map(|i| i.value.text().ok())
+                    .map(str::to_owned)
                     .collect::<Vec<_>>();
-                if selected.is_empty() == !enabled {
+                if wanted == existing {
                     return Ok(false);
                 }
-                if enabled {
-                    let candidate = d.document.insert_sequence(
-                        &target.node,
-                        items.len(),
-                        &Value::Text(symbol),
-                    )?;
-                    let next = ids.as_mut().unwrap();
-                    next.push(new_element_id(d, &target.key, next.len()));
-                    candidate
-                } else {
-                    let mut candidate = (*d.document).clone();
-                    for at in selected.into_iter().rev() {
+                let mut candidate = (*d.document).clone();
+                for at in (0..items.len()).rev() {
+                    if items[at].value.text().is_ok_and(|s| {
+                        target.shape.members.iter().any(|m| m == s)
+                            && !wanted.iter().any(|m| m == s)
+                    }) {
                         let node = candidate.occurrence_value(record + 1, &target.actual)?;
                         candidate = candidate.remove_sequence(node, at)?;
                         ids.as_mut().unwrap().remove(at);
                     }
-                    candidate
                 }
+                for symbol in wanted.iter().filter(|s| !existing.contains(s)) {
+                    let node = candidate.occurrence_value(record + 1, &target.actual)?;
+                    let at = node.items()?.len();
+                    candidate =
+                        candidate.insert_sequence(node, at, &Value::Text(symbol.clone()))?;
+                    ids.as_mut()
+                        .unwrap()
+                        .push(new_element_id(d, &target.key, at));
+                }
+                candidate
             }
             Operation::Add => {
                 if !target.shape.array {
                     return Err(Error::new("E-VALUE-SHAPE", "Array required"));
                 }
                 let at = target.node.items()?.len();
-                let candidate = d.document.insert_sequence(&target.node, at, &Value::Null)?;
+                let mut element = target.shape.clone();
+                element.array = false;
+                element.nullable = false;
+                let value = super::defaults::value(&element, &types)?;
+                let candidate = d.document.insert_sequence(&target.node, at, &value)?;
                 ids.as_mut()
                     .unwrap()
                     .push(new_element_id(d, &target.key, at));
