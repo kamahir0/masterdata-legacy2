@@ -174,9 +174,13 @@ pub fn archive_with_fault(
     let entry = tempfile::Builder::new()
         .prefix("entry-")
         .tempdir_in(&trash)
-        .map_err(io_error)?
-        .keep();
-    let id = entry.file_name().unwrap().to_string_lossy().into_owned();
+        .map_err(io_error)?;
+    let id = entry
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
     let receipt = Receipt {
         stored: format!(".masterdata/trash/{id}/source.yaml"),
         id,
@@ -189,13 +193,16 @@ pub fn archive_with_fault(
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(entry.join("receipt.json"))
+        .open(entry.path().join("receipt.json"))
         .map_err(io_error)?;
     file.write_all(
         &serde_json::to_vec(&receipt).map_err(|e| Error::new("E-TRASH-RECEIPT", e.to_string()))?,
     )
     .map_err(io_error)?;
     file.sync_all().map_err(io_error)?;
+    // A preflight/receipt failure must not leave an unreadable empty entry.
+    // Keep recovery data only once complete, before a rename can take effect.
+    let _retained = entry.keep();
     let result = commit_move(&plan, fault, authorize);
     Ok((receipt, result))
 }
