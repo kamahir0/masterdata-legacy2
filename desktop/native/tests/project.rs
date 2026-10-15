@@ -24,6 +24,35 @@ fn metadata() -> Metadata {
     }
 }
 #[tokio::test(flavor = "current_thread")]
+async fn opening_config_file_uses_the_canonical_project_root() {
+    let t = tempfile::tempdir().unwrap();
+    let project = t.path().join("project");
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/rewrite-oracle/v1/save-both/input");
+    copy(&fixture, &project);
+    let config = project.join("masterdata.toml");
+    let before = fs::read(&config).unwrap();
+    let session = Session::default();
+    let opened: Value = serde_json::from_str(
+        &session
+            .request_at(
+                Intent::Open {
+                    path: config.to_string_lossy().into(),
+                    discard: false,
+                },
+                0,
+            )
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        opened["data"]["root"],
+        project.canonicalize().unwrap().to_string_lossy().as_ref()
+    );
+    assert_eq!(fs::read(config).unwrap(), before);
+}
+#[tokio::test(flavor = "current_thread")]
 async fn nonstandard_roots_are_rejected_without_adopting_or_discarding_the_dirty_workspace() {
     let t = tempfile::tempdir().unwrap();
     let old = t.path().join("old");

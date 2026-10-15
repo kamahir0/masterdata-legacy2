@@ -18,6 +18,7 @@
 - [sources固定・単一化の改善計画](spec-changes/0061-fixed-source-directory.md)（2026-10-13 Human-selected実装scope。[0062](spec-changes/0062-remove-source-config-compatibility.md)の追加Human decisionで、使用Projectなし / 旧形式保守不要を適用）。
 - [Unity込みのsample Project](../samples/UnityInventory/README.md)（2026-10-14 Human-selected追加scope）。既存Build / Publish / Unity Integrationを使い、編集からruntime利用まで試せるrepository内sampleを用意する。追加Human-selected scopeとして、対応する型・modifier・参照・Build Profileと、縦横スクロール・多段ネストのモデルケースを拡充し、Unityの表示を日本語化する。
 - [VSCodeを参考にしたExplorer再構成](spec-changes/0063-vscode-explorer.md)（2026-10-14 Human-selected追加scope）。起動中のVSCodeを実際に操作・観察し、左ペインの外観とnavigation / authoringを作り直す。motionの既存方針は維持する。
+- [ProjectをTOMLファイルから開く](spec-changes/0064-project-file-picker.md)（2026-10-15 Human-selected追加scope）。
 - source / schema / type mutation、write safety、Migration、CLI、Build / Publish、native MasterMemory delegationとactual consumer。
 - [independent oracle](../fixtures/rewrite-oracle/v1/README.md)の全category、[acceptance matrix](rewrite-preparation/acceptance-matrix.md)、source exact bytes、100k capacity。
 - [performance contract](gui/performance.md)のdistribution / work counts、macOS arm64 / Windows x64 actual Desktop、fresh Candidate reviewとrequired CI。

@@ -9,6 +9,7 @@ Status: Approved
 ### GUI-PROJECT-001
 
 未選択時にOpen / Createを提示し、Createはdestinationとproject inputを確認してから実行しなければならない（MUST）。既存Projectが開いている場合は、作成開始前に全dirtyのSave All / Don't Save / Cancel guardを通す。Cancelでは作成しない。成功後は新Projectを開き、失敗時は旧Projectを保持する。
+Openはnative file pickerで既存の`masterdata.toml`を1件選択し、titleとTOML extension filterで対象を案内する（MUST）。選択pathはshared Openへ渡し、filenameとProjectの有効性はPROJECT-001 / 002へ委ねる。picker Cancelでは現在のProjectと未保存内容を変更しない（MUST）。選択後は既存の全dirty guardを通し、Open失敗時は旧Projectを保持する。
 入口はfolder作成、型、Table、Data file、Add Rowへのguided actionを提供するが、それぞれを独立した明示operationにしなければならない（MUST）。schema creationでData fileを暗黙作成しない。empty stateもkeyboardで次操作へ進める。
 空Projectでは、作成できるTable、Type、folderへの次操作をmain areaから識別・実行できなければならない（MUST）。contextからartifact typeとTableが既知ならcreation formの初期選択に反映してよい（MAY）。destinationとidentityはCreate前に確認可能でなければならない（MUST）。
 

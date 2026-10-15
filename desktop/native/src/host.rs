@@ -167,8 +167,9 @@ async fn pick_project(app: tauri::AppHandle) -> Result<Option<String>, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
-        .set_title("プロジェクトのフォルダーを選択")
-        .pick_folder(move |path| {
+        .set_title("masterdata.toml を選択")
+        .add_filter("プロジェクト設定 (*.toml)", &["toml"])
+        .pick_file(move |path| {
             let _ = tx.send(path.map(|p| p.to_string()));
         });
     rx.await.map_err(|e| e.to_string())
