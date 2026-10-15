@@ -175,6 +175,18 @@ async fn pick_project(app: tauri::AppHandle) -> Result<Option<String>, String> {
     rx.await.map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn pick_project_destination(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_title("プロジェクトの保存先フォルダーを選択")
+        .pick_folder(move |path| {
+            let _ = tx.send(path.map(|p| p.to_string()));
+        });
+    rx.await.map_err(|e| e.to_string())
+}
+
 fn japanese_menu(items: Vec<tauri::menu::MenuItemKind<tauri::Wry>>) -> tauri::Result<()> {
     use tauri::menu::MenuItemKind;
     fn label(text: &str) -> Option<String> {
@@ -394,6 +406,7 @@ pub fn run() {
             workspace,
             clipboard_text,
             pick_project,
+            pick_project_destination,
             project_epoch,
             boot,
             application_preferences,

@@ -21,7 +21,7 @@ export function CreateProjectModal({s}:{s:Surface}) {
   const cancel=()=>{if(!cannotCancel){returnFromAction();desktop.cancelProjectCreation();}};
   async function pick() {
     const expected=form;setPicking(true);
-    try {const target=await invoke<string|null>("pick_project");if(target&&live.current===expected)setPath(target);}
+    try {const target=await invoke<string|null>("pick_project_destination");if(target&&live.current===expected)setPath(target);}
     catch(e){if(live.current===expected)setError(errorText(e));}
     finally {setPicking(false);}
   }
