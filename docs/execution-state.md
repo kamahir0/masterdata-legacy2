@@ -1,12 +1,12 @@
 # Development State
 
 Stage: verification-ready
-Candidate: 5b9cf25a447e2f6164a1bf1eb5654dac33217440
+Candidate: 5a54896e30813a1e17f4cd43bc16f990234cd56f
 Work base: a955f11ad47228e850875167abde9fbb323c1b20
 
 ## Active work
 
-Completed: [TOML picker](spec-changes/0064-project-file-picker.md)のimplementation / focused tests / macOS実操作 / production local app更新。Remaining: exact Candidateのfresh review / required CI。Explorer scopeは完了済み。Windows actual Desktopと残るfull-scope Unity conformanceの既存gatesを維持する。
+Completed: [TOML picker](spec-changes/0064-project-file-picker.md)のimplementation / focused tests / macOS実操作 / production local app更新。Create destination分離とmacOS実操作再検証も完了。Remaining: corrected Candidateのfresh review / required CI。Explorer scopeは完了済み。Windows actual Desktopと残るfull-scope Unity conformanceの既存gatesを維持する。
 
 ## Blocking findings
 
