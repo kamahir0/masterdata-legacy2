@@ -22,6 +22,14 @@ Current Objectiveはdefaultとして単一featureや単一spec changeではな�
 
 Stageはrecovery checkpointでありturn boundaryではない。
 
+## Development phase
+
+2026-10-16 Humanが明示した現在の前提：**現在は開発期間でありユーザーが0人であるため、破壊的変更に伴うコストは皆無である。**
+
+製品品質を改善するための設計、source format、API、CLI/config等の変更では、既存ユーザー向けの後方互換性維持、旧形式の保守、移行対応を前提条件にしない。現行仕様や実装の維持より、望ましい設計への修正・再設計を優先する。選択済みObjective内では、この方針の範囲内のcompatibility breakだけを理由にHuman gateを作らず、通常のspecification workflowで変更をreview / approve / applyする。
+
+この前提は互換性・移行コストの判断に適用する。実在する作業データの意図的破棄、security / authority変更、外部の不可逆操作等は、引き続き[Human gate](#human-gate)と個別のauthorizationに従う。利用開始等で前提が変わった場合は、この節を更新する。
+
 ## Product scope discipline
 
 Product Direction、RFC、Deferred、future idea、過去に見送ったOptionは、current priorityやimplementation authorizationではない（MUST NOT）。それらを「次に作る候補」としてHumanへ提示することはできるが、Current Objectiveへ自動昇格させてはならない。
@@ -92,7 +100,7 @@ Humanへ戻すのは次の場合だけである。
 
 1. **Priority / scope**: 新しいCurrent Objective、またはselected Objectiveのmaterial expansion。
 2. **Destructive / irreversible**: intentional data loss、irreversible mutation、history rewrite等、既存authorizationから安全に導けない操作。
-3. **Breaking compatibility**: persisted/source format、stable identity、public API/protocol/CLI/config、migration/compatibility policyのbreaking change。
+3. **Breaking compatibility**: [開発段階の前提](#development-phase)で既に許容された範囲を超える、persisted/source format、stable identity、public API/protocol/CLI/config、migration/compatibility policyのbreaking change。
 4. **Security / authority**: trust、permission、authentication、secret、workspace authority等のboundary変更。
 5. **External irreversible effect**: release、publish、deployment、課金・契約等のrepository外effect。
 6. **Material product fork**: 複数の合理的choiceが残り、Current Objective、Approved authority、Product Directionから一意化できない。

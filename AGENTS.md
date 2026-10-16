@@ -10,6 +10,8 @@ HumanがCurrent Objectiveを選択した時点で、そのObjectiveを完了す�
 
 Human gateの定義は`docs/execution-workflow.md#human-gate`だけが所有する。ここやactivity skillへcriteriaを複製しない。
 
+互換性や破壊的変更の判断では、[開発段階の前提](docs/execution-workflow.md#development-phase)を最初に確認する。
+
 **Product quality is primary.** test / CI / documentation / workflowは製品のcorrectness、safety、UX、architecture、regression confidenceを証明・維持するsupporting mechanismである。Current Objectiveの製品品質を実質的に改善しないsupporting workを独立した最適化対象へ拡張しない。
 
 ## ドキュメント言語
