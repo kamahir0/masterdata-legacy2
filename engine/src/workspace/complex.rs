@@ -27,7 +27,13 @@ pub struct EditorProjection {
     pub row: String,
     pub revision: u64,
     pub generation: u64,
+    pub breadcrumbs: Vec<EditorBreadcrumb>,
     pub node: EditorNode,
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct EditorBreadcrumb {
+    pub path: Vec<String>,
+    pub label: String,
 }
 #[derive(Clone, Debug, Deserialize)]
 #[serde(
@@ -72,6 +78,7 @@ struct Resolved {
     node: Arc<Node>,
     shape: Shape,
     actual: Vec<String>,
+    labels: Vec<String>,
     key: Vec<String>,
 }
 impl Workspace {
@@ -91,16 +98,7 @@ impl Workspace {
         let resolved = resolve(d, &table, &types, row, value_path)?;
         let mut root = descriptor(
             value_path.to_vec(),
-            resolved
-                .actual
-                .last()
-                .map(|label| {
-                    label
-                        .parse::<usize>()
-                        .map(|index| (index + 1).to_string())
-                        .unwrap_or_else(|_| label.clone())
-                })
-                .unwrap_or_default(),
+            resolved.labels.last().cloned().unwrap_or_default(),
             Some(&resolved.shape),
             Some(&resolved.node),
             &types,
@@ -193,6 +191,15 @@ impl Workspace {
             row: row.into(),
             revision: d.revision,
             generation: self.generation,
+            breadcrumbs: resolved
+                .labels
+                .into_iter()
+                .enumerate()
+                .map(|(i, label)| EditorBreadcrumb {
+                    path: value_path[..=i].to_vec(),
+                    label,
+                })
+                .collect(),
             node: root,
         })
     }
@@ -546,6 +553,7 @@ fn resolve(
         .map(|m| m.value.clone())
         .ok_or_else(|| Error::new("E-FIELD-MISSING", first))?;
     let mut actual = vec![first.clone()];
+    let mut labels = vec![first.clone()];
     let mut key = vec![row.into(), first.clone()];
     for component in path.iter().skip(1) {
         if shape.array {
@@ -558,6 +566,7 @@ fn resolve(
             })?;
             node = node.items()?[index].value.clone();
             actual.push(index.to_string());
+            labels.push((index + 1).to_string());
             shape.array = false;
             shape.nullable = false;
         } else if shape.category == "custom" {
@@ -574,6 +583,7 @@ fn resolve(
                 .map(|m| m.value.clone())
                 .ok_or_else(|| Error::new("E-FIELD-MISSING", component))?;
             actual.push(component.clone());
+            labels.push(component.clone());
         } else {
             return Err(Error::new("E-LOCATOR", "path descends into a scalar"));
         }
@@ -583,6 +593,7 @@ fn resolve(
         node,
         shape,
         actual,
+        labels,
         key,
     })
 }

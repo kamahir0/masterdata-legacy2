@@ -630,7 +630,7 @@ export async function run({ startup }: { startup: Record<string, unknown> }) {
     await desktop.addRow();await until(()=>desktop.surface.projection!.totalRows===3&&!desktop.surface.busy,"Added row missing");
     assert(desktop.surface.projection!.rows[2].cells.every(cell=>cell.valid),"new record contains invalid defaults");
     await focusCell(2,col("enabled"));assert(desktop.surface.projection!.rows[2].cells[col("enabled")].display==="false","new bool did not default to false");
-    find('#cell-2-'+col("enabled")+' button.cell-bool').click();await until(()=>desktop.surface.projection!.rows[2].cells[col("enabled")].display==="true","default bool toggle failed");await settle();await undo();
+    find('#cell-2-'+col("enabled")+' [role="switch"]').click();await until(()=>desktop.surface.projection!.rows[2].cells[col("enabled")].display==="true","default bool toggle failed");await settle();await undo();
     assert(desktop.surface.projection!.rows[2].cells[col("enabled")].display==="false","bool toggle was not one Undo");await undo();assert((await bytes()).after===base.after,"Added-row defaults workflow changed restored bytes");
     record("added-valid-defaults-boolean-toggle-and-exact-undo");
 

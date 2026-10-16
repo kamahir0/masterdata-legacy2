@@ -261,7 +261,7 @@ def check_interaction(report):
     assert report['visibility'] == 'visible' and report['focused']
     assert report['checks'] == ['new-source-origin-explicit-schema-and-defaults', 'nullable-boolean-choice-and-focus',
         'save-commits-input-retains-focus-and-reports-target', 'nested-nullable-direct-create-cancel-and-exact-undo',
-        'flags-none-automatic-exclusion', 'invalid-array-explicit-repair-and-undo', 'file-pointer-threshold-folder-and-root-direct-move', 'explorer-delete-and-persisted-restore-wiring']
+        'flags-none-automatic-exclusion', 'invalid-array-explicit-repair-and-undo', 'shared-boolean-rendering-all-levels-and-full-breadcrumbs', 'temporary-initializer-uses-shared-scalar-and-breadcrumbs', 'file-pointer-threshold-folder-and-root-direct-move', 'explorer-delete-and-persisted-restore-wiring']
     assert not report['dirty'] and not report['startup']['browserErrors']
     return {'checks': len(report['checks']), 'safeDirectInteraction': True}
 
@@ -307,6 +307,16 @@ def run(binary: Path, output: Path, case: str):
             (project / 'sources/moved').mkdir()
             (project / 'sources/interaction-schema.yaml').write_text('kind: schema\ntable: interaction\nfields:\n  - {key: 0, name: id, type: int}\n  - {key: 1, name: enabled, type: bool, nullable: true}\n  - {key: 2, name: details, type: Reward, nullable: true}\n  - {key: 3, name: numbers, type: int, array: true}\n  - {key: 4, name: flags, type: ItemTags}\nprimaryKey:\n  fields: [id]\n', encoding='utf-8')
             (project / 'sources/interaction-data.yaml').write_text('kind: data\ntable: interaction\nrecords:\n  - id: 1\n    enabled: null\n    details: null\n    numbers: broken\n    flags: [None]\n  - id: 2\n    enabled: false\n    details: null\n    numbers: [1, 2, 3]\n    flags: [Fire]\n', encoding='utf-8')
+        if case == 'interaction':
+            for name, fields in [('InteractionThird', [('enabled', 'bool'), ('optional', 'bool, nullable: true'), ('invalid', 'bool')]), ('InteractionSecond', [('third', 'InteractionThird'), ('thirdWithALongNameThatMustRemainReadableAtNarrowWidths', 'InteractionThird')]), ('InteractionFirst', [('second', 'InteractionSecond')])]:
+                declaration = f'kind: type\nname: {name}\ncustom:\n  fields:\n'
+                declaration += ''.join(f'    - {{key: {i}, name: {field}, type: {kind}}}\n' for i, (field, kind) in enumerate(fields))
+                (project / f'sources/{name}.yaml').write_text(declaration, encoding='utf-8')
+            schema = project / 'sources/interaction-schema.yaml'
+            schema.write_text(schema.read_text(encoding='utf-8').replace('primaryKey:', '  - {key: 5, name: first, type: InteractionFirst}\n  - {key: 6, name: groups, type: InteractionSecond, array: true}\nprimaryKey:'), encoding='utf-8')
+            source = project / 'sources/interaction-data.yaml'
+            extra = '    first: {second: {third: {enabled: false, optional: null, invalid: broken}, thirdWithALongNameThatMustRemainReadableAtNarrowWidths: {enabled: false, optional: null, invalid: broken}}}\n    groups: [{third: {enabled: false, optional: null, invalid: broken}, thirdWithALongNameThatMustRemainReadableAtNarrowWidths: {enabled: false, optional: null, invalid: broken}}]\n'
+            source.write_text(source.read_text(encoding='utf-8').replace('    flags: [None]\n', '    flags: [None]\n' + extra).replace('    flags: [Fire]\n', '    flags: [Fire]\n' + extra), encoding='utf-8')
         initial_sources = {path.relative_to(project): path.read_bytes() for path in project.rglob('*.yaml')}
         if case == 'settings':
             # Exercise preservation of CRLF plus the external LF comment on both

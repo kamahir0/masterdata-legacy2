@@ -11,6 +11,10 @@ async function settled(){await until(()=>!desktop.surface.pending&&!desktop.muta
 async function cell(row:number,column:number){desktop.viewport!.focus();desktop.setSelection(row,column);desktop.move(0,0);await until(()=>!!document.getElementById(`cell-${row}-${column}`),'cell not mounted');key(desktop.viewport!,'Enter');await frame();}
 async function readyValue(){await until(()=>!!document.querySelector('.near-value-body>[aria-busy="false"],.ant-drawer-body>[aria-busy="false"]'),'value control did not become interactive');await frame();}
 async function undo(){await desktop.undo(false);await settled();}
+function booleanGeometry(element:HTMLElement){
+ const track=element.querySelector<HTMLElement>('.boolean-track')!,thumb=track.firstElementChild!,label=element.querySelector<HTMLElement>('.boolean-state')!,rect=track.getBoundingClientRect(),t=thumb.getBoundingClientRect(),l=label.getBoundingClientRect(),style=getComputedStyle(element);
+ return JSON.stringify({track:[rect.width,rect.height],thumb:[t.width,t.height],gap:Math.round((l.left-rect.right)*10)/10,font:[style.fontFamily,style.fontSize,style.fontWeight,style.lineHeight],label:label.textContent});
+}
 export async function run({startup}:{startup:Record<string,unknown>}){
  const checks:string[]=[];
  try{
@@ -24,7 +28,7 @@ export async function run({startup}:{startup:Record<string,unknown>}){
   checks.push('new-source-origin-explicit-schema-and-defaults');
 
   await desktop.selectRecordSource(SOURCE);await settled();await cell(0,1);
-  await until(()=>!!document.querySelector('.null-bool-editor'),'nullable bool choices unavailable');
+  await until(()=>!!document.querySelector('.active-cell-editor .boolean-empty'),'nullable bool choices unavailable');
   find('[aria-label="enabled 行 1 をtrueにする"]').click();await until(()=>desktop.surface.projection!.rows[0].cells[1].display==='true'&&!desktop.interaction.editor,'bool choice not committed');await settled();
   assert(document.activeElement===desktop.viewport,'nullable bool lost grid focus');await undo();assert(desktop.surface.projection!.rows[0].cells[1].isNull,'nullable bool Undo lost null');
   checks.push('nullable-boolean-choice-and-focus');
@@ -55,6 +59,62 @@ export async function run({startup}:{startup:Record<string,unknown>}){
   await until(()=>desktop.surface.projection!.rows[0].cells[3].valid,'array repair failed');desktop.closeComplex();await undo();assert(!desktop.surface.projection!.rows[0].cells[3].valid,'array repair Undo lost original invalid input');
   checks.push('invalid-array-explicit-repair-and-undo');
 
+  // GUI-DATA-EDIT-005 / GUI-DATA-NAV-001: compare rendered controls in their
+  // real hosts, and navigate every ancestor without creating source history.
+  const direct=find('#cell-1-1 [role="switch"]'),geometry=booleanGeometry(direct);
+  await cell(1,1);await until(()=>!!document.querySelector('.active-cell-editor [role="switch"]'),'active bool missing');
+  assert(booleanGeometry(find('.active-cell-editor [role="switch"]'))===geometry,'active / direct bool appearance differs');
+  key(find('.active-cell-editor [role="switch"]'),'Escape');await frame();
+  await cell(0,5);await readyValue();
+  const child=(label:string)=>{const row=[...document.querySelectorAll<HTMLElement>('.complex-field')].find(el=>el.firstElementChild?.textContent===label);assert(row,'missing nested '+label);return row;};
+  const enter=async(label:string)=>{await until(()=>[...document.querySelectorAll<HTMLElement>('.complex-field')].some(el=>el.firstElementChild?.textContent===label),'nested field not ready');child(label).querySelector<HTMLButtonElement>('button')!.click();await until(()=>desktop.interaction.complex?.path.at(-1)===label,'nested navigation did not start');await until(()=>document.querySelector('.value-path-current')?.textContent===label,'breadcrumb did not resolve');await readyValue();};
+  await enter('second');await enter('third');
+  const crumbs=()=>[...find('.value-path').querySelectorAll<HTMLElement>('li>button,[aria-current="location"]')].map(el=>el.textContent);
+  assert(JSON.stringify(crumbs())===JSON.stringify(['first','second','third']),'intermediate breadcrumb was omitted');
+  const nestedBool=child('enabled').querySelector<HTMLElement>('[role="switch"]')!;
+  assert(booleanGeometry(nestedBool)===geometry,'nested / direct bool appearance differs');
+  nestedBool.click();await until(()=>child('enabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')==='true','nested bool did not commit');await settled();
+  const undoOrigin=child('enabled').querySelector<HTMLElement>('[role="switch"]')!;undoOrigin.focus();undoOrigin.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true}));
+  await until(()=>child('enabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')==='false','nested keyboard Undo did not commit');await settled();await readyValue();
+  assert(document.activeElement===child('enabled').querySelector('[role="switch"]'),'nested keyboard Undo lost control focus');
+  assert(child('enabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')==='false','nested bool Undo failed');
+  child('optional').querySelector<HTMLButtonElement>('[aria-label="optional をtrueにする"]')!.click();await until(()=>!!child('optional').querySelector('[role="switch"]'),'nested null bool choice did not commit');await settled();await readyValue();
+  assert(!!child('optional').querySelector('[role="switch"]'),'nested null bool did not use common control');
+  child('optional').querySelector<HTMLButtonElement>('[aria-label="optional を未設定にする"]')!.click();await until(()=>!!child('optional').querySelector('.boolean-empty'),'nested bool null did not commit');await settled();await undo();await undo();await readyValue();
+  child('invalid').querySelector<HTMLButtonElement>('button')!.click();await until(()=>!!child('invalid').querySelector('input'),'invalid bool not editable as text');
+  const invalid=child('invalid').querySelector<HTMLInputElement>('input')!;text(invalid,'true');await frame();
+  assert(child('invalid').querySelector('input')===invalid,'valid text replaced the editor before commit');key(invalid,'Enter');await until(()=>!!child('invalid').querySelector('[role="switch"]'),'invalid bool text did not commit');await settled();await undo();await readyValue();
+  assert(child('invalid').textContent?.includes('broken'),'invalid bool original was lost');
+  find('.value-path-ancestors button[aria-label="second の値に戻る"]').click();await until(()=>document.querySelector('.value-path-current')?.textContent==='second','ancestor did not resolve');await readyValue();
+  const long='thirdWithALongNameThatMustRemainReadableAtNarrowWidths';await enter(long);
+  const popup=find('.near-value-popover');popup.style.maxWidth='140px';await frame();await frame();
+  const path=find('.value-path'),current=path.querySelector<HTMLElement>('[aria-current]')!,rail=path.querySelector<HTMLElement>('.value-path-ancestors')!,pathBounds=path.getBoundingClientRect(),c=current.getBoundingClientRect();
+  assert(current.textContent===long&&c.height>20&&c.right<=pathBounds.right+1,'current long name is clipped');
+  assert(rail.scrollWidth>rail.clientWidth&&JSON.stringify(crumbs())===JSON.stringify(['first','second',long]),'narrow breadcrumb lost an ancestor');
+  rail.focus();assert(document.activeElement===rail,'ancestor scroll rail is not keyboard reachable');popup.style.maxWidth='';
+  find('[aria-label="元のセルの値"]').click();await until(()=>document.querySelector('.value-path-current')?.textContent==='first','root did not resolve');await readyValue();assert(JSON.stringify(crumbs())===JSON.stringify(['first']),'root breadcrumb did not navigate');
+  desktop.closeComplex();await cell(0,6);await readyValue();await until(()=>!!document.querySelector('.element-value button'),'array root did not resolve');find('.element-value button').click();await until(()=>document.querySelector('.value-path-current')?.textContent==='1','array occurrence did not resolve');await readyValue();await enter('third');
+  assert(JSON.stringify(crumbs())===JSON.stringify(['groups','1','third']),'array breadcrumb exposes opaque identity / omits path');desktop.closeComplex();await settled();
+  assert(!desktop.surface.projection!.dirty&&!desktop.surface.projection!.canUndo,'navigation created source history');
+  checks.push('shared-boolean-rendering-all-levels-and-full-breadcrumbs');
+
+  await desktop.selectTarget('sources/InteractionFirst.yaml');await settled();
+  const button=(label:string)=>{const match=[...document.querySelectorAll<HTMLButtonElement>('button')].find(el=>el.getClientRects().length&&el.textContent===label);assert(match,'missing button '+label);return match;};
+  button('フィールドを追加').click();await until(()=>!!document.querySelector('[aria-label="Custom Typeフィールドの基になる型"]'),'field initializer missing');
+  const combo=find('[aria-label="Custom Typeフィールドの基になる型"]');combo.focus();combo.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',keyCode:40,which:40,bubbles:true}));
+  await until(()=>[...document.querySelectorAll<HTMLElement>('.ant-select-item-option-content')].some(el=>el.getClientRects().length&&el.textContent==='InteractionFirst'),'initializer type choice missing');
+  [...document.querySelectorAll<HTMLElement>('.ant-select-item-option-content')].find(el=>el.getClientRects().length&&el.textContent==='InteractionFirst')!.click();
+  [...document.querySelectorAll<HTMLElement>('.ant-radio-wrapper')].find(el=>el.textContent==='必須')!.click();
+  await until(()=>!!document.querySelector('.initializer-child button:not(:disabled)'),'recursive initializer default not ready');
+  const openInitial=async(label:string)=>{const match=[...document.querySelectorAll<HTMLButtonElement>('.initializer-child button')].find(el=>el.querySelector('.ant-typography')?.textContent===label);assert(match,'initializer child '+label+' missing');match.click();await frame();};
+  await openInitial('second');await openInitial('third');await openInitial('enabled');
+  const temporaryBoolean=find('.typed-initializer [role="switch"]');
+  await until(()=>!temporaryBoolean.closest('.ant-modal')?.getAnimations().some(animation=>animation.playState==='running'),'initializer opening animation did not finish');
+  assert(booleanGeometry(temporaryBoolean)===geometry,'temporary / nested / direct bool appearance differs: '+booleanGeometry(temporaryBoolean)+' != '+geometry);
+  assert(JSON.stringify(crumbs())===JSON.stringify(['初期値','second','third','enabled']),'initializer intermediate path missing');
+  button('キャンセル').click();await desktop.selectTarget(SOURCE);await settled();
+  checks.push('temporary-initializer-uses-shared-scalar-and-breadcrumbs');
+
   const drag=async(source:string,destination:HTMLElement,releaseBetweenFrames=false)=>{
    const item=find(`#explorer [data-path="${source}"]`),r=item.getBoundingClientRect(),d=destination.getBoundingClientRect(),a={x:r.left+r.width/2,y:r.top+r.height/2},b={x:d.left+d.width/2,y:d.top+d.height/2};
    const pointer=(where:EventTarget,kind:string,at:{x:number;y:number})=>where.dispatchEvent(new PointerEvent(kind,{bubbles:true,button:0,buttons:kind==='pointerup'?0:1,pointerId:1,pointerType:'mouse',isPrimary:true,clientX:at.x,clientY:at.y}));
@@ -81,5 +141,5 @@ export async function run({startup}:{startup:Record<string,unknown>}){
   checks.push('explorer-delete-and-persisted-restore-wiring');
   assert(!desktop.surface.status.dirty.length,'interaction left unexpected dirty files');
   await invoke('evidence_write',{report:{kind:'interaction',checks,startup,dirty:desktop.surface.status.dirty,visibility:document.visibilityState,focused:document.hasFocus()}});
- }catch(error){await invoke('evidence_write',{report:{kind:'interaction',error:String(error),surfaceError:desktop.surface.error,checks,startup,status:desktop.surface.status,target:desktop.surface.target,active:document.activeElement?.outerHTML.slice(0,1200),body:document.querySelector('.near-value-popover,.ant-drawer-content')?.outerHTML.slice(0,2000)}});}
+ }catch(error){await invoke('evidence_write',{report:{kind:'interaction',error:String(error),surfaceError:desktop.surface.error,checks,startup,status:desktop.surface.status,target:desktop.surface.target,active:document.activeElement?.outerHTML.slice(0,1200),body:document.querySelector('.near-value-popover,.ant-drawer-content')?.outerHTML.slice(0,12000)}});}
 }

@@ -643,3 +643,53 @@ fn search_is_schema_directed_source_local_read_only_and_paste_never_hits_hidden_
     assert_eq!(v.rows[1].occurrence, 2);
     assert!(!w.drafts[SOURCE].can_undo());
 }
+
+#[test]
+fn nested_breadcrumbs_keep_every_ancestor_and_follow_exact_array_occurrences() {
+    let (_temp, mut w) = project();
+    let p = w.select(SOURCE, 0, 32).unwrap();
+    let row = p.rows[0].id.clone();
+    let array = vec!["reward".into(), "values".into()];
+    let view = w
+        .complex_view(SOURCE, p.revision, p.generation, &row, &array, 0..64)
+        .unwrap();
+    let leaf = view.node.children[0].path.clone();
+    let before = w.current_doc(SOURCE).unwrap().bytes.clone();
+    let breadcrumbs = w
+        .complex_view(SOURCE, p.revision, p.generation, &row, &leaf, 0..64)
+        .unwrap()
+        .breadcrumbs;
+    assert_eq!(
+        breadcrumbs
+            .iter()
+            .map(|c| c.label.as_str())
+            .collect::<Vec<_>>(),
+        ["reward", "values", "1"]
+    );
+    for (i, crumb) in breadcrumbs.iter().enumerate() {
+        assert_eq!(crumb.path, leaf[..=i]);
+    }
+    assert_ne!(breadcrumbs[2].label, leaf[2]);
+    assert!(!w.drafts[SOURCE].dirty());
+    assert!(!w.drafts[SOURCE].can_undo());
+    w.complex_operation(
+        SOURCE,
+        p.revision,
+        p.generation,
+        &row,
+        &array,
+        Operation::Place {
+            item: leaf[2].clone(),
+            index: 1,
+        },
+    )
+    .unwrap();
+    let p = w.select(SOURCE, 0, 32).unwrap();
+    let moved = w
+        .complex_view(SOURCE, p.revision, p.generation, &row, &leaf, 0..64)
+        .unwrap();
+    assert_eq!(moved.breadcrumbs[2].label, "2");
+    assert_eq!(moved.breadcrumbs[2].path, leaf);
+    w.undo(SOURCE, false).unwrap();
+    assert_eq!(w.current_doc(SOURCE).unwrap().bytes, before);
+}

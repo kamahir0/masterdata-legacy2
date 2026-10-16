@@ -15,10 +15,6 @@ import {
   Drawer,
   Dropdown,
   Empty,
-  Input,
-  Select,
-  Switch,
-  Space,
   Spin,
   Tag,
   Typography,
@@ -39,6 +35,8 @@ import {
 import { useInteraction, useSurface } from "./app";
 import { desktop, GRID, type ComplexView, type EditorNode } from "./workspace";
 import { beginArrayDrag, consumeSpatialClick } from "./spatial";
+import {isBooleanShape,ScalarValueControl} from "./value-control";
+import {ValuePath} from "./value-path";
 const same = (a: string[], b: string[]) =>
   a.length === b.length && a.every((s, i) => s === b[i]);
 
@@ -351,7 +349,7 @@ export function ComplexPanel() {
     ) {
       e.preventDefault();
       e.stopPropagation();
-      void desktop.undo(e.shiftKey);
+      history(e.shiftKey);
     } else if (
       e.ctrlKey &&
       e.key.toLowerCase() === "y" &&
@@ -359,8 +357,16 @@ export function ComplexPanel() {
     ) {
       e.preventDefault();
       e.stopPropagation();
-      void desktop.undo(true);
+      history(true);
     }
+  };
+  const history = (redo:boolean) => {
+    // History refresh makes the body inert after the keyboard intent advances.
+    // Retain the exact control path so that refresh cannot leave focus on body.
+    const element=document.activeElement;
+    if(element instanceof HTMLElement&&body.current?.contains(element))
+      restoreFocus.current={target:desktop.interaction.complex,intent:desktop.inputIntent,element,path:element.closest<HTMLElement>('[data-value-path]')?.dataset.valuePath};
+    void desktop.undo(redo);
   };
   const leafControl = (node: EditorNode) => {
     if (!node.editable || !node.shape)
@@ -369,10 +375,9 @@ export function ComplexPanel() {
           {complexSummary(node.display, node.kind === "sequence" || node.kind === "mapping")}
         </Typography.Text>
       );
-    if (!node.shape.array && node.kind !== "null" && (node.shape.typeName === "bool" || node.shape.underlying === "bool") && ["true", "false"].includes(node.input ?? ""))
-      return <Switch aria-label={node.label} checked={node.input === "true"} checkedChildren="true" unCheckedChildren="false" onChange={checked => void change(node.path, {kind:"text",text:checked ? "true" : "false"})} />;
-    if (!node.shape.array && node.shape.category === "enum")
-      return <Select aria-label={node.label} showSearch optionFilterProp="label" placeholder="未設定（null）" allowClear={node.shape.nullable} value={node.input ?? undefined} options={node.shape.members?.map(value=>({value,label:value}))} status={node.valid?undefined:"error"} onChange={symbol=>void change(node.path,symbol===undefined?{kind:"null"}:{kind:"enum",symbol})} className="complex-enum" />;
+    if (!node.shape.array && (node.shape.category==='enum'||isBooleanShape(node.shape)&&(node.kind==='null'||['true','false'].includes(node.input??''))))
+      return <ScalarValueControl shape={node.shape} value={node.kind==='null'?null:node.input} label={node.label} invalid={!node.valid}
+        onChange={next=>void change(node.path,next===null?{kind:'null'}:node.shape!.category==='enum'?{kind:'enum',symbol:next}:{kind:'text',text:next})}/>;
     if (
       node.shape.array ||
       ["custom", "flags"].includes(node.shape.category)
@@ -420,8 +425,7 @@ export function ComplexPanel() {
   };
   const control = (node:EditorNode) => {
     if(!node.shape?.nullable||!node.editable)return leafControl(node);
-    if(!node.shape.array&&node.shape.category==='enum')return leafControl(node);
-    if(node.kind==='null'&&!node.shape.array&&(node.shape.typeName==='bool'||node.shape.underlying==='bool'))return <div className="nullable-value-control"><span className="null-value">未設定</span>{['true','false'].map(text=><Button key={text} size="small" aria-label={`${node.label} を${text}にする`} onClick={()=>void change(node.path,{kind:'text',text})}>{text}</Button>)}</div>;
+    if(!node.shape.array&&(node.shape.category==='enum'||isBooleanShape(node.shape)&&(node.kind==='null'||['true','false'].includes(node.input??''))))return leafControl(node);
     return <div className="nullable-value-control">
       {node.kind==="null" ? <Button type="text" className="null-value" aria-label={`${node.label} の値を設定`} onClick={()=>{
         const previous=desktop.interaction.complex,intent=desktop.inputIntent;
@@ -604,19 +608,7 @@ export function ComplexPanel() {
     <ValueSurface
       target={target}
       root={root}
-      title={
-        <Space>
-          {target && target.path.length > 1 && (
-            <><Button type="text" aria-label="元のセルの値" onClick={()=>void navigate([target.root])}>{target.root}</Button><Button
-              type="text"
-              icon={<LeftOutlined aria-hidden="true" />}
-              aria-label="親の値"
-              onClick={() => void navigate(target.path.slice(0, -1))}
-            /></>
-          )}
-          <span>{root?.label ?? target?.root ?? "複合値"}</span>
-        </Space>
-      }
+      title={root&&view?<ValuePath items={view.breadcrumbs.map(item=>({key:JSON.stringify(item.path),label:item.label}))} onSelect={index=>void navigate(view.breadcrumbs[index].path)}/>:<span>{target?.root??'複合値'}</span>}
       open={!!target && (!s.pending || s.externalPending) && target.epoch === s.status.epoch}
       onClose={() => void close()}
     >
@@ -647,7 +639,7 @@ export function ComplexPanel() {
                   description={root.shape?.array&&root.kind!=="sequence" ? `元の値：${root.display}。下の修復操作で空の配列へ置き換えます。元に戻すで復元できます。` : undefined}
                 />
               )}
-              {root.shape?.nullable && !(root.shape.category==="enum"&&!root.shape.array&&target?.path.length===1) && (
+              {root.shape?.nullable && !isBooleanShape(root.shape) && !(root.shape.category==="enum"&&!root.shape.array&&target?.path.length===1) && (
                 <div className="value-null-state"><Tag>{root.kind==="null"?"未設定（null）":"値あり"}</Tag>
                   <Button size="small" disabled={!root.editable} onClick={()=>void change(root.path,{kind:root.kind==="null"?"materialize":"null"})}>{root.kind==="null"?"初期値で設定":"未設定にする"}</Button>
                 </div>
@@ -656,7 +648,7 @@ export function ComplexPanel() {
                 <Typography.Paragraph type="secondary">
                   {root.display} · {uiMessage(root.reason)}
                 </Typography.Paragraph>
-              ) : root.kind === "null" && root.shape.nullable ? (
+              ) : root.kind === "null" && root.shape.nullable && !isBooleanShape(root.shape) ? (
                 <Typography.Paragraph type="secondary">値を設定すると、この型の初期値から編集できます。</Typography.Paragraph>
               ) : root.shape.array && root.kind === "sequence" ? (
                 <>
@@ -899,52 +891,30 @@ function LeafInput({
       observed.current = authority;
     }
   }, [node.input, nonNull, authority]);
-  if (node.shape && !node.shape.array && (node.shape.typeName === "bool" || node.shape.underlying === "bool") && ["true", "false"].includes(node.input ?? ""))
-    return <Switch autoFocus aria-label={node.label} checked={node.input === "true"} checkedChildren="true" unCheckedChildren="false" onChange={checked=>{value.current=checked?"true":"false";set(value.current);report();void commit();}} />;
-  if (node.shape?.category === "enum")
-    return (
-      <Select
-        autoFocus
-        showSearch
-        defaultOpen
-        aria-label={node.label}
-        value={node.input ?? undefined}
-        placeholder={complexSummary(node.display, node.kind === "sequence" || node.kind === "mapping")}
-        options={node.shape.members?.map((value) => ({ value, label: value }))}
-        allowClear={node.shape?.nullable}
-        onChange={symbol=>enumSelect(symbol??null)}
-        className="complex-enum"
-        status={node.valid ? undefined : "error"}
-      />
-    );
+  const boolean=isBooleanShape(node.shape)&&(node.kind==='null'||['true','false'].includes(node.input??''));
   return (
     <div className="complex-input">
-      <Input
-        ref={input}
-        value={text}
-        aria-label={node.label}
-        status={node.valid ? undefined : "error"}
-        onChange={(e) => {
-          value.current = e.target.value;
-          set(e.target.value);
-          report();
+      <ScalarValueControl
+        shape={node.shape}
+        textSession={isBooleanShape(node.shape)&&!boolean}
+        inputRef={input}
+        autoFocus
+        defaultOpen={node.shape?.category==='enum'}
+        value={node.shape?.category==='enum'?node.input:node.kind==='null'&&boolean?null:text}
+        label={node.label}
+        invalid={!node.valid}
+        onChange={next=>{
+          if(next===null||node.shape?.category==='enum'){enumSelect(next);return;}
+          value.current=next;set(next);report();
+          if(boolean)void commit();
         }}
-        onCompositionStart={() => {
-          composing.current = true;
-          report();
-        }}
-        onCompositionEnd={() => {
-          composing.current = false;
-          report();
-        }}
-        onBlur={() => { if (!desktop.surface.externalPending) void commit(); }}
-        onKeyDown={(e) => {
-          if (e.nativeEvent.isComposing || composing.current || e.keyCode === 229) return;
-          if (e.key === "Enter") {
-            e.preventDefault();
-            e.stopPropagation();
-            void commit();
-          } else if (e.key === "Tab") void commit();
+        onCompositionStart={()=>{composing.current=true;report();}}
+        onCompositionEnd={()=>{composing.current=false;report();}}
+        onBlur={()=>{if(!desktop.surface.externalPending)void commit();}}
+        onKeyDown={e=>{
+          if(e.nativeEvent.isComposing||composing.current||e.keyCode===229||node.shape?.category==='enum')return;
+          if(!boolean&&e.key==='Enter'){e.preventDefault();e.stopPropagation();void commit();}
+          else if(!boolean&&e.key==='Tab')void commit();
         }}
       />
       {nonNull && (node.shape?.typeName==="string"||node.shape?.underlying==="string") && (

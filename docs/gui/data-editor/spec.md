@@ -260,6 +260,10 @@ None identified for the existing-record Data Editor contract. Programmable View 
 
 ### GUI-DATA-EDIT-005 — Typed control consistency
 
-boolはネスト内外で同じswitch表現を使う。Nullableの未設定と値ありを明示し、nested値の明示生成/解除を近接した操作で行える。生成は[Authoring Defaults](../../specs/authoring-defaults.md)に従い、一操作/一Undoとする。opening/navigationだけでは既存値を変えない。Enum、可変長の型候補・tag等の単一選択はsearchable selectorを使う。Array modifierは[]とし、Nullable/Arrayの有効/無効を色だけに依存せず表示する。
+同じresolved型・値状態には、表の直接操作、編集中、nested、typed initializerで共通の型別controlを使う。boolはtrack、値label、サイズ、nullable表示、focus表現を統一し、形式だけをswitchに合わせるhost別実装にしない。確定・取消・保存の所有権は各編集sessionへ保持し、invalid scalarを暗黙にboolへ変換しない。Nullableの未設定と値ありを明示し、nested値の明示生成/解除を近接した操作で行える。生成は[Authoring Defaults](../../specs/authoring-defaults.md)に従い、一操作/一Undoとする。opening/navigationだけでは既存値を変えない。Enum、可変長の型候補・tag等の単一選択はsearchable selectorを使う。Array modifierは[]とし、Nullable/Arrayの有効/無効を色だけに依存せず表示する。
 
 配列shape不一致は元値とdiagnosticを保持して明示修復へ到達でき、空配列へ置き換える対象と影響を説明する。修復はUndo可能とし、unsafe localizationを理由なく迂回しない。Flagsの選択制御は[Authoring Defaults](../../specs/authoring-defaults.md)へ委譲する。
+
+### GUI-DATA-NAV-001 — Value hierarchy
+
+Complex value / typed initializerは現在値までの全ancestorを順番に表示し、ancestorへ直接戻れる。現在値の名前を優先して表示し、狭い幅や長い名前でも途中階層を削除しない。overflowするancestor列はscrollとkeyboardで辿れ、現在名はwrapできる。既存sourceの配列要素の表示名と正確な移動pathはshared applicationが解決し、GUIはopaque occurrence IDから表示名を推測しない。移動だけでは値・dirty・Undo historyを変更しない。

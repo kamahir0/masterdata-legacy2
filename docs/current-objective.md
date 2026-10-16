@@ -20,6 +20,7 @@
 - [VSCodeを参考にしたExplorer再構成](spec-changes/0063-vscode-explorer.md)（2026-10-14 Human-selected追加scope）。起動中のVSCodeを実際に操作・観察し、左ペインの外観とnavigation / authoringを作り直す。motionの既存方針は維持する。
 - [ProjectをTOMLファイルから開く](spec-changes/0064-project-file-picker.md)（2026-10-15 Human-selected追加scope）。
 - [Desktop操作モデルと直接編集の再設計](spec-changes/0065-desktop-interaction-redesign.md)（2026-10-15 Human-selected追加scope）。
+- [型別入力部品と値の階層表示の統一](spec-changes/0066-shared-value-controls.md)（2026-10-16 Human-selected修正scope）。
 - source / schema / type mutation、write safety、Migration、CLI、Build / Publish、native MasterMemory delegationとactual consumer。
 - [independent oracle](../fixtures/rewrite-oracle/v1/README.md)の全category、[acceptance matrix](rewrite-preparation/acceptance-matrix.md)、source exact bytes、100k capacity。
 - [performance contract](gui/performance.md)のdistribution / work counts、macOS arm64 / Windows x64 actual Desktop、fresh Candidate reviewとrequired CI。

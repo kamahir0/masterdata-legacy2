@@ -1,9 +1,11 @@
 import {useEffect,useRef,useState} from "react";
-import {Alert,Button, Checkbox, Empty, Flex, Input, Pagination, Select, Space, Tag, Typography} from "antd";
-import {DeleteOutlined, LeftOutlined, PlusOutlined, RightOutlined} from "@ant-design/icons";
+import {Alert,Button, Checkbox, Empty, Flex, Pagination, Space, Tag, Typography} from "antd";
+import {DeleteOutlined, PlusOutlined, RightOutlined} from "@ant-design/icons";
 import {errorText} from "./workspace";
 import {uiMessage} from "./language";
 import type {ConstantInput, Shape} from "./types";
+import {isBooleanShape,ScalarValueControl} from "./value-control";
+import {ValuePath} from "./value-path";
 const unset:ConstantInput={kind:"unset"};
 type Step=string|number;
 function element(shape:Shape):Shape{return {...shape,array:false,nullable:false};}
@@ -41,14 +43,13 @@ export function TypedInitializer({shape,value,onChange,request,disabled=false}:{
   return <div className="typed-initializer" aria-label="型に合わせた初期値">
     {error&&<Alert type="error" showIcon title={error}/>}
     <Flex gap={8} align="center" className="initializer-heading">
-      {!!path.length&&<Button type="text" icon={<LeftOutlined aria-hidden="true"/>} aria-label="親の初期値に戻る" onClick={()=>{setPath(path.slice(0,-1));setPage(1);}}/>}
-      <Typography.Text strong>{path.map(key=>typeof key==="number"?String(key+1):key).join(" / ")||"初期値"}</Typography.Text>
+      <ValuePath items={['初期値',...path.map(key=>typeof key==='number'?String(key+1):key)].map((label,index)=>({label,key:JSON.stringify(path.slice(0,index))}))} onSelect={index=>{setPath(path.slice(0,index));setPage(1);}} backLabel='親の初期値に戻る' rootLabel='初期値全体に戻る'/>
       <Tag>{resolved.typeName}{resolved.array?"[]":resolved.nullable?"?":""}</Tag>
       <Space className="initializer-actions"><Button type="text" disabled={disabled} onClick={()=>set(unset)}>未設定</Button>{resolved.nullable&&<Button type="text" disabled={disabled} onClick={()=>set({kind:"null"})}>nullを使用</Button>}</Space>
     </Flex>
-    {current.kind==="unset"||current.kind==="null"?<Flex gap={12} align="center"><Typography.Text type="secondary">{summary(current)}</Typography.Text><Button disabled={disabled} onClick={materialize}>値を入力</Button></Flex>
+    {current.kind==="unset"||current.kind==="null"&&!isBooleanShape(resolved)?<Flex gap={12} align="center"><Typography.Text type="secondary">{summary(current)}</Typography.Text><Button disabled={disabled} onClick={materialize}>値を入力</Button></Flex>
     :resolved.category==="flags"&&!resolved.array&&current.kind==="sequence"?<Space wrap>{(resolved.members??[]).map(symbol=><Checkbox key={symbol} disabled={disabled} checked={current.value.some(v=>v.kind==='scalar'&&v.text===symbol)} onChange={e=>void apply({kind:'flag',symbol,enabled:e.target.checked,members:current.value.flatMap(v=>v.kind==='scalar'?[v.text]:[])})}>{symbol}</Checkbox>)}</Space>
-    :current.kind==="scalar"?<>{resolved.category==="enum"||resolved.typeName==="bool"||resolved.underlying==="bool"?<Select showSearch optionFilterProp="label" aria-label="初期値" placeholder="値を選択" disabled={disabled} value={current.text||undefined} options={(resolved.category==="enum"?resolved.members??[]:["true","false"]).map(v=>({value:v,label:v}))} onChange={text=>set({kind:"scalar",text})}/>:<Input aria-label="初期値" disabled={disabled} value={current.text} onChange={e=>set({kind:"scalar",text:e.target.value})}/>}</>
+    :current.kind==="scalar"||current.kind==="null"?<ScalarValueControl shape={resolved} value={current.kind==='null'?null:current.text} label="初期値" disabled={disabled} onChange={text=>set(text===null?{kind:'null'}:{kind:'scalar',text})}/>
     :<>
       {entries.length===0&&<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="空の配列"/>}
       <div role="list" aria-label="初期値の要素">{entries.slice((visiblePage-1)*16,visiblePage*16).map(entry=><Flex key={entry.key} role="listitem" align="center" className="initializer-child"><Button type="text" disabled={disabled} onClick={()=>open(entry.key)}><Typography.Text>{entry.label}</Typography.Text><Typography.Text type="secondary">{summary(entry.value)}</Typography.Text><RightOutlined aria-hidden="true"/></Button>{current.kind==="sequence"&&<Button type="text" disabled={disabled} icon={<DeleteOutlined aria-hidden="true"/>} aria-label={`初期値の要素を削除: ${entry.label}`} onClick={()=>set({...current,value:current.value.filter((_,i)=>i!==entry.key)})}/>}</Flex>)}</div>

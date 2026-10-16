@@ -65,6 +65,7 @@ export interface ComplexView {
   row: string;
   revision: number;
   generation: number;
+  breadcrumbs: {path:string[];label:string}[];
   node: EditorNode;
 }
 interface ProblemTarget {

@@ -15,7 +15,6 @@ import {
   Dropdown,
   Input,
   Select,
-  Switch,
   Tooltip,
   type InputRef,
   type MenuProps,
@@ -36,6 +35,7 @@ import {
 } from "@ant-design/icons";
 import type { Field, Projection, Row } from "./types";
 import { desktop, GRID, type Editor } from "./workspace";
+import {isBooleanShape,ScalarValueControl} from "./value-control";
 import {
   beginColumnDrag,
   beginRowDrag,
@@ -527,11 +527,14 @@ const GridRow = memo(function GridRow({
         </button>
       </div>
       {row.cells.slice(first, last).map((cell, at) => {
-        const column = at + first;
+        const column = at + first, shape=p.columns[column].shape;
+        const raw=cell.value&&"value" in cell.value?cell.value.value:null;
+        const booleanText=typeof raw==='string'&&['true','false'].includes(raw)?raw:undefined;
+        const booleanCell=isBooleanShape(shape)&&booleanText!==undefined;
         return (
           <div
             key={p.columns[column].field.name}
-            className={`cell${cell.valid ? "" : " invalid"}${p.columns[column].primary ? " primary-cell" : ""}${p.columns[column].field.nullable ? " nullable-cell" : ""}`}
+            className={`cell${cell.valid ? "" : " invalid"}${p.columns[column].primary ? " primary-cell" : ""}${p.columns[column].field.nullable&&!booleanCell ? " nullable-cell" : ""}`}
             id={`cell-${row.viewIndex}-${column}`}
             role="gridcell"
             aria-colindex={column + 2}
@@ -569,19 +572,17 @@ const GridRow = memo(function GridRow({
               menu(row, e.clientX, e.clientY);
             }}
           >
-            {p.columns[column].field.nullable && !cell.isNull && cell.editable && (
+            {p.columns[column].field.nullable && !booleanCell && !cell.isNull && cell.editable && (
               <button className="cell-null" aria-label={`${p.columns[column].field.name} 行 ${row.viewIndex + 1} をnullにする`} title="nullにする（Alt+Backspace）"
                 onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); void desktop.setCellNull(p, row.id, p.columns[column].field.name); }}>
                 <CloseOutlined aria-hidden="true" />
               </button>
             )}
-            {cell.editable && !row.pendingDelete && !cell.isNull && !p.columns[column].shape?.array &&
-              (p.columns[column].shape?.typeName==="bool" || p.columns[column].shape?.underlying==="bool") &&
-              cell.value && "value" in cell.value && typeof cell.value.value==="string" && ["true","false"].includes(cell.value.value) ?
-              <button className="cell-bool" role="switch" aria-checked={cell.value.value==="true"} aria-label={`${p.columns[column].field.name} 行 ${row.viewIndex+1} を切り替え`}
-                onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();if(!e.shiftKey&&!e.metaKey&&!e.ctrlKey&&!consumeSpatialClick(e.detail))void desktop.toggleBoolean(p,row.id,p.columns[column].field.name);}}>
-                <span className="bool-indicator" aria-hidden="true"><span/></span>{cell.display}
-              </button> : <span className="cell-value">{complexSummary(cell.display, cell.value === null)}</span>}
+            {cell.editable && !row.pendingDelete && booleanCell ?
+              <ScalarValueControl shape={shape} value={booleanText!} label={`${p.columns[column].field.name} 行 ${row.viewIndex+1}`} invalid={!cell.valid}
+                onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();if(e.shiftKey||e.metaKey||e.ctrlKey||consumeSpatialClick(e.detail))e.preventDefault();}}
+                onChange={next=>{if(next===null)void desktop.setCellNull(p,row.id,p.columns[column].field.name);else void desktop.toggleBoolean(p,row.id,p.columns[column].field.name);}}/>
+              : <span className="cell-value">{complexSummary(cell.display, cell.value === null)}</span>}
           </div>
         );
       })}
@@ -701,8 +702,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
     return unbind;
   }, [commit, cancel]);
   const shape = desktop.surface.projection?.columns[editor.column]?.shape;
-  const nullBoolean=editor.isNull&&shape&&!shape.array&&(shape.typeName==="bool"||shape.underlying==="bool");
-  const boolean = shape && !shape.array && (shape.typeName === "bool" || shape.underlying === "bool") && ["true", "false"].includes(text);
+  const boolean = isBooleanShape(shape)&&(editor.isNull||["true","false"].includes(editor.initial));
   return (
     <div
       ref={element}
@@ -718,17 +718,17 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
         height: GRID.row,
       }}
     >
-      {nullBoolean ? <div className="null-bool-editor" role="group" aria-label={`${editor.field} 行 ${editor.rowIndex+1}`} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();cancel();desktop.viewport?.focus();}}}>
-        {["true","false"].map((choice,index)=><Button key={choice} autoFocus={index===0} onPointerDown={e=>{e.stopPropagation();e.preventDefault();}} aria-label={`${editor.field} 行 ${editor.rowIndex+1} を${choice}にする`} disabled={desktop.surface.busy} onClick={()=>{value.current=choice;setText(choice);void commit().then(ok=>{if(ok)desktop.viewport?.focus({preventScroll:true});});}}>{choice}</Button>)}
-      </div> : boolean ? <span onKeyDown={e => { if(e.key === "Escape") {e.preventDefault();e.stopPropagation();cancel();desktop.viewport?.focus();} }}><Switch autoFocus aria-label={`${editor.field} 行 ${editor.rowIndex + 1}`} checked={text === "true"} checkedChildren="true" unCheckedChildren="false"
-        onChange={checked => { value.current = checked ? "true" : "false"; setText(value.current); void commit().then(ok => {if(ok)desktop.viewport?.focus({preventScroll:true});}); }}
-        /></span> : <Input
-        ref={input}
-        aria-label={`${editor.field} 行 ${editor.rowIndex + 1}`}
-        value={text}
-        onChange={(e) => {
-          value.current = e.target.value;
-          setText(e.target.value);
+      <ScalarValueControl
+        shape={shape}
+        textSession={isBooleanShape(shape)&&!boolean}
+        inputRef={input}
+        label={`${editor.field} 行 ${editor.rowIndex + 1}`}
+        value={editor.isNull&&boolean?null:text}
+        autoFocus={boolean}
+        onChange={next=>{
+          if(next===null){const p=desktop.surface.projection;if(p)void desktop.setCellNull(p,editor.row,editor.field);return;}
+          value.current=next;setText(next);
+          if(boolean)void commit().then(ok=>{if(ok)desktop.viewport?.focus({preventScroll:true});});
         }}
         onCompositionStart={() => {
           composing.current = true;
@@ -736,7 +736,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
         onCompositionEnd={() => {
           composing.current = false;
         }}
-        onBlur={e => { if (!desktop.surface.externalPending&&!e.relatedTarget?.closest('.active-cell-editor')) void commit(); }}
+        onBlur={() => { if (!desktop.surface.externalPending) void commit(); }}
         onKeyDown={(e) => {
           if (
             (e.metaKey || e.ctrlKey) &&
@@ -745,6 +745,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
             !composing.current
           )
             return;
+          if(boolean&&e.key!=="Escape")return;
           e.stopPropagation();
           // WebKit can emit compositionend before the IME confirmation Enter,
           // clearing both flags. Its process key (229) still belongs to the IME;
@@ -774,7 +775,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
             });
           }
         }}
-      />}
+      />
       {editor.isNull&&(shape?.typeName==="string"||shape?.underlying==="string")&&<button className="explicit-empty" aria-label="空文字にする" title="空文字にする" onPointerDown={e=>e.preventDefault()} onClick={()=>void desktop.edit(editor,"",true).then(ok=>{if(ok)desktop.viewport?.focus({preventScroll:true});})}>""</button>}
     </div>
   );
