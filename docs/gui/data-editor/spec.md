@@ -262,6 +262,8 @@ None identified for the existing-record Data Editor contract. Programmable View 
 
 同じresolved型・値状態には、表の直接操作、編集中、nested、typed initializerで共通の型別controlを使う。boolはtrack、値label、サイズ、nullable表示、focus表現を統一し、形式だけをswitchに合わせるhost別実装にしない。確定・取消・保存の所有権は各編集sessionへ保持し、invalid scalarを暗黙にboolへ変換しない。Nullableの未設定と値ありを明示し、nested値の明示生成/解除を近接した操作で行える。生成は[Authoring Defaults](../../specs/authoring-defaults.md)に従い、一操作/一Undoとする。opening/navigationだけでは既存値を変えない。Enum、可変長の型候補・tag等の単一選択はsearchable selectorを使う。Array modifierは[]とし、Nullable/Arrayの有効/無効を色だけに依存せず表示する。
 
+Nullableの表示・解除は型別controlの外側で共通化し、boolだけ別位置へ解除buttonを出さない。解除は一貫した末尾位置・label・keyboard操作を持ち、表の非編集中はhover / focusで表示してgeometryを維持する。処理中の解除を無言で捨てず、`AUTHORING-STRUCTURE-005`の入力受付に従う。
+
 配列shape不一致は元値とdiagnosticを保持して明示修復へ到達でき、空配列へ置き換える対象と影響を説明する。修復はUndo可能とし、unsafe localizationを理由なく迂回しない。Flagsの選択制御は[Authoring Defaults](../../specs/authoring-defaults.md)へ委譲する。
 
 ### GUI-DATA-NAV-001 — Value hierarchy

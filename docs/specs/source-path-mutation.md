@@ -6,13 +6,13 @@ Domain: Source Editing
 
 ## 概要
 
-本仕様は、Projectの固定`sources/`内にあるexisting Masterdata source fileをrename / moveするためのobservable contractを定義する。
+本仕様は、Projectの固定`sources/`内にあるexisting source file / folderをrename / moveするためのobservable contractを定義する。
 
 source file pathはstorage / provenanceであり、Table / Type等のdomain identityではない。[Project layout](project-layout.md)のidentity contract、[GUI app shell](../gui/app-shell.md)のRecovery Required gateを維持する。record value編集、Source Creation、Schema / Type Migration、Build / Publish、Git operationはそれぞれのowner specificationが所有する。
 
 ## 用語
 
-- **Source path mutation**: existing source fileのstorage pathだけを変更するrename / move operation。
+- **Source path mutation**: existing source file / folderのstorage pathだけを変更するrename / move operation。
 - **Source path**: 固定`sources/`内のproject-relative storage location。domain identityではない。
 - **Conflict**: mutation開始前のsource / destination preflightにより安全にoperationを開始できず停止した状態。
 - **Outcome Unknown**: mutation開始後のhost / I/O failure等によりold source / destinationのfinal stateを安全に断定できない状態。
@@ -87,7 +87,7 @@ unrelated source fileのdirty bufferをrename / moveのためにSave、Discard�
 
 source file pathだけを変更し、YAML content、declared Table / Type identity、MessagePack field key、generated API / binary formatを直接変更しない。source-relative provenance、Explorer selection、open editor path、diagnostic/source navigation等のpath-bearing runtime stateはSuccess後にnew pathへ追従する。
 
-`sources/`外へのmove、destination overwrite、source delete / duplicate、folder rename / moveはこのinitial contractへ含めない。Git rename detection、stage / commit behaviorはGit側のpresentationであり本仕様のownerではない。
+`sources/`外へのmoveとdestination overwriteは提供しない。recoverable deleteはSource Trashへ委譲する。Git rename detection、stage / commit behaviorはGit側のpresentationであり本仕様のownerではない。
 
 ## 未解決事項
 
@@ -97,7 +97,10 @@ None identified. exact native rename primitive、case-only renameのintermediate
 
 - `sources/`外へのmove。
 - destination overwrite。
-- source file delete / duplicate。
-- folder rename / move。
+- 永久削除。
 - source content / declared identity mutation。
 - Build / Publish / Migration / Git operation。
+
+### SOURCE-PATH-008
+
+fileとfolderのrename / move / copyをshared native境界で提供する。folderはroot以外の全entryを対象にし、配下content・空folderを保持する。自分の子孫へのmove / copy、symlink escape、collisionは拒否する。copyは一時entryへ完全な内容を作成してからexclusiveに公開し、元entryを変更しない。copy後のdomain identity重複は診断として扱い、暗黙renameしない。対象配下のdirtyはまとめたSave / Don't Save / Cancelで解決し、unrelated bufferを保持する。batchの事前検査後はitem別結果を返し、Unknownのold/new pathをrecheckする。

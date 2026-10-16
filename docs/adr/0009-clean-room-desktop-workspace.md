@@ -12,7 +12,7 @@ shared Rust engineはsource bytes、byte rangeを持つ構文木、schema-direct
 
 Project openでinventoryとparsed documentsを作り、Desktop workspaceはimmutable read generationとphysical sourceごとのdraft/historyをsession中保持する。draftはread cacheと別の所有であり、source bytesを変更したphysical sourceだけdirtyになる。selectionは必要なsource/dependencyのfreshnessを確認してbounded projectionを返す。background diagnosticsはgenerationと対象を保持してpublishする。selection queueは実行中一件と最新pending一件に集約し、obsolete result / focusを受理しない。
 
-native write boundaryはactual path / binding / bytesをfresh確認してcommitを認可する。read generationはwrite authorizationを提供しない。file別の結果で成功したdraftだけbase/historyを進める。Migration / Build / Publishはordinary edit lifecycleとは別に捕捉したinputを扱う。
+native write boundaryはactual path / binding / bytesをfresh確認してcommitを認可する。read generationはwrite authorizationを提供しない。file別の結果で成功したdraftだけbase/historyを進める。通常の構造編集もcurrent draftへsource-preserving patchをcomposeし、関連fileをgroup historyで追跡する。semantic errorを修正する途中状態を保持するため、編集許可はglobal validityへ依存させない。明示Migration / Build / Publishはordinary edit lifecycleとは別に捕捉したinputを扱う。
 
 Desktop hostにはTauri 2を使う。macOSのWKWebView / WindowsのWebView2でnative text control、IME、keyboard、accessibilityを利用でき、Rust libraryを直接呼べることから選んだ。表示はReact + Ant Designをbaselineとする。standard controls / menus / overlays / theme / motionをAnt Designへ集約し、single active editorとbounded authoring gridはcustom Reactで表現する。汎用Tableのrow lifecycleへauthoring identity / spatial drag / viewport transportを従属させず、gridも同じdesign tokensを使う。cellごとのhidden editorや全Table payloadを作らない。transportは表示範囲、resolved field descriptor、lossless value、operation intent/resultに限定する。selection / scroll / focus / range / drag previewはpresentation-only。構文木、型解決、write authorityはDesktopへ渡さない。
 

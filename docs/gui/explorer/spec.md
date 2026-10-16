@@ -80,7 +80,7 @@ Explorer上端はNew fileのkind menu、New folder、Refresh、Collapse all、�
 
 同じfolder内のRenameはfile行のmenu / context menu / F2から、同じ行のfilename入力で開始する。初期選択は拡張子を除くstem。Enterは最新preflightを待って確定し、Escape、空入力の外側click、変更なしはCancel。入力済みの外側clickは確定し、validation / Conflict / Failureでは入力を保持する。IME compositionで誤確定しない。Outcome Unknownでは同じ行からold / new pathをRecheckでき、blind retry / Cancelで結果を隠さない。
 
-Moveはfile menuまたはfile dragから既存のpath reviewを開く。manual Moveはformで確認し、drag/dropの直接実行はGUI-EXPLORER-INT-008に従う。folder自身のmutationや、外部fileのdropは提供しない。Rename / Moveは同じshared application operation、dirty guard、recovery lifecycleを使う。
+Moveはfile / folder menuまたはdragから既存のpath reviewを開く。manual Moveはformで確認し、drag/dropの直接実行はGUI-EXPLORER-INT-008に従う。外部fileのdropは提供しない。Rename / Moveは同じshared application operation、dirty guard、recovery lifecycleを使う。
 
 Workspace Explorerはexisting Masterdata source fileに対するRename / Move actionを提供しなければならない（MUST）。destinationは固定`sources/`内のfolder / filenameとして指定できなければならず（MUST）、root selectorを出さない。表示上の基点は`ソース直下`とし、実際のpathは確認できるようにする。候補folderが1つならselectorにしない。
 
@@ -154,11 +154,11 @@ None.
 
 ## Mutation boundary
 
-creationは[Source Creation](../source-creation/spec.md)、file rename / moveは[Source Path Mutation](../../specs/source-path-mutation.md)が所有する。source fileの削除・復元は[Source Trash](../../specs/source-trash.md)が所有する。duplicate、folder rename / move、multi-file transactionは追加contractが整った時点で別途仕様化する。未対応commandを実行可能なmenuとして提示しない。
+creationは[Source Creation](../source-creation/spec.md)、file / folder rename / move / copyは[Source Path Mutation](../../specs/source-path-mutation.md)が所有する。削除・復元は[Source Trash](../../specs/source-trash.md)が所有する。未対応commandを実行可能なmenuとして提示しない。
 
 ## 未解決事項（Open Questions）
 
-None identified for the current Explorer contract. Source file duplicate、folder rename / move、diagnostic aggregation badge、favorite / recent source等は将来UXとして別途扱う。
+None identified for the current Explorer contract.
 
 ## 直接操作と復元可能な削除
 
@@ -166,7 +166,11 @@ None identified for the current Explorer contract. Source file duplicate、folde
 
 file drag/dropはpointerが示すfolder（file上ならそのparent、空白ならソース直下）へ、shared path preflight/commitを直接実行する。clean fileのdropには通常のMove dialogを要求しない。manual Move formとkeyboard代替を保持し、dirty guard、collision時no-overwrite、Outcome Unknown再確認は既存ownerを維持する。同folder、cancel、無効dropはno-opとする。
 
-file menu / keyboardから[Source Trash](../../specs/source-trash.md)の削除・復元へ到達できる。targetとdirtyを確認し、他sourceのbufferを保持する。folder一括削除と永久削除は提供しない。
+file / folder menuとkeyboardから[Source Trash](../../specs/source-trash.md)の削除・復元へ到達できる。targetと配下dirtyを確認し、他sourceのbufferを保持する。永久削除は提供しない。
+
+### GUI-EXPLORER-INT-009
+
+file / folderのRename、Move、Copy、Cut、Paste、Duplicate、Deleteをcontext menuとkeyboardから提供する。Cmd/Ctrlによる複数選択、Shift範囲選択と全選択を持ち、複数itemのcopy / move / deleteを実行できる。clicked itemが選択群に含まれれば群を対象とし、含まれなければclicked itemへ固定する。選択祖先と子孫を重複実行しない。clipboardはpath群とcopy/cut意図を保持し、コピー先のdomain identityは暗黙変更しない。batchの部分失敗とUnknownはitem別に示し、成功済み項目をblind retryしない。
 
 ### GUI-EXPLORER-LAYOUT-005
 

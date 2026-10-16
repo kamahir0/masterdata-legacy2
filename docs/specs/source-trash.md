@@ -4,7 +4,7 @@ Status: Approved
 
 ### SOURCE-TRASH-001
 
-明示したexisting source fileをProject内のsource discovery外trashへ退避し、exact bytes、元path、identityと復元receiptを保持する。shared application/native境界が操作を所有する。対象dirtyだけ既存Save/Don't Save/Cancel guardを適用し、他sourceのbufferを保持する。Recovery Requiredと未確認writeでは停止する。folder一括削除、永久削除、自動purgeは提供しない。
+明示したexisting source fileまたはfolderをProject内のsource discovery外trashへ退避し、exact bytes、空folderを含む全内容、元path、identityと復元receiptを保持する。shared application/native境界が操作を所有する。対象と配下のdirtyだけまとめたSave/Don't Save/Cancel guardを適用し、他sourceのbufferを保持する。Recovery Requiredと未確認writeでは停止する。永久削除と自動purgeは提供しない。
 
 ### SOURCE-TRASH-002
 

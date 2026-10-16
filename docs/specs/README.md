@@ -174,3 +174,5 @@ normative rule、stable rationale、observable acceptance expectationだけを�
 
 - [Authoring Defaults](authoring-defaults.md) — 新規typed値とunique key、Flags操作
 - [Source Trash](source-trash.md) — 復元可能なsource file削除
+
+通常Desktop構造編集のdraft / history / Saveは[Ordinary Structural Authoring](structural-authoring.md)を参照する。

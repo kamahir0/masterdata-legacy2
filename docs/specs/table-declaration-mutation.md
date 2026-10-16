@@ -16,15 +16,15 @@ mutationは対象schema sourceの必要なdeclaration spansだけを変更する
 
 ### TABLE-DECL-003
 
-Planはsaved source / configのcaptured resolution closureから導出し、command、affected physical sources、before / after、resolved declarationとdiagnosticsを理解可能にする（MUST）。dirty source / dependencyがある場合、saved Planとの区別を表示し、affected write sourceには既存Save / Don't Save / Cancel guardを適用する。無関係draft / historyを破棄したり、semantic diagnosticsだけでdependent sourceをdirtyにしてはならない（MUST NOT）。
+操作はcurrent sourceと関連draftから構成し、[Ordinary Structural Authoring](structural-authoring.md)へ従う。既存dirtyをSave / Discardしてから編集することを要求せず、非対象のbuffer / historyを保持する。
 
 ### TABLE-DECL-004
 
-new / changed declarationとその変更で影響するKey / Reference resolutionはexisting canonical validatorで検証し、ambiguous / invalid declarationまたは解決不能なdependencyではcommitしない（MUST）。Project-wide error-freeやrecord-level key uniqueness / missing-reference diagnosticの解消をoperation成功の前提にしない（MUST NOT）。recordのvalue変換・自動repairを追加せず、Buildは既存strict validationに従う。追加のMessagePack key upper boundやcross-schema binary compatibilityを導入しない。
+new / changed declarationはshared canonical validatorで診断する。semantic errorや未解決dependencyは安全な局所編集を拒否する理由にしない。record valueを自動変換・修復せず、Buildのstrict validationを維持する。
 
 ### TABLE-DECL-005
 
-commitは明示的なPlan authorization後、actual current namespace / identity / bytesとcaptured closureのfresh checkで認可する（MUST）。stale Planはrejectし、silent re-plan / auto-applyを行わない（MUST NOT）。Reference / Secondary Key removalは削除対象と影響を確認したexplicit destructive authorizationを要求する（MUST）。Success / Conflict / Failure / Outcome Unknown / NotAttempted / Recovery Requiredとpartial physical-source base advancementは既存native write safety contractを共有し、Unknownをblind retryしない（MUST NOT）。committed diskをsource-local authoring Undoで巻き戻さない。
+編集は対象を明示してdraftへ適用し、一Undoで復元する。disk write、stale / conflict / Unknown / Recovery RequiredはSource EditとOrdinary Structural AuthoringのSave安全境界へ従う。
 
 ### TABLE-DECL-006
 

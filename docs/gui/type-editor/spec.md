@@ -4,9 +4,9 @@ Status: Approved
 
 ## 目的
 
-既存Value Object / Enum / Flags Enum / Custom Type documentをWorkspace Explorerから選択し、[Type Migration v1](../../specs/type-migration.md)のsemantic operationをdeterministic Planとsource Diffを確認しながら安全に実行できるschema-aware Type Editorを提供する。
+既存Value Object / Enum / Flags Enum / Custom Type documentをWorkspace Explorerから選択し、[Ordinary Structural Authoring](../../specs/structural-authoring.md)のdraft / Undo / Saveで編集できるschema-aware Type Editorを提供する。
 
-Type category、member/field、data representation、generated C# semanticsは[Type System](../../specs/type-system/README.md) family、dependency resolution、source-preserving rewrite、stale-plan preflight、destructive authorization、multi-file commit / rollbackはType Migration v1が所有する。本仕様はType Editorのlayout、state、interaction、dirty-buffer composition、error/recovery、adapter boundaryを所有する。frontendはYAMLを独自parse/rewriteしない。
+Type category、member/field、data representation、generated C# semanticsは[Type System](../../specs/type-system/README.md) family、通常編集のsource-preserving patch / history / SaveはOrdinary Structural Authoring、明示Migrationのstrict Plan / disk transactionはType Migration v1が所有する。本仕様はType Editorのlayout、state、interaction、dirty-buffer composition、error/recovery、adapter boundaryを所有する。frontendはYAMLを独自parse/rewriteしない。
 
 ## レイアウト（Layout）
 
@@ -22,7 +22,7 @@ Value Objectではunderlying primitiveと`fromUnderlyingImplicit` / `toUnderlyin
 
 Flagsの既存numeric declarationにはatomic bitの位置と式を補助表示する。数値をJS Numberへ変換せず、None=0の保護と既存mutation範囲を維持する。
 
-Flagsの詳細Addではunderlying幅内の未使用atomic bitをshared Rustからexact numeric valueと共に提示し、選択でexplicit numeric入力を補助する。既存member numeric変更やimplicit numberingではない。候補取得・開閉はsourceを変更せず、Plan / Applyが現在のsourceで検証する。
+Flagsの詳細Addではunderlying幅内の未使用atomic bitをshared Rustからexact numeric valueと共に提示し、選択でexplicit numeric入力を補助する。既存member numeric変更やimplicit numberingではない。候補取得・開閉はsourceを変更せず、draft適用時に現在のsourceで検証する。
 
 v1非対象のdeclaration name、underlying、member numeric value、field type/modifier/key/reorder等をdirect-edit可能なcontrolとして表示してはならない（MUST NOT）。read-onlyとして表示することはできる（MAY）。
 
@@ -38,29 +38,25 @@ Type category conversion、type rename、underlying変更、member numeric value
 
 ### GUI-TYPE-LAYOUT-004
 
-member / field listは選択radio列と常時並ぶAdd / Rename / Drop clusterを持たず、listまたは対象行からactionを開始できなければならない（MUST）。operation input、Plan / Diff / Applyは必要時だけ開く一時的な面へ置き、閉じるとlistと開始元focusへ戻れるようにしなければならない（MUST）。 Add / Rename / Dropは対象member / fieldの文脈で開始し、通常は入力確定時にPlanを自動生成して一時面のApplyへ進む。Enumの通常追加とinline RenameはGUI-TYPE-INT-011を使う。既存のshared Plan、Diff、stale判定、dirty-file gate、destructive authorizationを維持しなければならない（MUST）。
-
-member / field名からinline Renameを開始でき、Enum / Flagsの詳細Add入力はlist付近に置く。GUI-SHELL-INPUT-001の入力確定後はPlan / Diff / explicit Applyへ進む。GUI-TYPE-INT-011の宣言だけの変更を除き、source mutationを通常typingやblurへ結合しない。
+member / field名からinline Renameを開始し、Add / Dropは対象行やlist文脈へ置く。入力確定でordinary draftへ反映し、通常編集にPlan / Diff / disk Applyを要求しない。開閉・取消・focus復元はGUI-SHELL-INPUT-001へ従う。
 
 ## 状態（States）
 
 ### GUI-TYPE-STATE-001
 
-Type Editorは少なくともtype loading、ready、operation input editing、Plan loading、Plan ready、Apply in progress、stale plan / re-plan required、commit failure with rollback / no mutation、Recovery Requiredを観測上区別できなければならない（MUST）。以前選択していたtype declarationまたはold Planを、新selectionのcurrent editable / applicable stateとして表示してはならない（MUST NOT）。
+loading、ready、入力中、draft dirty、保存中、局所エラー、Conflict / Unknown / Recovery Requiredを識別できるようにする。以前のtypeを新selectionの編集対象として表示しない。
 
 ### GUI-TYPE-STATE-002
 
-Type Migration operation inputやPlanをData Editorのsource dirty bufferと同一conceptとして扱ってはならない（MUST NOT）。Type Editorの明示`Apply`またはGUI-TYPE-INT-011の直接操作がType Migration source mutationを開始し、Cmd+S / Ctrl+SをMigration Applyのshortcutへ暗黙に割り当ててはならない（MUST NOT）。Plan / Apply failureだけを理由にoperation inputを不必要に失ってはならない（MUST NOT）。
+型の通常変更はsource dirty bufferであり、Cmd/Ctrl+Sは通常Saveへ接続する。入力確定、Undo、disk Saveを区別し、開閉だけでdirtyを作らない。
 
 ### GUI-TYPE-STATE-003
 
-Type Migration Planがaffected sourceとして示すfileにData Editorのdirty bufferが存在する場合、Type EditorはApplyを開始してはならない（MUST NOT）。該当dirty fileを利用者が識別できなければならない（MUST）。
-
-Planに含まれないunrelated dirty bufferだけを理由にPlanまたはApplyを全面禁止してはならず（MUST NOT）、Type Migration操作によってそのbufferを保存、破棄、reloadしてはならない（MUST NOT）。
+関連Data sourceのdirtyを操作候補へcomposeし、既存dirtyだけを理由に編集を拒否しない。unrelated buffer / historyを保持する。
 
 ### GUI-TYPE-STATE-004
 
-Type Migration成功後、affected sourceのcurrent workspace authorityを再取得し、Type Editorをcurrent declarationへ更新しなければならない（MUST）。affected fileについて既存clean editor snapshotをstale contentのままeditableとして残してはならない（MUST NOT）。unrelated dirty bufferは保持しなければならない（MUST）。
+draft適用後はcurrent declarationと関連view / diagnosticsを更新し、既存buffer・focus・最新navigation先を保持する。
 
 ## 操作（Interactions）
 
@@ -70,7 +66,7 @@ Value Objectのconversion editingは`SetValueObjectConversions` semantic command
 
 ### GUI-TYPE-INT-002
 
-Normal Enum / Flags Enumは`AddEnumMember`、`RenameEnumMember`、`DropEnumMember`のguided inputを提供しなければならない（MUST）。詳細Addはexplicit nameとnumeric valueを入力できなければならない（MUST）。通常AddはGUI-TYPE-INT-011を使い、frontendがimplicit numberingを生成してsemantic defaultとして扱ってはならない（MUST NOT）。Renameはcurrent member nameをselectorとしてshared Type Migration boundaryへ渡し、numeric valueを編集してはならない（MUST NOT）。
+Normal Enum / Flags Enumは`AddEnumMember`、`RenameEnumMember`、`DropEnumMember`のguided inputを提供しなければならない（MUST）。詳細Addはexplicit nameとnumeric valueを入力できなければならない（MUST）。通常AddはGUI-TYPE-INT-011を使い、frontendがimplicit numberingを生成してsemantic defaultとして扱ってはならない（MUST NOT）。Renameはcurrent member nameをselectorとしてshared ordinary authoring boundaryへ渡し、numeric valueを編集してはならない（MUST NOT）。
 
 Dropはdestructive actionとして明示しなければならない（MUST）。Flagsの`None = 0`はRename / Drop actionの対象として提供してはならない（MUST NOT）。
 
@@ -78,29 +74,23 @@ Dropはdestructive actionとして明示しなければならない（MUST）。
 
 Custom Typeは`AddCustomField`、`RenameCustomField`、`DropCustomField`のguided inputを提供しなければならない（MUST）。AddはMessagePack key、field name、base type、modifier、およびType Migration semantics上必要なexplicit initializerを入力できなければならない（MUST）。initializerのvalidityをfrontend独自Type Systemで確定してはならない（MUST NOT）。
 
-Renameはcurrent field nameをselectorとしてshared Type Migration boundaryへ渡し、MessagePack key / base type / modifierを同時変更してはならない（MUST NOT）。Dropはdestructive actionとして明示しなければならない（MUST）。
+Renameはcurrent field nameをselectorとしてshared ordinary authoring boundaryへ渡し、MessagePack key / base type / modifierを同時変更してはならない（MUST NOT）。Dropはdestructive actionとして明示しなければならない（MUST）。
 
 ### GUI-TYPE-INT-004
 
-source mutation前に必ずcurrent semantic commandに対応するType Migration Planを取得しなければならない（MUST）。GUI-TYPE-INT-011の直接操作を除き、Plan surfaceは少なくともoperation / target、destructive state、affected source files、affected value occurrence count、migration validation / diagnosticsを表示しなければならない（MUST）。Plan作成・表示はsourceを変更してはならない（MUST NOT）。
+通常入力の確定はshared ordinary authoringへsemantic intentを渡し、source patchをfrontendで作らない。詳細formの確定もdraft適用でありdisk mutationではない。
 
 ### GUI-TYPE-INT-005
 
-Planからaffected fileごとのbefore / after Diffへ移動できなければならない（MUST）。Diffはcurrent Planのbase sourceと同一Planのtransformed candidateを比較し、別のworkspace readやgenerated artifactを代用してはならない（MUST NOT）。Diff表示から戻るときにoperation input、Plan identity、target member/fieldを不必要に失ってはならない（MUST NOT）。
+sourceの未保存差分は通常のsource comparisonから確認できる。別のsnapshotやgenerated artifactをsource差分の代用にしない。
 
 ### GUI-TYPE-INT-006
 
-Applyはcurrent UIが示しているsemantic commandとbase snapshotに対応するcurrent Planだけを対象にしなければならない（MUST）。Plan作成後にoperation inputを変更した場合、old PlanをcurrentとしてApplyしてはならない（MUST NOT）。
-
-commit preflightがproject config、source membership、resolutionへ使用したsource bytesのstale stateを検出した場合はsource mutationを開始せず、stale planとして表示し、re-plan actionを提供しなければならない（MUST）。silent retry / silent overwriteを行ってはならない（MUST NOT）。
-
-inline入力の確定で別fileへ移動した場合も、必要なPlan確認はcaptured target名 / sourceを明示した一時面で行う。Explorer selectionをApplyのtarget authorityにせず、表示中Planのtarget / base / epochだけを使う。成功後は最新navigation先のcurrent viewを更新し、旧targetへ戻さない。
+captured source identity / epochと入力対象を確認してdraftへ適用する。stale時は未確定入力を保持して局所に理由を表示し、別snapshotへ黙って再適用しない。最新navigation先をold targetへ戻さない。
 
 ### GUI-TYPE-INT-007
 
-`DropEnumMember`および`DropCustomField`はApply前にtargetとdestructive natureを確認する明示的confirmationを要求しなければならない（MUST）。GUI confirmationだけをbackend authorizationの代替にしてはならず（MUST NOT）、shared application boundaryへmachine-actionable destructive execution authorizationを渡さなければならない（MUST）。
-
-backendがexisting occurrence等のType Migration precondition failureを返した場合、GUIはreplacementやdata conversionを推測して再試行してはならない（MUST NOT）。
+Dropは対象を明示した可逆的draft操作とし、一Undoで復元できる。Enum member Drop後の既存symbol値を勝手に置換・削除しない。
 
 ### GUI-TYPE-INT-008
 
@@ -114,15 +104,13 @@ Type Editorからshared application boundaryへ渡すsemantic valueは、Approve
 
 ### GUI-TYPE-INT-011
 
-Enum / Flagsの通常Addはshared Rustが未使用の有効nameとexact numericを提案し、現行Plan / stale preflight / dirty gate / native transactionで追加を完了する。normal Enumは最小の未使用非負整数、Flagsは最小の未使用atomic bit（signed sign bitを含む）。候補がなければ理由を示しmutationしない。追加成功後だけそのmember名をinline選択編集する。Escape / 空入力は生成済み名へ戻し、追加そのものを取消さない。
-
-member / fieldのinline Renameはcurrent Planが宣言fileだけを変更し既存値への影響がゼロの場合に直接適用できる。他source/valueへ影響する場合は既存Plan / Diff / explicit Applyへ戻す。任意name/numericの明示追加は詳細actionから提供する。候補の取得自体はwrite authorityではなく、64-bitをJS Numberへ変換しない。
+Enum / Flagsの通常Addはshared Rustが未使用の有効nameとexact numericを提案し、ordinary draftへ追加する。normal Enumは最小の未使用非負整数、Flagsは最小の未使用atomic bit（signed sign bitを含む）。追加後に名前をinline選択編集する。Escape / 空入力は追加済み名へ戻る。任意name/numericの詳細追加を保持し、64-bitをJS Numberへ変換しない。member / field Renameは関連する安全に特定できる値へ追従し、一操作のgroup historyを持つ。
 
 ## キーボード（Keyboard）
 
 ### GUI-TYPE-KEY-001
 
-Type Editorはkeyboardだけでcategory-specific target selection、Add / Rename / Dropまたはconversion action開始、operation form入力、Plan確認、Diffへの移動、ApplyまたはCancelへ到達できなければならない（MUST）。destructive confirmationをkeyboard userだけが操作不能なsurfaceにしてはならない（MUST NOT）。
+keyboardだけでAdd / Rename / Drop、form確定・取消、Undo / Redo、Saveへ到達できる。入力中のnative Undoとfile historyを区別する。
 
 ## フォーカス（Focus）
 
@@ -134,9 +122,7 @@ Explorerからtype documentを開いた場合、main Type Editorへ移動でき�
 
 ### GUI-TYPE-VAL-001
 
-Type Editorのtype/member/field/dependency/initializer validationはshared Type Migration / Type System semanticsを使用しなければならない（MUST）。frontend独自のYAML parser、name collision rule、numeric range/bit rule、type dependency rule、initializer compatibility ruleをdomain authorityとして実装してはならない（MUST NOT）。
-
-Planのblocking diagnosticとproject-wideのunrelated diagnosticを同一のApply gateとして誤解釈してはならない（MUST NOT）。Type Migration Resolvableの判定はType Migration v1へ委譲する。
+型・member・field・initializerの意味とdiagnosticsはshared Rustが所有する。frontendにYAML parser / Type Systemを実装しない。未解決dependencyやunrelated diagnosticを一律の編集禁止条件にしない。
 
 ### GUI-TYPE-VAL-002
 
@@ -146,7 +132,7 @@ Plan / diagnosticがsource locationまたはaffected fileへmap可能な場合�
 
 ### GUI-TYPE-ERR-001
 
-Type Migration commitがmutation開始前に失敗した場合、またはcommit failure後にcomplete old source setへrollbackできた場合、Successとして表示してはならない（MUST NOT）。operation inputとPlan情報を可能な範囲で保持し、原因確認とre-plan / retryへのpathを提供しなければならない（MUST）。
+draft適用に失敗した場合は入力と既存bufferを保持して対象と原因を表示し、成功と表示しない。Save failureはSource Editの安全境界へ従う。
 
 ### GUI-TYPE-ERR-002
 
@@ -166,9 +152,7 @@ type category/declaration surface、member/field list、operation controls、Pla
 
 ### GUI-TYPE-ADAPTER-001
 
-Tauri frontendはType Migration Plan derivation、YAML source patch、dependent occurrence resolution、postcondition、lost-update preflight、destructive authorization decision、rollback transactionを実装してはならない（MUST NOT）。shared Native Application ServiceをTauri commandから呼び出し、frontendはserializable view model / semantic command inputを扱うthin adapterでなければならない（MUST）。
-
-shared Type Migration implementationが不足しているoperationをGUI内で代替実装してはならない（MUST NOT）。
+Tauri frontendはthin intent / view adapterとし、YAML patch、型解決、history、write safetyをshared Rustへ委譲する。通常編集をstrict Migrationへ迂回させない。
 
 ## 参照artifact（Reference Artifacts）
 
@@ -176,22 +160,12 @@ None.
 
 ## 検証evidence
 
-少なくとも次をfocused core/application / Tauri adapter / React workflow evidenceで検証する。
-
-- Value Object / Enum / Flags / Custom Type selectionでresolved categoryに応じたType Editorが開き、frontendがYAML parseでcategoryを再構成しない。
-- v1非対象propertyはdirect-edit可能にならない。
-- Value Object conversion、Enum/Flags Add/Rename/Drop、Custom field Add/Rename/Dropがshared Type Migration command / Planへ接続される。
-- Enum/Flags Addのnumeric value、Custom field Addのinitializer等がshared diagnosticsで検証される。
-- `long` / `ulong`のEnum/Flags numeric valueとinitializer内scalarがfrontend/Tauri境界をlosslessにround-tripする。
-- Flags `None = 0`にRename/Drop actionを提供しない。
-- Plan / Diffはmutation前で、affected files / occurrence count / diagnosticsをcurrent Planから表示する。
-- plan後のexternal source/config/membership changeをApplyがstaleとして拒否し、sourceを上書きしない。
-- affected dirty Data Editor bufferがApplyをblockし、unrelated dirty bufferは保持される。
-- destructive operationがGUI confirmationとbackend authorizationの両方を必要とする。
-- successful Apply後にaffected clean snapshotがrefreshされ、unrelated dirty bufferを破棄しない。
-- commit failure + rollback successとRecovery RequiredをSuccessと混同しない。
-- Tauri / frontendにType System、dependency resolution、filesystem transaction、YAML patch semanticsを複製しない。
+- 型別表示、64-bit numeric / initializerのlossless transport、Flags None保護。
+- current dirtyと既存invalid値を保持したAdd / Rename / Drop / conversion、局所診断。
+- 関連sourceを含む一Undo / Redo、Save前のdisk不変、source exact bytesと部分Save。
+- stale / unsafe syntax時の入力保持、keyboard・focus・通常Save。
+- Tauri / frontendに型意味論・YAML patch・filesystem safetyを複製しない。
 
 ## 未解決事項（Open Questions）
 
-None identified for Type Editor v1. exact Ant Design component、Plan panelのmodal / inline配置、member/field row action placement、numeric input widget、initializer widget / serialized wire shape、Diff layout、minor focus stylingは、`GUI-TYPE-INT-009`のlossless transportを満たす限りimplementation detailとする。
+None identified for Type Editor v1. exact Ant Design component、一時入力面のmodal / inline配置、member/field row action placement、numeric input widget、initializer widget / serialized wire shape、Diff layout、minor focus stylingは、`GUI-TYPE-INT-009`のlossless transportを満たす限りimplementation detailとする。

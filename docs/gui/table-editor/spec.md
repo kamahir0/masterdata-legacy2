@@ -22,7 +22,7 @@ Workspace ExplorerでTable schemaまたはData sourceを選ぶと、main areaは
 
 field名はheaderそのものからpointerとkeyboardでinline renameでき、typeはheaderから選択でき、Nullable / Arrayは同じcolumn文脈で切替えられなければならない（MUST）。column末尾からAddできなければならない（MUST）。通常成功時にPlan / Diff / Applyの必須操作、rename/type変更modal、別のSchema Editorへの遷移を要求してはならない（MUST NOT）。field名の未確定入力は失敗時に保持し、対象headerに理由を示す。headerの値はshared Table snapshotに由来し、frontendでYAML parseやType Systemの推論を行ってはならない（MUST NOT）。
 
-右端 `+` のdefaultはNullable string fieldとし、未使用MessagePack key候補はshared Applicationが選ぶ。existing recordsには明示的な`null` initializerをMigration commandへ渡す。候補keyとfield declarationはshared Planで最終検証しなければならない（MUST）。defaultを変更したい利用者は作成後にheaderから変更できる。
+右端 `+` のdefaultはNullable string fieldとし、未使用MessagePack key候補はshared Applicationが選ぶ。existing recordsには明示的な`null` initializerをordinary structural draftへ渡す。候補keyとfield declarationはshared Coreで検証する。defaultを変更したい利用者は作成後にheaderから変更できる。
 
 ### GUI-UNIFIED-004
 
@@ -32,13 +32,13 @@ MessagePack key / Key / Reference authoringのoperation contractは[Table Declar
 
 type / Nullable / Arrayのheader操作は[Field Declaration Mutation](../../specs/field-declaration-mutation.md)の`FIELD-DECL-006..010`に従う可逆的なschema draftでなければならない（MUST）。headerは直ちに新宣言を表示し、shared Coreの再解釈によるcell/column/Problems diagnosticを更新する。既存valueが新宣言でinvalidでも操作を拒否せず、record source bytesを変換しない。Ctrl/Cmd+Zで未保存のtype変更を戻すと、sourceを変更せず該当diagnosticも消える。
 
-通常のheader SaveとCmd/Ctrl+Sは同じshared Application intentとして、current Tableのschema sourceとselected record sourceのうちactual candidateがdirtyなphysical sourceを全て対象としなければならない（MUST）。schema fileのinline records draftは別record source選択中でもschema source候補へ含め、schema宣言とinline recordsを一候補へcomposeして一回commitする（MUST）。inactiveな別physical record source、別Table、diagnosticだけのclean sourceを対象にしてはならない（MUST NOT）。複数fileのcandidateとexact identityは全件preflightしてからcommitし、partial resultはfile別に表現しなければならない（MUST）。Save AllはProject-wideな別commandである。dirty ownershipとcommit resultはfileごとに独立して保持する。
+通常のheader SaveとCmd/Ctrl+Sは同じshared Application intentとして、current Tableのschema sourceとselected record sourceのうちactual candidateがdirtyなphysical sourceを全て対象としなければならない（MUST）。schema fileのinline records draftは別record source選択中でもschema source候補へ含め、schema宣言とinline recordsを一候補へcomposeして一回commitする（MUST）。ordinary structural groupの関連dirty sourceも対象に含める。group外のinactiveな別physical record source、別Table、diagnosticだけのclean sourceを対象にしてはならない（MUST NOT）。複数fileのcandidateとexact identityは全件preflightしてからcommitし、partial resultはfile別に表現しなければならない（MUST）。Save AllはProject-wideな別commandである。dirty ownershipとcommit resultはfileごとに独立して保持する。
 
-rename/add/drop、MessagePack key、Key、Reference等のstructural / destructive / dependency operationは各既存Plan・dirty・authorization契約へ従う。frontendはPlan resultを自動承認する権限を持たず、stale画面から新しいsnapshotへ黙ってplanし直してはならない（MUST NOT）。schema draftとrecord draftは同時に存在でき、source切替えやpartial Saveで未保存のdraftを失ってはならない（MUST NOT）。
+rename/add/drop、MessagePack key、Key、Reference等の通常操作は[Ordinary Structural Authoring](../../specs/structural-authoring.md)のdraft / history / Save契約へ従う。schema draftとrecord draftは同時に存在でき、source切替えやpartial Saveで未保存のdraftを失ってはならない（MUST NOT）。
 
 Save/operation失敗時は対象、理由、可能な修正またはDetailsを対象付近に表示し、Conflict、commit failure、Recovery Required、Outcome UnknownをSuccessと混同してはならない（MUST NOT）。Recovery Required中のcross-surface gateは[App shell](../app-shell.md)に従う。stale Planをsilent re-planしてcommitしてはならない（MUST NOT）。semantic diagnosticは操作失敗dialogではなく関連cell/column/Problemsで示す。
 
-Drop FieldとReference Remove等のdestructive operationは明示confirmationとbackend authorizationを維持する。Reference add/edit/removeはshared source-preserving mutationを通し、normal column headerには常設しない。advanced Table detailから名前、source/target fields、resolved cardinality/optionality、C# helper name、diagnosticsを確認・編集できるようにする。frontendでReference semantic resolutionを再実装してはならない（MUST NOT）。
+Drop FieldとReference Removeは対象を明示したdraft操作とし、Undoで復元できる。Reference add/edit/removeはshared source-preserving mutationを通し、normal column headerには常設しない。advanced Table detailから名前、source/target fields、resolved cardinality/optionality、C# helper name、diagnosticsを確認・編集できるようにする。frontendでReference semantic resolutionを再実装してはならない（MUST NOT）。
 
 ### GUI-UNIFIED-005
 
@@ -48,7 +48,7 @@ Drop FieldとReference Remove等のdestructive operationは明示confirmationと
 
 全fieldのMessagePack Keyとprimary / secondary / reference所属はshared snapshotから取得し、名前・型・操作を妨げない小さい読み取り情報として通常headerに示す。PKの値領域は控えめな背景でも識別でき、所属を色だけに依存させない。Key、Reference、MessagePack keyの変更controlと低頻度metadataは補助面へprogressively discloseする。定義面のfield候補は名前と型を併記し、関連診断を同じ面で確認できるようにする。通常時はTable名とcolumn / row dataを最も強く表示し、正常状態の説明を繰り返し常設しない。gridのkeyboard selection、field headerのtab順、operation失敗後のfocus復元はpointerなしでも成立しなければならない（MUST）。状態は色だけに依存せずassistive technologyへ伝える。 field名、type、header操作はhover / focus時にも重ねず、それぞれのhit areaを確保する。
 
-列contextのMessagePack Key / PK / SK / REF情報から対応定義へ到達できる。参照のsource fields / target Table / target keyをcompactな同じgroupで理解できるようにし、既存Plan / Diff / explicit Applyとfresh write authorizationを保持する。
+列contextのMessagePack Key / PK / SK / REF情報から対応定義へ到達できる。参照のsource fields / target Table / target keyをcompactな同じgroupで理解できるようにし、ordinary draft / Undo / file Saveを使う。
 
 ### GUI-UNIFIED-006
 
@@ -62,7 +62,7 @@ Drop FieldとReference Remove等のdestructive operationは明示confirmationと
 
 ### GUI-UNIFIED-008
 
-column handleからのdrag/dropとheader context menuからのMove Left/Rightは`FIELD-DECL-011`の同じschema draft順序変更へ結び付ける（MUST）。Insert Left/Rightは対象fieldに対する位置指定をshared Application/Coreへ渡し、既存AddField Migrationの安全境界で実行する（MUST）。keyboard context entryを提供し、dragを唯一の経路にしてはならない（MUST NOT）。 field drag handleは名前と独立したheader上側の左端に常時表示し、record row handleも一貫したgrip表示とする。通常の末尾`+`、inline rename、type、Nullable、Arrayは維持する。drop cancel / same-positionはno-op。
+column handleからのdrag/dropとheader context menuからのMove Left/Rightは`FIELD-DECL-011`の同じschema draft順序変更へ結び付ける（MUST）。Insert Left/Rightは対象fieldに対する位置指定をshared Application/Coreへ渡し、ordinary structural draftの安全境界で実行する（MUST）。keyboard context entryを提供し、dragを唯一の経路にしてはならない（MUST NOT）。 field drag handleは名前と独立したheader上側の左端に常時表示し、record row handleも一貫したgrip表示とする。通常の末尾`+`、inline rename、type、Nullable、Arrayは維持する。drop cancel / same-positionはno-op。
 
 column drag中はfield定義headerと表示中の同column cellsが一体で横方向のpointer移動へ追従し、通過したcolumnが滑らかに移動先を空ける。挿入線を使用しない。previewはgrid viewportへclipし、固定row header / sticky column headerを妨げず、横scroll中も着地点と表示を一致させ、layout寸法を維持する。共通cancel / preview安全境界は[GUI-GRID-007](../data-editor/grid-authoring.md)に従う。
 
