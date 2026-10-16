@@ -1,7 +1,7 @@
 # Development State
 
-Stage: implementation-ready
-Candidate: none
+Stage: verification-ready
+Candidate: 1a5a527111157698adb49e81f5cd53cd464ee6cf
 Work base: 33ac63bad534b7192ab0552a4df8c8ba318ff76b
 
 ## Active work
