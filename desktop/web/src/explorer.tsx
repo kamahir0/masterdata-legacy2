@@ -1,5 +1,5 @@
-import {useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef} from 'react';
-import {Button, Dropdown, Input, Modal, Select, Spin, Tooltip, Tree, type MenuProps, type TreeDataNode} from 'antd';
+import {memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentRef} from 'react';
+import {Button, Dropdown, Input, Modal, Select, Tooltip, Tree, type MenuProps, type TreeDataNode} from 'antd';
 import {ApartmentOutlined, BarsOutlined, CheckOutlined, CloseOutlined, DeleteOutlined, CopyOutlined, DatabaseOutlined, EditOutlined, FileAddOutlined, FileOutlined, FlagOutlined, FolderAddOutlined, FolderOpenOutlined, FolderOutlined, MoreOutlined, NumberOutlined, ReloadOutlined, SearchOutlined, TableOutlined, WarningOutlined, AimOutlined, RightOutlined} from '@ant-design/icons';
 import {invoke} from '@tauri-apps/api/core';
 import {basename, desktop, type Surface} from './workspace';
@@ -8,15 +8,16 @@ import {useCreation} from './creation';
 import {useSourcePath} from './source-path';
 import {explorerDrag} from './explorer-drag';
 import {useSourceTrash} from './source-trash';
+import {ExplorerRow} from './explorer-row';
 import {ancestorKeys, entryPath, explorerEntries, folderKey, matchingAncestors, nextPrefix, parentPath, visibleEntries, type ExplorerEntry, type ExplorerSort} from './explorer-model';
 
 function CollapseFoldersIcon(){return <svg width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='currentColor' strokeWidth='1.2' aria-hidden='true' focusable='false'><path d='M5 2h8v8'/><rect x='2' y='5' width='8' height='8' rx='.6'/><path d='M4 9h4'/></svg>;}
 
-export function SourceIcon({category,error,expanded}:{category:string|null;error?:string|null;expanded?:boolean}) {
+export const SourceIcon=memo(function SourceIcon({category,error,expanded}:{category:string|null;error?:string|null;expanded?:boolean}) {
   return <span className={'source-kind kind-'+(category??'file')} role='img' aria-label={error?'ソースエラー':category==='folder'?'フォルダー':category?sourceCategoryLabel(category):'ファイル'}>
     {error?<WarningOutlined aria-hidden='true'/>:category==='folder'?(expanded?<FolderOpenOutlined aria-hidden='true'/>:<FolderOutlined aria-hidden='true'/>):category==='table'?<TableOutlined aria-hidden='true'/>:category==='data'?<DatabaseOutlined aria-hidden='true'/>:category==='enum'?<BarsOutlined aria-hidden='true'/>:category==='flags'?<FlagOutlined aria-hidden='true'/>:category==='custom'?<ApartmentOutlined aria-hidden='true'/>:category==='valueObject'?<NumberOutlined aria-hidden='true'/>:<FileOutlined aria-hidden='true'/>}
   </span>;
-}
+});
 export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;width:number;resize:(width:number)=>void}) {
   const inventory=s.inventory!,root=inventory.sourceDirectory;
   const [keys,setKeys]=useState<string[]>(()=>ancestorKeys(s.target,root));
@@ -27,7 +28,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   const activate=(key:string|null)=>{activeItem.current=key;setActiveKey(key);};
   const [focusRequest,setFocusRequest]=useState<{key:string;intent:number;focus:boolean}|null>(null);
   const tree=useRef<ComponentRef<typeof Tree>>(null),container=useRef<HTMLElement|null>(null),viewport=useRef<HTMLDivElement|null>(null);
-  const [height,setHeight]=useState(500),[sticky,setSticky]=useState<string|null>(null);
+  const [height,setHeight]=useState(500),[sticky,setSticky]=useState<string|null>(null),stickyFrame=useRef(0);
   const [maxPaneWidth,setMaxPaneWidth]=useState(520),widthValue=useRef(width);widthValue.current=width;
   const [filterOpen,setFilterOpen]=useState(false),[filter,setFilter]=useState(''),[sort,setSort]=useState<ExplorerSort>('name');
   const filterInput=useRef<ComponentRef<typeof Input>>(null),prefix=useRef({text:'',time:0});
@@ -142,6 +143,10 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     else if(action==='copyRelative'||action==='copyAbsolute')copyPath(key,action==='copyAbsolute');
     else beginCreation(action as Parameters<typeof creation.begin>[0],key);
   }});
+  // Row titles can skip unrelated Tree renders; commands still read the latest
+  // guards when invoked. Row identity below is scoped to the Project epoch.
+  const currentMenu=useRef(menuFor);currentMenu.current=menuFor;
+  const [rowMenu]=useState(()=>(key:string)=>currentMenu.current(key));
   const sourceItems:MenuProps={items:[
     {key:'reveal',label:'表示中のファイルをエクスプローラーで表示',icon:<AimOutlined aria-hidden='true'/>,disabled:!s.target||!!creation.draft||pathMutation.open},
     {key:'filter',label:'ファイル名で絞り込む…',icon:<SearchOutlined aria-hidden='true'/>,disabled:!!creation.draft||pathMutation.open},
@@ -213,10 +218,23 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   }
   function updateSticky() {
     const bounds=viewport.current?.getBoundingClientRect();if(!bounds)return;
-    const first=[...viewport.current!.querySelectorAll<HTMLElement>('.ant-tree-treenode')].find(row=>row.getBoundingClientRect().bottom>bounds.top+1);
+    const first=[...viewport.current!.querySelectorAll<HTMLElement>('[role="treeitem"]')].find(row=>row.getBoundingClientRect().bottom>bounds.top+1);
+    if(!first){if(!viewport.current!.querySelector('[role="treeitem"]'))setSticky(null);return;}
     const key=first?.querySelector<HTMLElement>('[data-path]')?.dataset.path;
     const parent=key?parentPath(entryPath(key)):root;setSticky(parent&&parent!==root?parent:null);
   }
+  function scrolled(){
+    cancelAnimationFrame(stickyFrame.current);
+    stickyFrame.current=requestAnimationFrame(updateSticky);
+  }
+  useEffect(()=>{
+    // A scroll callback (even its next rAF) can precede rc-tree's virtual row
+    // commit. Observe the committed row/offset changes too, then measure actual
+    // treeitems; the hidden indent measurer has no navigation identity.
+    const observer=new MutationObserver(scrolled);
+    observer.observe(viewport.current!,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});
+    return()=>{observer.disconnect();cancelAnimationFrame(stickyFrame.current);};
+  },[s.status.epoch]);
   useEffect(()=>()=>fileDrag.current?.(),[]);
   function moveTo(source:string,folder:string) {
     if(!canMove(source)||parentPath(source)===folder)return;
@@ -243,7 +261,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     </div>
     {filterOpen&&<div className='explorer-filter'><Input ref={filterInput} aria-label='ソースを絞り込む' placeholder='ファイル名で絞り込む' prefix={<SearchOutlined aria-hidden='true'/>} allowClear disabled={!!creation.draft||pathMutation.open} value={filter} onChange={event=>{setFilter(event.target.value);setSticky(null);}} onKeyDown={event=>{if(event.nativeEvent.isComposing)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeFilter();}else if(event.key==='Enter'){event.preventDefault();container.current?.querySelector<HTMLElement>('[role="tree"]')?.focus();}}}/><Button type='text' icon={<CloseOutlined aria-hidden='true'/>} aria-label='絞り込みを閉じる' title='絞り込みを閉じる（Escape）' onClick={closeFilter}/></div>}
     <Dropdown menu={menuFor(context)} trigger={['contextMenu']} open={contextOpen} onOpenChange={setContextOpen}>
-      <div ref={viewport} className='explorer-viewport' onContextMenu={event=>{
+      <div ref={viewport} className='explorer-viewport' onScrollCapture={scrolled} onContextMenu={event=>{
         const row=event.target instanceof Element?event.target.closest('.ant-tree-treenode'):null;
         const key=row?.querySelector<HTMLElement>('[data-path]')?.dataset.path??folderKey(root);
         if(key==='creation:temporary')return;
@@ -253,22 +271,21 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
         onDragStart={event=>event.preventDefault()} onDragOver={event=>event.preventDefault()} onDrop={event=>event.preventDefault()}>
         {!nodes.length&&<div className='explorer-empty'>{filter?'一致するソースがありません':'ソースはまだありません'}</div>}
         <Tree ref={tree} aria-label='ソース' activeKey={activeKey} onActiveChange={key=>activate(key===null?null:String(key))}
-          treeData={nodes} height={height} itemHeight={22} virtual blockNode showIcon motion={null} expandedKeys={expanded} selectedKeys={[selected]}
+          // Ant Design 6.6 treats null as its default collapse motion. false
+          // keeps rc-tree from mounting a second branch for the transition;
+          // explorer-performance measures both row bounds and next input.
+          treeData={nodes} height={height} itemHeight={22} virtual blockNode showIcon motion={false} expandedKeys={expanded} selectedKeys={[selected]}
           onExpand={next=>{if(!filter.trim())setKeys(next.map(String));setSticky(null);}}
           onSelect={(_keys,info)=>{
             const key=String(info.node.key);setSelected(key);activate(key);
             if(key.startsWith('folder:'))toggleFolder(key);
             else if(key!==s.target||s.pending||(!s.projection&&!s.typeProjection))void desktop.selectTarget(key).catch(desktop.showError);
-          }} onScroll={updateSticky}
+          }}
 
-          titleRender={node=>node.key==='creation:temporary'?creation.inline:<span className='source' data-path={node.key} title={inventory.root+'/'+entryPath(String(node.key))}>
-            {pathMutation.draft?.inline&&pathMutation.draft.source===node.key?pathMutation.inline:<>
-              <span className='source-name'>{String(node.title)}</span>
-              <span className='source-state'>{s.pending&&s.target===node.key?<Spin size='small'/>:s.status.uncertain.includes(String(node.key))?<span role='img' aria-label='結果を確認できません' title='結果を確認できません'>!</span>:s.projection?.source===node.key&&s.projection.conflict?<WarningOutlined role='img' aria-label='外部変更と競合'/>:null}</span>
-              <span className='source-dirty' role='img' aria-label={s.status.dirty.includes(String(node.key))?'未保存':undefined} aria-hidden={!s.status.dirty.includes(String(node.key))}>{s.status.dirty.includes(String(node.key))?'●':''}</span>
-              <Dropdown menu={menuFor(String(node.key))} trigger={['click']}><Button className='source-actions' type='text' size='small' icon={<MoreOutlined aria-hidden='true'/>} aria-label={basename(entryPath(String(node.key)))+' の操作'} tabIndex={String(node.key)===activeKey||String(node.key)===selected?0:-1} title='項目の操作' onPointerDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}/></Dropdown>
-            </>}
-          </span>}/>
+          titleRender={node=>node.key==='creation:temporary'?creation.inline:<ExplorerRow key={s.status.epoch+':'+node.key} path={String(node.key)} title={String(node.title)} root={inventory.root}
+            dirty={s.status.dirty.includes(String(node.key))} state={s.pending&&s.target===node.key?'pending':s.status.uncertain.includes(String(node.key))?'uncertain':s.projection?.source===node.key&&s.projection.conflict?'conflict':null}
+            actionable={String(node.key)===activeKey||String(node.key)===selected} commands={`${canCreate}:${canMove(String(node.key))}`} menu={rowMenu}
+            inline={pathMutation.draft?.inline&&pathMutation.draft.source===node.key?pathMutation.inline:undefined}/>}/>
         {sticky&&!filter.trim()&&<button className='explorer-sticky' title={inventory.root+'/'+sticky} aria-label= {basename(sticky)+' フォルダーへ戻る'} onClick={()=>{setSelected(folderKey(sticky));focusItem(folderKey(sticky));setSticky(null);}}><RightOutlined rotate={90} aria-hidden='true'/><SourceIcon category='folder' expanded/><span>{basename(sticky)}</span></button>}
       </div>
     </Dropdown>

@@ -108,14 +108,28 @@ def check_creation(report):
 def check_explorer(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
-    assert report['checks'] == ['compact-hidden-root-bounded-tree', 'keyboard-resize-and-stable-row-height',
+    assert report['checks'] == ['compact-hidden-root-bounded-tree', 'dense-folder-scroll-and-ancestor-return', 'keyboard-resize-and-stable-row-height',
                                'folder-focus-navigation-typeahead', 'filter-is-presentation-only', 'context-menu-closes-before-next-surface', 'file-context-freezes-data-binding', 'external-drop-is-not-source-import',
                                'inline-rename-stem-ime-empty-conflict', 'outside-rename-waits-latest-preview-preserves-new-intent',
                                'uncertain-rename-no-retry-explicit-recheck', 'inline-rename-scoped-dirty-guard']
     assert report['inventoryFolders'] > 1500 and report['renderedRows'] < 60
     assert report['dirty'] == ['sources/lost-reply.yaml']
     assert not report['startup']['browserErrors']
-    return {'checks': len(report['checks']), 'boundedExplorerAndSafeInlineRename': True}
+    performance = report['folderPerformance']
+    assert performance['rpc'] == {}, 'folder toggle performed backend work'
+    samples = performance['samples']
+    assert len(samples) == 600
+    folder_cases = {}
+    for count in [20, 200, 2000]:
+        for expanded in [True, False]:
+            case = [sample for sample in samples if sample['count'] == count and sample['expanded'] == expanded]
+            assert len(case) == 100
+            assert all(sample['motionSubtrees'] == 0 for sample in case), 'folder toggle mounted transition subtrees'
+            assert max(sample['peakRows'] for sample in case) <= performance['viewportRows'] + 4, 'folder toggle exceeded viewport row bound'
+            folder_cases[f'{count}-{"open" if expanded else "close"}'] = {
+                stage: distribution([sample[stage] for sample in case])
+                for stage in ['commitMs', 'paintOpportunityMs', 'acceptedMs']}
+    return {'checks': len(report['checks']), 'boundedExplorerAndSafeInlineRename': True, 'folderOpenClose': folder_cases}
 
 
 def check_path(report):
@@ -292,6 +306,11 @@ def run(binary: Path, output: Path, case: str):
                 (project / 'sources/a-nested/deep/catalog-extra.yaml').write_text('kind: data\ntable: item\nrecords: []\n', encoding='utf-8')
                 for index in range(1500):
                     (project / f'sources/z-folder-{index:04d}').mkdir()
+                for count in [20, 200, 2000]:
+                    folder = project / f'sources/b-dense-{count:04d}'
+                    folder.mkdir()
+                    for index in range(count):
+                        (folder / f'entry-{index:04d}.yaml').write_text('kind: data\ntable: item\nrecords: []\n', encoding='utf-8')
             if case == 'path':
                 (project / 'sources/moved').mkdir()
             if case == 'type':

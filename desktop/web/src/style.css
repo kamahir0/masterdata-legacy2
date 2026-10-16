@@ -164,6 +164,9 @@ html[data-theme="dark"] body {
 #explorer .source-state .ant-spin-dot { font-size: 10px; }
 #explorer .source-dirty { flex: none; min-width: 0; font-size: 8px; color: var(--md-text); }
 #explorer .source-actions { width: 18px; min-width: 18px; height: 20px; padding: 0; }
+#explorer button.source-actions { border: 0; border-radius: 3px; background: transparent; color: var(--md-text); font: inherit; cursor: pointer; }
+#explorer button.source-actions:hover { background: var(--md-hover); }
+#explorer button.source-actions:focus-visible { outline: 1px solid var(--md-accent); outline-offset: -1px; opacity: 1; }
 .source {
   display: inline-flex;
   align-items: center;

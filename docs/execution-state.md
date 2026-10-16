@@ -1,12 +1,12 @@
 # Development State
 
-Stage: decision-required
-Candidate: ba7b8c99dbea5316fa3695d7908b258b602bdee8
-Work base: 6488a01c701c7318ddc5a74037469918541ef324
+Stage: implementation-ready
+Candidate: none
+Work base: 33ac63bad534b7192ab0552a4df8c8ba318ff76b
 
 ## Active work
 
-Completed: [入力部品と階層表示の統一](spec-changes/0066-shared-value-controls.md)の実装、focused Rust / frontend / native回帰、macOS実操作、exact Candidateのfresh verification。[required implementation CI](https://github.com/kamahir0/masterdata/actions/runs/38827967927)全17 jobsと[integrity CI](https://github.com/kamahir0/masterdata/actions/runs/38827967943)が成功。ローカルproduction更新・起動確認と検証用process終了を確認済み。Remaining: 既存Windows / full-scope Unity conformance gates。
+Completed: GUI-EXPLORER-LAYOUT-004 / GUI-EXPLORER-LAYOUT-005 / GUI-PERF-001 / GUI-PERF-002のfolder開閉修正、20 / 200 / 2,000 files × 開閉各100回のnative実測、周辺操作6 cases、macOS実操作、self-review。Remaining: exact Candidateのfresh verification、required CI、ローカルproduction更新。既存Windows / full-scope Unity conformance gatesは維持する。
 
 ## Blocking findings
 
@@ -14,4 +14,4 @@ None within the approved implementation scope.
 
 ## Human decision needed
 
-Clean-room全体の[既存external gatesとverdict](evidence/clean-room-candidate.md#human-gates--verdict)。今回のUI修正scopeは完了。Windows actual OS入力とfull-scope Unity実行の未取得証拠をCI成功で免除しない。
+Clean-room全体の[既存external gatesとverdict](evidence/clean-room-candidate.md#human-gates--verdict)。今回のExplorer修正はApproved contract内で継続する。

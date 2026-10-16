@@ -1,6 +1,7 @@
 import {invoke} from '@tauri-apps/api/core';
 import {desktop} from './workspace';
 import {stemEnd} from './explorer-model';
+import {measureExplorerFolders} from './explorer-performance';
 const SOURCE='sources/catalog-data.yaml',SCHEMA='sources/catalog-schema.yaml';
 const frame=()=>new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
 async function until(test:()=>boolean,message:string){const deadline=performance.now()+8000;while(!test()){if(performance.now()>deadline)throw new Error(message);await frame();}}
@@ -21,6 +22,7 @@ async function showSource(path:string){
 }
 export async function run({startup}:{startup:Record<string,unknown>}){
   const checks:string[]=[],originalRpc=desktop.rpc.bind(desktop),originalMoved=desktop.sourceMoved.bind(desktop),focusLog:unknown[]=[];
+  let folderPerformance:Awaited<ReturnType<typeof measureExplorerFolders>>|null=null;
   const focusState=(phase:string)=>{focusLog.push({phase,active:document.activeElement?.tagName+':'+document.activeElement?.id,focused:document.hasFocus(),target:desktop.surface.target,pending:desktop.surface.pending,projection:desktop.surface.projection?.source,input:desktop.inputIntent});};
   desktop.sourceMoved=async(source,destination,epoch)=>{focusState('sourceMoved:before');await originalMoved(source,destination,epoch);focusState('sourceMoved:after');};
   try{
@@ -32,6 +34,17 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     const sourceHeight=row(SOURCE).closest('.ant-tree-treenode')!.getBoundingClientRect().height;
     assert(sourceHeight<=24,'Explorer rows are not compact');
     checks.push('compact-hidden-root-bounded-tree');
+    tree().focus();key(tree(),'Home');await frame();await frame();
+    const dense='folder:sources/b-dense-2000';
+    row(dense).click();await until(()=>row(dense).closest('[role="treeitem"]')?.getAttribute('aria-expanded')==='true','dense folder did not reopen');
+    document.querySelector<HTMLElement>('#explorer .ant-tree-list-holder')!.scrollTop=2200;
+    await until(()=>!!document.querySelector('.explorer-sticky'),'scrolling dense folder lost its ancestor');
+    button('b-dense-2000 フォルダーへ戻る').click();
+    await until(()=>{const r=document.querySelector<HTMLElement>(`[data-path="${dense}"]`)?.getBoundingClientRect(),v=document.querySelector('.explorer-viewport')!.getBoundingClientRect();return !!r&&r.top>=v.top&&r.bottom<=v.bottom;},'ancestor return did not reveal folder');
+    row(dense).click();
+    checks.push('dense-folder-scroll-and-ancestor-return');
+    folderPerformance=await measureExplorerFolders();
+    await showSource(SOURCE);
     const separator=document.querySelector<HTMLElement>('#explorer [role="separator"]')!;
     const width=Number(separator.getAttribute('aria-valuenow'));
     key(separator,'ArrowRight');await until(()=>Number(separator.getAttribute('aria-valuenow'))===width+10,'keyboard resize did not update width');
@@ -123,7 +136,7 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     await until(()=>!desktop.surface.choice,'dirty Cancel not accepted');assert(desktop.surface.status.dirty.includes('sources/lost-reply.yaml')&&!document.querySelector('.source-path-inline'),'dirty Cancel lost buffer or opened rename');
     checks.push('inline-rename-scoped-dirty-guard');
     assert((startup.browserErrors as string[]).length===0,'browser errors');
-    await invoke('evidence_write',{report:{kind:'explorer',checks,startup,visibility:document.visibilityState,focused:document.hasFocus(),sourceHeight,renderedRows:document.querySelectorAll('#explorer .ant-tree-treenode').length,inventoryFolders:desktop.surface.inventory!.folders.length,dirty:desktop.surface.status.dirty}});
-  }catch(error){await invoke('evidence_write',{report:{kind:'explorer',checks,error:error instanceof Error?(error.message+"\n"+(error.stack??"")):JSON.stringify(error),startup,paths:[...document.querySelectorAll<HTMLElement>('#explorer [data-path]')].map(element=>element.dataset.path),focusLog,status:desktop.surface.status,pending:desktop.surface.pending,viewport:document.querySelector('.explorer-viewport')?.outerHTML.slice(0,3000),active:document.activeElement?.outerHTML.slice(0,500),target:desktop.surface.target}});}
+    await invoke('evidence_write',{report:{kind:'explorer',checks,startup,folderPerformance,visibility:document.visibilityState,focused:document.hasFocus(),sourceHeight,renderedRows:document.querySelectorAll('#explorer .ant-tree-treenode').length,inventoryFolders:desktop.surface.inventory!.folders.length,dirty:desktop.surface.status.dirty}});
+  }catch(error){await invoke('evidence_write',{report:{kind:'explorer',checks,error:error instanceof Error?(error.message+"\n"+(error.stack??"")):JSON.stringify(error),startup,folderPerformance,paths:[...document.querySelectorAll<HTMLElement>('#explorer [data-path]')].map(element=>element.dataset.path),focusLog,status:desktop.surface.status,pending:desktop.surface.pending,viewport:document.querySelector('.explorer-viewport')?.outerHTML.slice(0,3000),scrollGeometry:{viewport:document.querySelector('.explorer-viewport')?.getBoundingClientRect().toJSON(),rows:[...document.querySelectorAll<HTMLElement>('#explorer [role="treeitem"]')].slice(0,5).map(row=>({key:row.querySelector<HTMLElement>('[data-path]')?.dataset.path,rect:row.getBoundingClientRect().toJSON()}))},active:document.activeElement?.outerHTML.slice(0,500),target:desktop.surface.target}});}
   finally{desktop.rpc=originalRpc;desktop.sourceMoved=originalMoved;}
 }
