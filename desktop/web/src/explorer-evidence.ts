@@ -2,6 +2,7 @@ import {invoke} from '@tauri-apps/api/core';
 import {desktop} from './workspace';
 import {stemEnd} from './explorer-model';
 import {measureExplorerFolders} from './explorer-performance';
+import {explorerDrag} from './explorer-drag';
 const SOURCE='sources/catalog-data.yaml',SCHEMA='sources/catalog-schema.yaml';
 const frame=()=>new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
 async function until(test:()=>boolean,message:string){const deadline=performance.now()+8000;while(!test()){if(performance.now()>deadline)throw new Error(message);await frame();}}
@@ -12,6 +13,21 @@ function input(label:string){const element=document.querySelector<HTMLInputEleme
 function text(element:HTMLInputElement,value:string){Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(element,value);element.dispatchEvent(new Event('input',{bubbles:true}));}
 function key(element:HTMLElement,key:string,options:KeyboardEventInit={}){const code:Record<string,number>={Enter:13,ArrowDown:40,ArrowUp:38,ArrowLeft:37,ArrowRight:39,Home:36,End:35,F2:113};element.dispatchEvent(new KeyboardEvent('keydown',{key,keyCode:code[key]??0,which:code[key]??0,bubbles:true,...options}));}
 function button(label:string){const element=[...document.querySelectorAll<HTMLButtonElement>('button')].find(button=>button.getAttribute('aria-label')===label||button.textContent===label);assert(element,'button missing: '+label);return element;}
+function stickyDrop(source:HTMLElement,expected:string|null){
+  const area=document.querySelector<HTMLElement>('.explorer-viewport')!,header=document.querySelector<HTMLElement>('.explorer-sticky')!,bounds=header.getBoundingClientRect();
+  const start={clientX:bounds.left+80,clientY:bounds.bottom+80},end={clientX:bounds.left+80,clientY:bounds.top+bounds.height/2};
+  let destination:string|null=null;
+  // A lifted source can leave the virtual window. Retain its real row and use
+  // the production pointer handler / DOM hit test, capturing its move intent
+  // without applying a filesystem mutation in this focused routing probe.
+  const finish=explorerDrag({button:0,isPrimary:true,pointerId:31337,target:source,currentTarget:area,...start},desktop.surface.inventory!.sourceDirectory,()=>true,(_source,folder)=>{destination=folder;},()=>{});
+  assert(finish,'sticky drop probe did not start');
+  try{
+    document.dispatchEvent(new PointerEvent('pointermove',{pointerId:31337,isPrimary:true,bubbles:true,cancelable:true,...end}));
+    document.dispatchEvent(new PointerEvent('pointerup',{pointerId:31337,isPrimary:true,bubbles:true,cancelable:true,...end}));
+    assert(destination===expected,'sticky folder drop misrouted: '+String(destination)+' expected '+String(expected));
+  }finally{finish();}
+}
 async function rename(){tree().focus();key(tree(),'F2');await until(()=>!!document.querySelector('input[aria-label="変更後のファイル名"]'),'inline rename missing');await until(()=>document.activeElement===input('変更後のファイル名'),'inline rename not focused');return input('変更後のファイル名');}
 async function showSource(path:string){
   await desktop.selectTarget(path,'explorer-evidence');button('ソースの操作').click();
@@ -34,15 +50,32 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     const sourceHeight=row(SOURCE).closest('.ant-tree-treenode')!.getBoundingClientRect().height;
     assert(sourceHeight<=24,'Explorer rows are not compact');
     checks.push('compact-hidden-root-bounded-tree');
+    const retainedRootSource=row(SOURCE);
     tree().focus();key(tree(),'Home');await frame();await frame();
     const dense='folder:sources/b-dense-2000';
     row(dense).click();await until(()=>row(dense).closest('[role="treeitem"]')?.getAttribute('aria-expanded')==='true','dense folder did not reopen');
     document.querySelector<HTMLElement>('#explorer .ant-tree-list-holder')!.scrollTop=2200;
     await until(()=>!!document.querySelector('.explorer-sticky'),'scrolling dense folder lost its ancestor');
+    stickyDrop(retainedRootSource,'sources/b-dense-2000');
+    stickyDrop(document.querySelector<HTMLElement>('#explorer [role="treeitem"] .source')!,null);
     button('b-dense-2000 フォルダーへ戻る').click();
     await until(()=>{const r=document.querySelector<HTMLElement>(`[data-path="${dense}"]`)?.getBoundingClientRect(),v=document.querySelector('.explorer-viewport')!.getBoundingClientRect();return !!r&&r.top>=v.top&&r.bottom<=v.bottom;},'ancestor return did not reveal folder');
     row(dense).click();
     checks.push('dense-folder-scroll-and-ancestor-return');
+    row(dense).click();await frame();
+    document.querySelector<HTMLElement>('#explorer .ant-tree-list-holder')!.scrollTop=2200;
+    await until(()=>!!document.querySelector('.explorer-sticky'),'sticky context target unavailable');
+    const header=document.querySelector<HTMLElement>('.explorer-sticky')!,headerBounds=header.getBoundingClientRect();
+    header.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,button:2,clientX:headerBounds.left+80,clientY:headerBounds.top+10}));
+    await until(()=>[...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].some(item=>item.textContent==='新しいフォルダー'),'sticky folder context menu missing');
+    [...document.querySelectorAll<HTMLElement>('.ant-dropdown:not(.ant-dropdown-hidden) [role="menuitem"]')].find(item=>item.textContent==='新しいフォルダー')!.click();
+    await until(()=>!!document.querySelector('input[aria-label="新しいソースのファイル名"]'),'sticky folder creation input missing');
+    assert(input('新しいソースのファイル名').title.includes('sources/b-dense-2000/'),'sticky context created at root');
+    await until(()=>document.activeElement===input('新しいソースのファイル名'),'sticky folder creation input not focused');
+    await until(()=>!document.querySelector('.creation-pending .ant-spin'),'sticky folder creation preview did not settle');
+    key(input('新しいソースのファイル名'),'Escape');await until(()=>!document.querySelector('.creation-inline'),'sticky context creation Cancel missing');
+    button('フォルダーをすべて折りたたむ').click();await frame();
+    checks.push('sticky-folder-drop-and-context-target');
     folderPerformance=await measureExplorerFolders();
     await showSource(SOURCE);
     const separator=document.querySelector<HTMLElement>('#explorer [role="separator"]')!;

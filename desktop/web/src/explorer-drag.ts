@@ -5,7 +5,7 @@ import {entryPath,parentPath} from './explorer-model';
 // WebKit's native HTML drag can swallow pointer movement in the virtual tree.
 // A file move uses the same explicit threshold/capture/Escape model as records;
 // hit testing always resolves the row's folder, never a sibling insertion gap.
-export function explorerDrag(event:ReactPointerEvent<HTMLElement>,root:string,canMove:(path:string)=>boolean,drop:(path:string,folder:string)=>void,suppressClick:()=>void):(()=>void)|null {
+export function explorerDrag(event:Pick<ReactPointerEvent<HTMLElement>,'button'|'isPrimary'|'pointerId'|'target'|'currentTarget'|'clientX'|'clientY'>,root:string,canMove:(path:string)=>boolean,drop:(path:string,folder:string)=>void,suppressClick:()=>void):(()=>void)|null {
  if(event.button!==0||!event.isPrimary||!(event.target instanceof Element)||event.target.closest('button,input,textarea,[role=combobox]'))return null;
  const area=event.currentTarget,row=event.target.closest<HTMLElement>('.ant-tree-treenode'),source=row?.querySelector<HTMLElement>('[data-path]')?.dataset.path;
  if(!row||!source||source.startsWith('folder:')||!canMove(source))return null;
@@ -24,10 +24,10 @@ export function explorerDrag(event:ReactPointerEvent<HTMLElement>,root:string,ca
   target?.classList.remove('source-drop-target');area.classList.remove('source-drop-root');folder=null;target=null;
   const hit=document.elementFromPoint(point.x,point.y);
   if(hit&&area.contains(hit)){
-   const hitRow=hit.closest<HTMLElement>('.ant-tree-treenode'),key=hitRow?.querySelector<HTMLElement>('[data-path]')?.dataset.path;
-   const destination=key?(key.startsWith('folder:')?entryPath(key):parentPath(key)):root;
+   const hitRow=hit.closest<HTMLElement>('.ant-tree-treenode'),sticky=hit.closest<HTMLElement>('.explorer-sticky'),key=hitRow?.querySelector<HTMLElement>('[data-path]')?.dataset.path;
+   const destination=sticky?.dataset.folder??(key?(key.startsWith('folder:')?entryPath(key):parentPath(key)):root);
    if(key!=='creation:temporary'&&key!==source&&destination!==parentPath(source)){
-    folder=destination;target=hitRow??area;if(hitRow)hitRow.classList.add('source-drop-target');else area.classList.add('source-drop-root');
+    folder=destination;target=hitRow??sticky??area;if(hitRow||sticky)target.classList.add('source-drop-target');else area.classList.add('source-drop-root');
    }
   }
  };

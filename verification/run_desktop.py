@@ -108,7 +108,7 @@ def check_creation(report):
 def check_explorer(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
-    assert report['checks'] == ['compact-hidden-root-bounded-tree', 'dense-folder-scroll-and-ancestor-return', 'keyboard-resize-and-stable-row-height',
+    assert report['checks'] == ['compact-hidden-root-bounded-tree', 'dense-folder-scroll-and-ancestor-return', 'sticky-folder-drop-and-context-target', 'keyboard-resize-and-stable-row-height',
                                'folder-focus-navigation-typeahead', 'filter-is-presentation-only', 'context-menu-closes-before-next-surface', 'file-context-freezes-data-binding', 'external-drop-is-not-source-import',
                                'inline-rename-stem-ime-empty-conflict', 'outside-rename-waits-latest-preview-preserves-new-intent',
                                'uncertain-rename-no-retry-explicit-recheck', 'inline-rename-scoped-dirty-guard']

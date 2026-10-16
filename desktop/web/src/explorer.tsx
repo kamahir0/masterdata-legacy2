@@ -66,9 +66,11 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   useLayoutEffect(()=>{
     if(!focusRequest)return;
     const frame=requestAnimationFrame(()=>{
-      if(focusRequest.intent!==desktop.inputIntent||creationPending.current)return;
+      // Creation's offscreen virtual row needs reveal, while ordinary Tree
+      // requests must not pull focus/scroll away from its filename input.
+      if(focusRequest.intent!==desktop.inputIntent||(creationPending.current&&focusRequest.key!=='creation:temporary'))return;
       tree.current?.scrollTo({key:focusRequest.key});
-      if(focusRequest.focus)container.current?.querySelector<HTMLElement>('[role="tree"]')?.focus({preventScroll:true});
+      if(focusRequest.focus&&!creationPending.current)container.current?.querySelector<HTMLElement>('[role="tree"]')?.focus({preventScroll:true});
     });return()=>cancelAnimationFrame(frame);
   },[focusRequest]);
   const creation=useCreation(inventory,s.status.epoch,contextKey(),async(path,folder,inputIntent)=>{
@@ -262,8 +264,8 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     {filterOpen&&<div className='explorer-filter'><Input ref={filterInput} aria-label='ソースを絞り込む' placeholder='ファイル名で絞り込む' prefix={<SearchOutlined aria-hidden='true'/>} allowClear disabled={!!creation.draft||pathMutation.open} value={filter} onChange={event=>{setFilter(event.target.value);setSticky(null);}} onKeyDown={event=>{if(event.nativeEvent.isComposing)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeFilter();}else if(event.key==='Enter'){event.preventDefault();container.current?.querySelector<HTMLElement>('[role="tree"]')?.focus();}}}/><Button type='text' icon={<CloseOutlined aria-hidden='true'/>} aria-label='絞り込みを閉じる' title='絞り込みを閉じる（Escape）' onClick={closeFilter}/></div>}
     <Dropdown menu={menuFor(context)} trigger={['contextMenu']} open={contextOpen} onOpenChange={setContextOpen}>
       <div ref={viewport} className='explorer-viewport' onScrollCapture={scrolled} onContextMenu={event=>{
-        const row=event.target instanceof Element?event.target.closest('.ant-tree-treenode'):null;
-        const key=row?.querySelector<HTMLElement>('[data-path]')?.dataset.path??folderKey(root);
+        const element=event.target instanceof Element?event.target:null,row=element?.closest('.ant-tree-treenode'),stickyFolder=element?.closest<HTMLElement>('.explorer-sticky')?.dataset.folder;
+        const key=row?.querySelector<HTMLElement>('[data-path]')?.dataset.path??folderKey(stickyFolder??root);
         if(key==='creation:temporary')return;
         setContext(key);if(row){setSelected(key);activate(key);}
       }} onPointerDownCapture={event=>{fileDrag.current?.();fileDrag.current=explorerDrag(event,root,canMove,moveTo,()=>{suppressClick.current=performance.now()+400;});}}
@@ -286,7 +288,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
             dirty={s.status.dirty.includes(String(node.key))} state={s.pending&&s.target===node.key?'pending':s.status.uncertain.includes(String(node.key))?'uncertain':s.projection?.source===node.key&&s.projection.conflict?'conflict':null}
             actionable={String(node.key)===activeKey||String(node.key)===selected} commands={`${canCreate}:${canMove(String(node.key))}`} menu={rowMenu}
             inline={pathMutation.draft?.inline&&pathMutation.draft.source===node.key?pathMutation.inline:undefined}/>}/>
-        {sticky&&!filter.trim()&&<button className='explorer-sticky' title={inventory.root+'/'+sticky} aria-label= {basename(sticky)+' フォルダーへ戻る'} onClick={()=>{setSelected(folderKey(sticky));focusItem(folderKey(sticky));setSticky(null);}}><RightOutlined rotate={90} aria-hidden='true'/><SourceIcon category='folder' expanded/><span>{basename(sticky)}</span></button>}
+        {sticky&&!filter.trim()&&<button className='explorer-sticky' data-folder={sticky} title={inventory.root+'/'+sticky} aria-label= {basename(sticky)+' フォルダーへ戻る'} onClick={()=>{setSelected(folderKey(sticky));focusItem(folderKey(sticky));setSticky(null);}}><RightOutlined rotate={90} aria-hidden='true'/><SourceIcon category='folder' expanded/><span>{basename(sticky)}</span></button>}
       </div>
     </Dropdown>
     {trash.feedback}{trash.drawer}

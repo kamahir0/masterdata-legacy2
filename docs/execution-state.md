@@ -1,12 +1,12 @@
 # Development State
 
-Stage: verification-ready
-Candidate: 1a5a527111157698adb49e81f5cd53cd464ee6cf
+Stage: implementation-ready
+Candidate: none
 Work base: 33ac63bad534b7192ab0552a4df8c8ba318ff76b
 
 ## Active work
 
-Completed: GUI-EXPLORER-LAYOUT-004 / GUI-EXPLORER-LAYOUT-005 / GUI-PERF-001 / GUI-PERF-002のfolder開閉修正、20 / 200 / 2,000 files × 開閉各100回のnative実測、周辺操作6 cases、macOS実操作、self-review。Remaining: exact Candidateのfresh verification、required CI、ローカルproduction更新。既存Windows / full-scope Unity conformance gatesは維持する。
+Completed: folder開閉の性能修正、sticky ancestorのdrop / context target補正、GUI-CREATE-LAYOUT-002の仮想row reveal / guarded focus。frontend / native Explorer 13 checks + 600測定、corrective周辺3 cases、macOS実操作、self-reviewを確認済み。Remaining: fresh Candidate / required CI、ローカルproduction再更新。既存Windows / full-scope Unity conformance gatesは維持する。
 
 ## Blocking findings
 

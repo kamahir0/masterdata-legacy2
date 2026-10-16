@@ -1006,7 +1006,7 @@ main {
 .source-drag-preview { position:fixed; left:0; top:0; z-index:2000; max-width:440px; padding:8px 12px; border:1px solid var(--md-accent); border-radius:4px; background:var(--md-elevated); color:var(--md-text); box-shadow:var(--md-shadow-light); font-size:12px; pointer-events:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .source-drag-preview.invalid { border-color:var(--md-border); color:var(--md-muted); }
 #explorer .source-drag-origin { opacity:.5; }
-#explorer .source-drop-target>.ant-tree-node-content-wrapper, #explorer .source-drop-root { background:var(--md-selected); outline:1px solid var(--md-accent); outline-offset:-1px; }
+#explorer .source-drop-target>.ant-tree-node-content-wrapper, #explorer .explorer-sticky.source-drop-target, #explorer .source-drop-root { background:var(--md-selected); outline:1px solid var(--md-accent); outline-offset:-1px; }
 
 /* Scalar controls have one visual owner across grid, nested and temporary input. */
 .scalar-control { font-family:var(--md-font); font-size:13px; font-weight:400; line-height:20px; }

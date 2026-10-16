@@ -140,7 +140,9 @@ export function useCreation(inventory:Inventory,epoch:number,context:string,onCr
   const content=draft&&<div ref={inlineElement} className="creation-inline" title={creationLabel} data-path="creation:temporary" onClick={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}>
     <div className="explorer-input-row">
       {/* A mounted suffix keeps Ant Input's DOM stable across preview completion. */}
-      <Input ref={r=>{filename.current=r?.input??null;}} aria-label="新しいソースのファイル名" title={creationLabel} value={draft.filename} disabled={committing||uncertain} status={draft.error||draft.preview?.diagnostics.length?"error":undefined}
+      {/* Virtual rows can mount after the initial focus attempt. The existing
+          request guard still rejects later input intents and repeated focus. */}
+      <Input ref={r=>{filename.current=r?.input??null;if(filename.current)requestAnimationFrame(focusFilename);}} aria-label="新しいソースのファイル名" title={creationLabel} value={draft.filename} disabled={committing||uncertain} status={draft.error||draft.preview?.diagnostics.length?"error":undefined}
         suffix={<span className="creation-pending">{draft.pending?<Spin size="small"/>:null}</span>} onChange={e=>change({filename:e.target.value},!draft.advanced)} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}}
         onKeyDown={e=>{if(e.nativeEvent.isComposing||composing.current||e.keyCode===229)return;if(e.key==="Escape"){e.preventDefault();cancel();}if(e.key==="Enter"||e.key==="Tab"){if(e.key==="Enter")e.preventDefault();void finish(e.key==="Enter");}}}/>
       <Tooltip title="作成内容の詳細"><Button type="text" size="small" icon={<SettingOutlined aria-hidden="true"/>} aria-label="作成内容の詳細" disabled={committing||uncertain} onClick={()=>patch({advanced:true})}/></Tooltip>
