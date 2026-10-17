@@ -93,6 +93,12 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     assert(document.querySelector('.ant-tree-treenode-active [data-path]')?.getAttribute('data-path')?.startsWith('folder:sources/z-folder-'),'type ahead did not focus matching row');
     checks.push('folder-focus-navigation-typeahead');
     key(tree(),'ArrowDown',{shiftKey:true});await frame();assert(document.querySelectorAll('#explorer [role="treeitem"][aria-selected="true"]').length===2,'Shift range did not select exactly two visible entries');
+    const activeRow=document.querySelector<HTMLElement>('#explorer .ant-tree-treenode-active [data-path]')!;
+    key(tree(),'Home',{ctrlKey:true});await frame();
+    const first=document.querySelector<HTMLElement>('#explorer .ant-tree-treenode-active [data-path]')!;
+    first.dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));await frame();
+    assert(document.querySelectorAll('#explorer [role="treeitem"][aria-selected="true"]').length>2&&String(desktop.surface.target)===SOURCE,'Shift click did not select the visible range without opening a file');
+    assert(activeRow.dataset.path!==first.dataset.path,'focus-only navigation did not move');
     key(tree(),'Escape');await frame();key(tree(),'Delete');await frame();assert(!desktop.surface.choice&&!document.querySelectorAll('#explorer [role="treeitem"][aria-selected="true"]').length,'Delete acted on a focused but unselected entry');checks.push('range-selection-and-escape-delete-safety');
     key(tree(),'f',{ctrlKey:true});await until(()=>!!document.querySelector('input[aria-label="ソースを絞り込む"]'),'filter shortcut missing');
     text(input('ソースを絞り込む'),'catalog-schema');await until(()=>!!document.querySelector('[data-path="sources/catalog-schema.yaml"]'),'filter did not show match');

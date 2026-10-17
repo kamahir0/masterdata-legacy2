@@ -230,6 +230,11 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
       if(letter==='c'||letter==='x'){event.preventDefault();event.stopPropagation();if(paths.length)actions.copy(paths,letter==='x');return;}
       if(letter==='v'){event.preventDefault();event.stopPropagation();void actions.paste(destinationFolder(key??folderKey(root)));return;}
       if(letter==='d'){event.preventDefault();event.stopPropagation();if(selection.length===1&&canMove(selection[0]))void actions.run('copy',[entryPath(selection[0])],parentPath(entryPath(selection[0])));return;}
+      if(['ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)){
+        event.preventDefault();event.stopPropagation();const index=visible.findIndex(item=>item.key===key),page=Math.max(1,Math.floor(height/22)-1);
+        const next=event.key==='Home'?0:event.key==='End'?visible.length-1:Math.max(0,Math.min(visible.length-1,index+(event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:event.key==='PageDown'?page:-page)));
+        if(visible[next])focusItem(visible[next].key);return;
+      }
     }
     if(command||event.altKey||!event.target.closest('[role="tree"]'))return;
     const key=activeItem.current??selected;
@@ -298,7 +303,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   const clamp=(value:number)=>Math.max(200,Math.min(maxWidth(),value));
   return <aside id='explorer' ref={container} className={resizing?'explorer-resizing':''} aria-label='エクスプローラー' onKeyDownCapture={keyDown} onCompositionEnd={event=>{
     if(event.target instanceof Element&&event.target.closest('[role="tree"]')&&!event.target.closest('input,textarea,[contenteditable=true]')){
-      const match=nextPrefix(visible,activeItem.current,event.data);if(match)focusItem(match);
+      const match=nextPrefix(visible,activeItem.current,event.data);if(match){setSelection([match]);setSelected(match);focusItem(match);}
     }
   }}>
     <div className='explorer-heading'>
@@ -324,7 +329,12 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
         onClickCapture={event=>{if(event.detail>0&&performance.now()<suppressClick.current){event.preventDefault();event.stopPropagation();suppressClick.current=0;}}}
         onDragStart={event=>event.preventDefault()} onDragOver={event=>event.preventDefault()} onDrop={event=>event.preventDefault()}>
         {!nodes.length&&<div className='explorer-empty'>{filter?'一致するソースがありません':'ソースはまだありません'}</div>}
-        <Tree ref={tree} aria-label='ソース' activeKey={activeKey} onActiveChange={key=>activate(key===null?null:String(key))}
+        <Tree ref={tree} aria-label='ソース' activeKey={activeKey} onActiveChange={key=>{
+          // rc-tree clears activeKey on blur, then restores its last rendered
+          // selection on focus. That callback can follow a newer click before
+          // React commits it; keep our synchronous navigation identity instead.
+          if(activeItem.current===null&&key!==null)activate(String(key));
+        }}
           // Ant Design 6.6 treats null as its default collapse motion. false
           // keeps rc-tree from mounting a second branch for the transition;
           // explorer-performance measures both row bounds and next input.
@@ -332,7 +342,13 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
           onExpand={next=>{if(!filter.trim())setKeys(next.map(String));setSticky(null);}}
           onSelect={(next,info)=>{
             const key=String(info.node.key),modified=info.nativeEvent.ctrlKey||info.nativeEvent.metaKey||info.nativeEvent.shiftKey;
-            if(!info.nativeEvent.shiftKey)rangeAnchor.current=key;setSelection(modified?next.map(String):[key]);setSelected(key);activate(key);
+            if(info.nativeEvent.shiftKey){
+              const anchor=rangeAnchor.current??activeItem.current??key;rangeAnchor.current=anchor;
+              const begin=Math.max(0,visible.findIndex(item=>item.key===anchor)),end=Math.max(0,visible.findIndex(item=>item.key===key));
+              const range=visible.slice(Math.min(begin,end),Math.max(begin,end)+1).map(item=>item.key);
+              setSelection(info.nativeEvent.ctrlKey||info.nativeEvent.metaKey?[...new Set([...selection,...range])]:range);
+            }else{rangeAnchor.current=key;setSelection(modified?next.map(String):[key]);}
+            setSelected(key);activate(key);
             if(!modified){if(key.startsWith('folder:'))toggleFolder(key);else if(key!==s.target||s.pending||(!s.projection&&!s.typeProjection))void desktop.selectTarget(key).catch(desktop.showError);}
           }}
 
@@ -340,7 +356,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
             dirty={s.status.dirty.includes(String(node.key))} state={s.pending&&s.target===node.key?'pending':s.status.uncertain.includes(String(node.key))?'uncertain':s.projection?.source===node.key&&s.projection.conflict?'conflict':null}
             actionable={String(node.key)===activeKey||String(node.key)===selected} commands={`${canCreate}:${canMove(String(node.key))}:${selection.length}:${!!actions.clipboard}`} menu={rowMenu}
             inline={pathMutation.draft?.inline&&(pathMutation.draft.choices.directory?folderKey(pathMutation.draft.source):pathMutation.draft.source)===node.key?pathMutation.inline:undefined}/>}/>
-        {sticky&&!filter.trim()&&<button className='explorer-sticky' data-folder={sticky} title={inventory.root+'/'+sticky} aria-label= {basename(sticky)+' フォルダーへ戻る'} onClick={()=>{setSelected(folderKey(sticky));focusItem(folderKey(sticky));setSticky(null);}}><RightOutlined rotate={90} aria-hidden='true'/><SourceIcon category='folder' expanded/><span>{basename(sticky)}</span></button>}
+        {sticky&&!filter.trim()&&<button className='explorer-sticky' data-folder={sticky} title={inventory.root+'/'+sticky} aria-label= {basename(sticky)+' フォルダーへ戻る'} onClick={()=>{setSelected(folderKey(sticky));setSelection([folderKey(sticky)]);focusItem(folderKey(sticky));setSticky(null);}}><RightOutlined rotate={90} aria-hidden='true'/><SourceIcon category='folder' expanded/><span>{basename(sticky)}</span></button>}
       </div>
     </Dropdown>
     {trash.feedback}{trash.drawer}{actions.feedback}{actions.drawers}
