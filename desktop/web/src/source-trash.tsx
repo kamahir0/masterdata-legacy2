@@ -38,17 +38,17 @@ export function useSourceTrash(s:Surface,onRemoved:(source:string)=>void,onResto
       desktop.protectWriteView('source-trash:'+epoch,true);
       const reply=await desktop.rpc<Result>({kind:'restoreSource',epoch,id:entry.id});
       if(epoch!==desktop.surface.status.epoch)return;
-      if(reply.data.outcome==='Success') {setLast(null);await desktop.refreshInventory();if(intent===desktop.inputIntent){await desktop.selectTarget(entry.source);if(intent===desktop.inputIntent)onRestored(entry.source);}}
+      if(reply.data.outcome==='Success') {setLast(null);await desktop.refreshInventory();if(intent===desktop.inputIntent){if(!desktop.surface.inventory?.folders.includes(entry.source))await desktop.selectTarget(entry.source);if(intent===desktop.inputIntent)onRestored(entry.source);}}
       else setError(uiMessage(reply.data.message));
       await load();
     }catch(e){if(epoch!==desktop.surface.status.epoch)return;setError(uiMessage(errorText(e)));setVisible(true);try{await load();}catch{/* Keep recheck and persisted receipt. */}}
     finally{running.current=false;setBusy(false);}
   }
   const feedback=last&&<div className='source-trash-feedback' role='status'><span title={last.source}>{basename(last.source)}を削除</span><Button size='small' disabled={busy} onClick={()=>void restore(last)}>元に戻す</Button></div>;
-  const drawer=<Drawer title='削除したファイルを復元' open={visible} onClose={()=>setVisible(false)} size={460} extra={<Button disabled={busy} onClick={()=>void open()}>状態を再確認</Button>}>
+  const drawer=<Drawer title='削除した項目を復元' open={visible} onClose={()=>setVisible(false)} size={460} extra={<Button disabled={busy} onClick={()=>void open()}>状態を再確認</Button>}>
     <Typography.Paragraph type='secondary'>元の場所に同名ファイルがある場合は上書きしません。削除した内容はProject内に保持されています。</Typography.Paragraph>
     {error&&<Alert type='error' showIcon title={error}/>}
-    {!entries.length?<Empty description='削除したファイルはありません'/>:entries.map(entry=><div className='trash-entry' key={entry.id}><Typography.Text>{entry.source}</Typography.Text><Space><span>{entry.state==='Conflict'?'復元先に同名ファイルがあります':entry.state==='OutcomeUnknown'?'結果の確認が必要です':'削除済み'}</span><Button disabled={busy||entry.state!=='Stored'} onClick={()=>void restore(entry)}>復元</Button></Space></div>)}
+    {!entries.length?<Empty description='削除した項目はありません'/>:entries.map(entry=><div className='trash-entry' key={entry.id}><Typography.Text>{entry.source}</Typography.Text><Space><span>{entry.state==='Conflict'?'復元先に同名ファイルがあります':entry.state==='OutcomeUnknown'?'結果の確認が必要です':'削除済み'}</span><Button disabled={busy||entry.state!=='Stored'} onClick={()=>void restore(entry)}>復元</Button></Space></div>)}
   </Drawer>;
   return {open,remove,drawer,feedback};
 }

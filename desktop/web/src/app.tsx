@@ -306,7 +306,7 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
                   type="text"
                   icon={<SaveOutlined aria-hidden="true" />}
                   disabled={
-                    (!s.settingsOpen && (!s.projection || s.pending)) ||
+                    (!s.settingsOpen && ((!s.projection&&!s.typeProjection) || s.pending)) ||
                     s.busy || !!s.openingProject || s.deliveryCapturing ||
                     s.status.recoveryRequired ||
                     (s.settingsOpen?s.status.configUncertain:s.projection?.writeStates.some(
@@ -363,8 +363,8 @@ function ThemeFrame({ platform, s }: { platform: string; s: Surface }) {
           <Explorer s={s} width={explorerWidth} resize={setExplorerWidth} reveal={()=>{explorerVisible.current=true;setExplorerOpen(true);}} />
         </div>}
         <main id="editor-pane" aria-label="エディター" tabIndex={-1}>
-          {/* A captured Type Plan can outlive navigation to a Data file. Keep
-              its owner mounted; only its current editor body follows selection. */}
+          {/* Keep the active Type input owner mounted through outgoing commits;
+              only its current editor body follows the resolved selection. */}
           {s.inventory&&<div className="type-surface" hidden={!(s.typeProjection?.clicked===s.target||s.inventory.sources.find(source=>source.path===s.target)?.kind==="type")}><TypeSurface s={s} footer={(s.typeProjection?.clicked===s.target||s.inventory.sources.find(source=>source.path===s.target)?.kind==="type")?<ProblemsBar s={s}/>:null}/></div>}
           {!s.inventory ? (
             <section id="welcome">

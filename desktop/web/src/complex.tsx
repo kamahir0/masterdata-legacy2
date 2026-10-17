@@ -36,6 +36,7 @@ import { useInteraction, useSurface } from "./app";
 import { desktop, GRID, type ComplexView, type EditorNode } from "./workspace";
 import { beginArrayDrag, consumeSpatialClick } from "./spatial";
 import {isBooleanShape,ScalarValueControl} from "./value-control";
+import {NullableValue} from './nullable-control';
 import {ValuePath} from "./value-path";
 const same = (a: string[], b: string[]) =>
   a.length === b.length && a.every((s, i) => s === b[i]);
@@ -146,6 +147,7 @@ export function ComplexPanel() {
   // wait for that target's descriptor; a later pending state would make its
   // newly focused control inert and silently lose focus.
   const resolvedTarget = useRef<typeof target>(null);
+  const resolvedExternal = useRef<number | null>(null);
   const restoreFocus = useRef<{
     target: typeof target;
     intent: number;
@@ -175,6 +177,7 @@ export function ComplexPanel() {
     setLoading(true);
     setError(null);
     setMenu(null);
+    const external = s.status.externalVersion;
     void desktop
       .complexView(target)
       .then((value) => {
@@ -185,6 +188,7 @@ export function ComplexPanel() {
         )
           return;
         resolvedTarget.current = target;
+        resolvedExternal.current = external;
         setView(value);
         setLoading(false);
       })
@@ -208,6 +212,7 @@ export function ComplexPanel() {
     s.projection?.generation,
     s.pending,
     s.externalPending,
+    s.status.externalVersion,
     s.status.epoch,
   ]);
   const operation = useCallback(
@@ -294,31 +299,14 @@ export function ComplexPanel() {
     if (
       !previous ||
       !observed ||
-      p?.revision !== observed.revision ||
-      p.generation !== observed.generation
+      p?.source !== observed.source || p.sessionEpoch !== observed.sessionEpoch
     )
-      return false;
+      {desktop.showError('編集する値の対象が変更されています。');return false;}
     if (!(await commit()) || desktop.interaction.complex !== previous)
       return false;
-    const current = desktop.surface.projection;
-    if (
-      current?.revision !== observed.revision ||
-      current.generation !== observed.generation
-    ) {
-      // Completing this editor's own typing can advance the descriptor. Fetch
-      // its bounded replacement before composing the user's next direct action.
-      const next = await desktop.complexView(previous);
-      if (
-        !next ||
-        desktop.interaction.complex !== previous ||
-        next.generation !== desktop.surface.projection?.generation ||
-        next.revision !== desktop.surface.projection.revision
-      )
-        return false;
-      viewRef.current = next;
-      setView(next);
-    }
-    return operation(path, op);
+    // The serialized application intent reacquires the exact path at its turn.
+    // A local descriptor refresh must not silently drop the next direct input.
+    return operation(path, op, observed);
   };
   const keydown = (e: KeyboardEvent) => {
     if (
@@ -426,7 +414,7 @@ export function ComplexPanel() {
   const control = (node:EditorNode) => {
     if(!node.shape?.nullable||!node.editable)return leafControl(node);
     if(!node.shape.array&&(node.shape.category==='enum'||isBooleanShape(node.shape)&&(node.kind==='null'||['true','false'].includes(node.input??''))))return leafControl(node);
-    return <div className="nullable-value-control">
+    return <NullableValue nullable isNull={node.kind==='null'} label={node.label} onClear={()=>void change(node.path,{kind:'null'})}>
       {node.kind==="null" ? <Button type="text" className="null-value" aria-label={`${node.label} の値を設定`} onClick={()=>{
         const previous=desktop.interaction.complex,intent=desktop.inputIntent;
         void change(node.path,{kind:"materialize"}).then(ok=>{
@@ -434,9 +422,8 @@ export function ComplexPanel() {
           if(node.shape?.array||["custom","flags"].includes(node.shape?.category??""))void navigate(node.path);
           else if(node.shape?.typeName!=="bool"&&node.shape?.underlying!=="bool")setActive(node.path);
         });
-      }}><span>未設定</span><PlusOutlined aria-hidden="true"/>値を設定</Button> : leafControl(node)}
-      {node.kind!=="null"&&<Button type="text" className="nullable-clear" aria-label={`${node.label} を未設定にする`} title="未設定（null）にする" onClick={()=>void change(node.path,{kind:"null"})}>×</Button>}
-    </div>;
+      }}><PlusOutlined aria-hidden="true"/>値を設定</Button> : leafControl(node)}
+    </NullableValue>;
   };
   const root =
     target &&
@@ -450,6 +437,10 @@ export function ComplexPanel() {
     (resolvedTarget.current !== target ||
       view.revision !== s.projection?.revision ||
       view.generation !== s.projection?.generation);
+  // Retain keyboard focus during local edits/Undo. Making the body inert for
+  // every revision dropped consecutive shortcuts into document.body in WKWebView.
+  // External changes and navigation still gate the old descriptor.
+  const unavailable = blocked || !root || resolvedTarget.current !== target || resolvedExternal.current !== s.status.externalVersion;
   const focusCurrent=useRef<()=>void>(()=>{});
   focusCurrent.current=() => {
     const restore = restoreFocus.current;
@@ -615,8 +606,8 @@ export function ComplexPanel() {
       <div
         ref={bindBody}
         onKeyDown={keydown}
-        inert={loading || stale || blocked}
-        aria-busy={loading || stale || blocked}
+        inert={unavailable}
+        aria-busy={unavailable}
       >
         {error ? (
           <Alert
@@ -640,9 +631,9 @@ export function ComplexPanel() {
                 />
               )}
               {root.shape?.nullable && !isBooleanShape(root.shape) && !(root.shape.category==="enum"&&!root.shape.array&&target?.path.length===1) && (
-                <div className="value-null-state"><Tag>{root.kind==="null"?"未設定（null）":"値あり"}</Tag>
-                  <Button size="small" disabled={!root.editable} onClick={()=>void change(root.path,{kind:root.kind==="null"?"materialize":"null"})}>{root.kind==="null"?"初期値で設定":"未設定にする"}</Button>
-                </div>
+                <div className="value-null-state"><NullableValue nullable isNull={root.kind==='null'} label={root.label} disabled={!root.editable} onClear={()=>void change(root.path,{kind:'null'})}>
+                  {root.kind==='null'?<Button size='small' disabled={!root.editable} onClick={()=>void change(root.path,{kind:'materialize'})}>値を設定</Button>:<span>{root.shape.typeName}</span>}
+                </NullableValue></div>
               )}
               {!root.shape || !root.editable ? (
                 <Typography.Paragraph type="secondary">
@@ -901,6 +892,7 @@ function LeafInput({
         autoFocus
         defaultOpen={node.shape?.category==='enum'}
         value={node.shape?.category==='enum'?node.input:node.kind==='null'&&boolean?null:text}
+        isNull={node.kind==='null'&&text===''}
         label={node.label}
         invalid={!node.valid}
         onChange={next=>{

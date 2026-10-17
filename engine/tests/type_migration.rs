@@ -468,9 +468,13 @@ fn required_new_type_identity_and_affected_reference_closure_are_not_hidden_by_o
     assert!(type_migration::derive(&Project::open(temp.path()).unwrap(), command).is_err());
     let mut workspace = masterdata_engine::workspace::Workspace::open(temp.path()).unwrap();
     assert!(
-        workspace
-            .select_view("sources/item-id.yaml", 0, 32)
-            .is_err()
+        matches!(
+            workspace
+                .select_view("sources/item-id.yaml", 0, 32)
+                .unwrap(),
+            masterdata_engine::workspace::SelectionProjection::Type(_)
+        ),
+        "a source-local declaration must remain available for repair"
     );
     let table = workspace
         .select("sources/catalog-data.yaml", 0, 32)
@@ -540,12 +544,21 @@ fn type_selection_keeps_the_workspace_and_warm_work_counts_zero_with_local_fresh
     }
     fs::remove_file(temp.path().join("sources/item-id.yaml")).unwrap();
     assert!(
-        w.select_view("sources/reward.yaml", 0, 32).is_err(),
-        "missing dependency left an editable Type snapshot"
+        matches!(
+            w.select_view("sources/reward.yaml", 0, 32).unwrap(),
+            SelectionProjection::Type(_)
+        ),
+        "missing dependencies must not hide the declaration being repaired"
     );
+    let table = w.select("sources/catalog-data.yaml", 0, 32).unwrap();
+    let item = table
+        .columns
+        .iter()
+        .position(|c| c.field.name == "itemId")
+        .unwrap();
     assert!(
-        w.select("sources/catalog-data.yaml", 0, 32).is_err(),
-        "missing dependency left an editable dependent Table"
+        !table.rows[0].cells[item].editable,
+        "unknown value shape must not invent an input control"
     );
     let p = w.select("sources/unrelated.yaml", 0, 32).unwrap();
     assert!(p.dirty && p.can_undo);
@@ -559,7 +572,10 @@ fn removing_a_duplicate_type_restores_the_remaining_current_declaration_locally(
     let bytes = fs::read(temp.path().join("sources/rarity.yaml")).unwrap();
     fs::write(temp.path().join("sources/zz-duplicate.yaml"), bytes).unwrap();
     let mut w = Workspace::open(temp.path()).unwrap();
-    assert!(w.select_view("sources/rarity.yaml", 0, 32).is_err());
+    assert!(matches!(
+        w.select_view("sources/rarity.yaml", 0, 32).unwrap(),
+        SelectionProjection::Type(_)
+    ));
     fs::remove_file(temp.path().join("sources/zz-duplicate.yaml")).unwrap();
     assert!(w.refresh_source("sources/zz-duplicate.yaml").is_err());
     let SelectionProjection::Type(view) = w.select_view("sources/rarity.yaml", 0, 32).unwrap()

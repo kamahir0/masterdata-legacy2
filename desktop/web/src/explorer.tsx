@@ -8,6 +8,7 @@ import {useCreation} from './creation';
 import {useSourcePath} from './source-path';
 import {explorerDrag} from './explorer-drag';
 import {useSourceTrash} from './source-trash';
+import {useExplorerActions} from './explorer-actions';
 import {ExplorerRow} from './explorer-row';
 import {ancestorKeys, entryPath, explorerEntries, folderKey, matchingAncestors, nextPrefix, parentPath, visibleEntries, type ExplorerEntry, type ExplorerSort} from './explorer-model';
 
@@ -21,6 +22,7 @@ export const SourceIcon=memo(function SourceIcon({category,error,expanded}:{cate
 export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;width:number;resize:(width:number)=>void}) {
   const inventory=s.inventory!,root=inventory.sourceDirectory;
   const [keys,setKeys]=useState<string[]>(()=>ancestorKeys(s.target,root));
+  const [selection,setSelection]=useState<string[]>(s.target?[s.target]:[]),rangeAnchor=useRef<string|null>(null);
   const [selected,setSelected]=useState(s.target),[activeKey,setActiveKey]=useState<string|null>(s.target||null);
   const activeItem=useRef<string|null>(activeKey);
   // Discrete keys can precede a controlled Tree commit. Commands always use
@@ -39,18 +41,18 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   const focusItem=(key:string,focus=true)=>{activate(key);setFocusRequest({key,intent:desktop.inputIntent,focus});};
   const revealPath=(path=s.target,focus=true)=>{
     if(!path)return;
-    reveal();setFilter('');setSticky(null);setSelected(path);
+    reveal();setFilter('');setSticky(null);setSelected(path);setSelection([path]);
     setKeys(old=>[...new Set([...old,...ancestorKeys(path,root)])]);focusItem(path,focus);
   };
   useEffect(()=>{
-    setSelected(s.target);
+    setSelected(s.target);setSelection(s.target?[s.target]:[]);
     if(s.target){
       setKeys(old=>[...new Set([...old,...ancestorKeys(s.target,root)])]);
       focusItem(s.target,false);
     }
   },[s.target]);
   useEffect(()=>{
-    setKeys(ancestorKeys(s.target,root));setSelected(s.target);activate(s.target||null);setFocusRequest(null);
+    setKeys(ancestorKeys(s.target,root));setSelected(s.target);setSelection(s.target?[s.target]:[]);activate(s.target||null);setFocusRequest(null);
     setFilter('');setFilterOpen(false);setSticky(null);setContextOpen(false);setFindEpoch(null);findRestore.current=null;
   },[s.status.epoch]);
   useLayoutEffect(()=>{
@@ -76,7 +78,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   const creation=useCreation(inventory,s.status.epoch,contextKey(),async(path,folder,inputIntent)=>{
     if(inputIntent!==desktop.inputIntent)return;
     const key=folder?folderKey(path):path;
-    setFilter('');setKeys(old=>[...new Set([...old,...ancestorKeys(path,root),...(folder?[key]:[])])]);setSelected(key);
+    setFilter('');setKeys(old=>[...new Set([...old,...ancestorKeys(path,root),...(folder?[key]:[])])]);setSelected(key);setSelection([key]);
     if(!folder)await desktop.selectTarget(path,'creation').catch(desktop.showError);
     if(inputIntent===desktop.inputIntent)focusItem(key);
   });
@@ -84,12 +86,25 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   const pathMutation=useSourcePath(s.status.epoch,(source,destination,inputIntent,focus)=>{
     setKeys(old=>[...new Set([...old,...ancestorKeys(destination,root)])]);
     if(inputIntent!==desktop.inputIntent)return;
-    setSelected(old=>old===source?destination:old);
-    if(focus){setFilter('');focusItem(destination);}
+    const remap=(key:string)=>{const path=entryPath(key);return path===source||path.startsWith(source+'/')?(key.startsWith('folder:')?folderKey(destination+path.slice(source.length)):destination+path.slice(source.length)):key;};
+    setKeys(old=>old.map(remap));setSelection(old=>old.map(remap));setSelected(remap);
+    const key=desktop.surface.inventory?.folders.includes(destination)?folderKey(destination):destination;
+    if(focus){setFilter('');focusItem(key);}
   });
-  const trash=useSourceTrash(s,source=>{setSelected(old=>old===source?'':old);if(activeItem.current===source)activate(null);},source=>{setKeys(old=>[...new Set([...old,...ancestorKeys(source,root)])]);setSelected(source);focusItem(source);});
-  const canCreate=creation.ready&&!creation.draft&&!pathMutation.open&&!s.status.recoveryRequired&&!s.status.environmentError;
-  const canMove=(path:string)=>!creation.draft&&!pathMutation.open&&!s.busy&&!s.status.recoveryRequired&&!s.status.environmentError&&!s.status.uncertain.includes(path);
+  const trash=useSourceTrash(s,source=>{setSelected(old=>old===source?'':old);if(activeItem.current===source)activate(null);},source=>{setKeys(old=>[...new Set([...old,...ancestorKeys(source,root)])]);const key=desktop.surface.inventory?.folders.includes(source)?folderKey(source):source;setSelected(key);setSelection([key]);focusItem(key);});
+  const keyForPath=(path:string)=>desktop.surface.inventory?.folders.includes(path)?folderKey(path):path;
+  const actions=useExplorerActions(s.status.epoch,(items,operation,inputIntent)=>{
+    if(!items.length)return;
+    const remap=(key:string)=>{const path=entryPath(key),item=items.find(i=>path===i.source||path.startsWith(i.source+'/'));return item?keyForPath(item.destination+path.slice(item.source.length)):key;};
+    if(operation==='move'){setKeys(old=>old.map(remap));setSelection(old=>old.map(remap));setSelected(remap);}
+    if(operation==='trash'){const removed=(key:string)=>items.some(i=>entryPath(key)===i.source||entryPath(key).startsWith(i.source+'/'));setSelection(old=>old.filter(key=>!removed(key)));setSelected(old=>removed(old)?'':old);if(activeItem.current&&removed(activeItem.current))activate(null);}
+    if(operation==='copy'&&inputIntent===desktop.inputIntent){const next=items.map(i=>keyForPath(i.destination));setSelection(next);setSelected(next.at(-1)??'');setKeys(old=>[...new Set([...old,...items.flatMap(i=>ancestorKeys(i.destination,root))])]);if(next.length)focusItem(next.at(-1)!);}
+  },(items,inputIntent)=>{if(inputIntent!==desktop.inputIntent)return;const restored=items.map(i=>keyForPath(i.source));setSelection(restored);setSelected(restored[0]??'');setKeys(old=>[...new Set([...old,...items.flatMap(i=>ancestorKeys(i.source,root))])]);if(restored.length)focusItem(restored[0]);});
+  const targets=(key:string)=>selection.includes(key)?selection:[key];
+  const targetPaths=(key:string)=>targets(key).map(entryPath);
+  const destinationFolder=(key:string)=>key.startsWith('folder:')?entryPath(key):parentPath(key);
+  const canCreate=creation.ready&&!actions.busy&&!actions.pending&&!creation.draft&&!pathMutation.open&&!s.status.recoveryRequired&&!s.status.environmentError;
+  const canMove=(path:string)=>entryPath(path)!==root&&!actions.busy&&!actions.pending&&!creation.draft&&!pathMutation.open&&!s.busy&&!s.status.recoveryRequired&&!s.status.environmentError&&!s.status.uncertain.some(p=>entryPath(path)===p||entryPath(path).startsWith(p+'/'));
   const beginCreation=(category:Parameters<typeof creation.begin>[0],key=contextKey())=>{setFilter('');creation.begin(category,key);};
   const guide=useRef(beginCreation);guide.current=beginCreation;
   useEffect(()=>canCreate?desktop.bindSourceCreation(category=>{reveal();guide.current(category);}):undefined,[canCreate,s.status.epoch]);
@@ -101,7 +116,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   useEffect(()=>{
     if(!pathMutation.draft?.inline)return;
     setKeys(old=>[...new Set([...old,...ancestorKeys(pathMutation.draft!.source,root)])]);
-    setFocusRequest({key:pathMutation.draft.source,intent:desktop.inputIntent,focus:false});
+    setFocusRequest({key:pathMutation.draft.choices.directory?folderKey(pathMutation.draft.source):pathMutation.draft.source,intent:desktop.inputIntent,focus:false});
   },[pathMutation.draft?.id,inventory.generation,inventory.externalVersion]);
   const entries=useMemo(()=>explorerEntries(inventory,sort,filter),[inventory.sources,inventory.folders,inventory.sourceDirectory,sort,filter]);
   const expanded=useMemo(()=>filter.trim()?matchingAncestors(entries):keys,[filter,entries,keys]);
@@ -133,15 +148,26 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   ];
   const menuFor=(key:string):MenuProps=>({items:[
     ...newItems(),{type:'divider'},
-    ...(!key.startsWith('folder:')?[{key:'rename',label:<span className='explorer-menu-label'>名前の変更…<span>F2</span></span>,icon:<EditOutlined aria-hidden='true'/>,disabled:!canMove(key)},
-      {key:'move',label:'移動…',icon:<FolderOpenOutlined aria-hidden='true'/>,disabled:!canMove(key)},{key:'trash',label:'削除…',danger:true,icon:<CloseOutlined aria-hidden='true'/>,disabled:!canMove(key)},{type:'divider' as const}]:[]),
-    {key:'copyRelative',label:'相対パスをコピー',icon:<CopyOutlined aria-hidden='true'/>},
-    {key:'copyAbsolute',label:'パスをコピー',icon:<CopyOutlined aria-hidden='true'/>},
+    ...(entryPath(key)!==root?[
+      {key:'rename',label:<span className='explorer-menu-label'>名前の変更…<span>F2</span></span>,icon:<EditOutlined/>,disabled:!canMove(key)||targets(key).length!==1},
+      {key:'move',label:'移動…',icon:<FolderOpenOutlined/>,disabled:!canMove(key)},
+      {key:'copy',label:'コピー',icon:<CopyOutlined/>,disabled:!canMove(key)},
+      {key:'cut',label:'切り取り',disabled:!canMove(key)},
+      {key:'duplicate',label:'複製',icon:<CopyOutlined/>,disabled:!canMove(key)||targets(key).length!==1},
+      {key:'trash',label:'削除…',danger:true,icon:<DeleteOutlined/>,disabled:!canMove(key)},
+    ]:[]),
+    {key:'paste',label:'貼り付け',disabled:!actions.clipboard||!canCreate},
+    {type:'divider'},
+    {key:'copyRelative',label:'相対パスをコピー',icon:<CopyOutlined/>},
+    {key:'copyAbsolute',label:'パスをコピー',icon:<CopyOutlined/>},
   ],onClick:({key:action})=>{
     setContextOpen(false);
-    if(action==='rename')void pathMutation.begin(key,{inline:true});
-    else if(action==='move')void pathMutation.begin(key);
-    else if(action==='trash')void trash.remove(key);
+    if(action==='rename')void pathMutation.begin(entryPath(key),{inline:true});
+    else if(action==='move'){const paths=targetPaths(key);if(paths.length===1)void pathMutation.begin(paths[0]);else actions.beginMove(paths,destinationFolder(key));}
+    else if(action==='trash')void actions.run('trash',targetPaths(key));
+    else if(action==='copy'||action==='cut')actions.copy(targetPaths(key),action==='cut');
+    else if(action==='paste')void actions.paste(destinationFolder(key));
+    else if(action==='duplicate')void actions.run('copy',[entryPath(key)],parentPath(entryPath(key)));
     else if(action==='copyRelative'||action==='copyAbsolute')copyPath(key,action==='copyAbsolute');
     else beginCreation(action as Parameters<typeof creation.begin>[0],key);
   }});
@@ -155,7 +181,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     {key:'find',label:'テーブル・型を検索…',icon:<SearchOutlined aria-hidden='true'/>,disabled:!findOptions.length||!!creation.draft||pathMutation.open},
     {type:'divider'},
     {key:'sort',label:'並べ替え',disabled:!!creation.draft||pathMutation.open,children:[{key:'sortName',label:'名前',icon:sort==='name'?<CheckOutlined aria-hidden='true'/>:null},{key:'sortType',label:'種類',icon:sort==='type'?<CheckOutlined aria-hidden='true'/>:null}]},
-    {key:'trashList',label:'削除したファイルを復元…',icon:<ReloadOutlined aria-hidden='true'/>},
+    {key:'trashList',label:'削除した項目を復元…',icon:<ReloadOutlined aria-hidden='true'/>},
     {key:'refresh',label:'一覧を更新',icon:<ReloadOutlined aria-hidden='true'/>},
     {key:'collapse',label:'フォルダーをすべて折りたたむ',icon:<CollapseFoldersIcon/>,disabled:!!creation.draft||pathMutation.open},
   ],onClick:({key})=>{
@@ -167,7 +193,7 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   }};
   const nodes=useMemo(()=>{
     function convert(items:ExplorerEntry[]):TreeDataNode[] {
-      return items.map(item=>({key:item.key,title:item.name,isLeaf:!item.folder,selectable:pathMutation.draft?.inline&&pathMutation.draft.source===item.key?false:undefined,
+      return items.map(item=>({key:item.key,title:item.name,isLeaf:!item.folder,selectable:pathMutation.draft?.inline&&(pathMutation.draft.choices.directory?folderKey(pathMutation.draft.source):pathMutation.draft.source)===item.key?false:undefined,
         icon:props=><SourceIcon category={item.folder?'folder':item.category} error={item.error} expanded={props.expanded}/>,
         children:item.children?convert(item.children):undefined}));
     }
@@ -177,9 +203,10 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     }
     // A lost move reply or external removal can make the old path disappear
     // from inventory. Keep its recovery input reachable until explicit Recheck.
-    if(rename?.inline&&!find(result,rename.source)) {
+    const renameKey=rename?.choices.directory?folderKey(rename.source):rename?.source;
+    if(rename?.inline&&renameKey&&!find(result,renameKey)) {
       const parent=find(result,folderKey(parentPath(rename.source)));
-      (parent?.children??result).push({key:rename.source,title:rename.choices.filename,isLeaf:true,selectable:false,icon:<SourceIcon category={null} error='対象のソースが一覧にありません'/>});
+      (parent?.children??result).push({key:renameKey,title:rename.choices.filename,isLeaf:!rename.choices.directory,selectable:false,icon:<SourceIcon category={null} error='対象のソースが一覧にありません'/>});
     }
     if(draft) {
       let destination=result;
@@ -196,26 +223,51 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
     if(!(event.target instanceof Element)||event.target.closest('input,textarea,button,[contenteditable=true],[role=menu]'))return;
     if(event.nativeEvent.isComposing||event.keyCode===229){if(event.target.closest('[role="tree"]'))event.stopPropagation();return;}
     if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='f'){event.preventDefault();event.stopPropagation();openFilter();return;}
-    if(event.metaKey||event.ctrlKey||event.altKey||!event.target.closest('[role="tree"]'))return;
+    const command=event.metaKey||event.ctrlKey;
+    if(command&&event.target.closest('[role="tree"]')){
+      const key=activeItem.current??selected,paths=selection.map(entryPath),letter=event.key.toLowerCase();
+      if(letter==='a'){event.preventDefault();event.stopPropagation();const next=visible.filter(i=>!filter||i.path.toLowerCase().includes(filter.toLowerCase())).map(i=>i.key);setSelection(next);return;}
+      if(letter==='c'||letter==='x'){event.preventDefault();event.stopPropagation();if(paths.length)actions.copy(paths,letter==='x');return;}
+      if(letter==='v'){event.preventDefault();event.stopPropagation();void actions.paste(destinationFolder(key??folderKey(root)));return;}
+      if(letter==='d'){event.preventDefault();event.stopPropagation();if(selection.length===1&&canMove(selection[0]))void actions.run('copy',[entryPath(selection[0])],parentPath(entryPath(selection[0])));return;}
+    }
+    if(command||event.altKey||!event.target.closest('[role="tree"]'))return;
     const key=activeItem.current??selected;
-    if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();event.stopPropagation();if(key&&!key.startsWith('folder:')&&canMove(key))void trash.remove(key);return;}
-    if(event.key==='F2'){event.preventDefault();event.stopPropagation();if(key&&!key.startsWith('folder:')&&canMove(key))void pathMutation.begin(key,{inline:true});return;}
+    if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();event.stopPropagation();if(selection.length&&selection.every(canMove))void actions.run('trash',selection.map(entryPath));return;}
+    if(event.key==='F2'){event.preventDefault();event.stopPropagation();if(key&&canMove(key))void pathMutation.begin(entryPath(key),{inline:true});return;}
     if(event.key==='Enter') {
       event.preventDefault();event.stopPropagation();if(!key)return;
-      if(key.startsWith('folder:')){toggleFolder(key);setSelected(key);return;}
-      setSelected(key);activate(key);void desktop.selectTarget(key).catch(desktop.showError);
+      setSelection([key]);setSelected(key);
+      if(key.startsWith('folder:')){toggleFolder(key);return;}
+      activate(key);void desktop.selectTarget(key).catch(desktop.showError);
       document.getElementById('editor-pane')?.focus({preventScroll:true});return;
     }
-    if(['Home','End','PageUp','PageDown'].includes(event.key)) {
+    if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setSelection([]);setSelected('');rangeAnchor.current=null;return;}
+    if(event.shiftKey&&['ArrowUp','ArrowDown','Home','End'].includes(event.key)){
+      event.preventDefault();event.stopPropagation();const index=Math.max(0,visible.findIndex(item=>item.key===key));
+      const next=event.key==='Home'?0:event.key==='End'?visible.length-1:Math.max(0,Math.min(visible.length-1,index+(event.key==='ArrowDown'?1:-1)));
+      const anchor=rangeAnchor.current??key;rangeAnchor.current=anchor;const begin=Math.max(0,visible.findIndex(item=>item.key===anchor));
+      setSelection(visible.slice(Math.min(begin,next),Math.max(begin,next)+1).map(item=>item.key));if(visible[next]){setSelected(visible[next].key);focusItem(visible[next].key);}return;
+    }
+    if(!event.shiftKey)rangeAnchor.current=null;
+    const selectFocus=(key:string)=>{setSelection([key]);setSelected(key);focusItem(key);};
+    if(['ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)) {
       event.preventDefault();event.stopPropagation();const index=visible.findIndex(item=>item.key===key),page=Math.max(1,Math.floor(height/22)-1);
-      const next=event.key==='Home'?0:event.key==='End'?visible.length-1:Math.max(0,Math.min(visible.length-1,index+(event.key==='PageDown'?page:-page)));
-      if(visible[next])focusItem(visible[next].key);return;
+      const next=event.key==='Home'?0:event.key==='End'?visible.length-1:Math.max(0,Math.min(visible.length-1,index+(event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:event.key==='PageDown'?page:-page)));
+      if(visible[next])selectFocus(visible[next].key);return;
+    }
+    if(key&&(event.key==='ArrowLeft'||event.key==='ArrowRight')){
+      event.preventDefault();event.stopPropagation();const folder=key.startsWith('folder:'),open=expanded.includes(key);
+      if(folder&&((event.key==='ArrowLeft'&&open)||(event.key==='ArrowRight'&&!open))){toggleFolder(key);setSelection([key]);setSelected(key);}
+      else if(event.key==='ArrowLeft'){const parent=parentPath(entryPath(key));if(parent!==root)selectFocus(folderKey(parent));}
+      else if(folder){const index=visible.findIndex(item=>item.key===key);if(visible[index+1])selectFocus(visible[index+1].key);}
+      return;
     }
     if(event.key.length===1) {
       event.preventDefault();event.stopPropagation();const now=performance.now(),text=(now-prefix.current.time<700?prefix.current.text:'')+event.key;
       let match=nextPrefix(visible,key,text),search=text;
       if(!match){search=event.key;match=nextPrefix(visible,key,search);}
-      prefix.current={text:search,time:now};if(match)focusItem(match);
+      prefix.current={text:search,time:now};if(match)selectFocus(match);
     }
   }
   function updateSticky() {
@@ -239,8 +291,8 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
   },[s.status.epoch]);
   useEffect(()=>()=>fileDrag.current?.(),[]);
   function moveTo(source:string,folder:string) {
-    if(!canMove(source)||parentPath(source)===folder)return;
-    void pathMutation.begin(source,{folder,direct:true});
+    if(!canMove(source)||parentPath(entryPath(source))===folder)return;
+    const paths=targetPaths(source);if(paths.length>1)void actions.run('move',paths,folder);else void pathMutation.begin(entryPath(source),{folder,direct:true});
   }
   const maxWidth=()=>Math.max(200,Math.min(520,(document.getElementById('workbench')?.clientWidth??840)-320));
   const clamp=(value:number)=>Math.max(200,Math.min(maxWidth(),value));
@@ -267,8 +319,8 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
         const element=event.target instanceof Element?event.target:null,row=element?.closest('.ant-tree-treenode'),stickyFolder=element?.closest<HTMLElement>('.explorer-sticky')?.dataset.folder;
         const key=row?.querySelector<HTMLElement>('[data-path]')?.dataset.path??folderKey(stickyFolder??root);
         if(key==='creation:temporary')return;
-        setContext(key);if(row){setSelected(key);activate(key);}
-      }} onPointerDownCapture={event=>{fileDrag.current?.();fileDrag.current=explorerDrag(event,root,canMove,moveTo,()=>{suppressClick.current=performance.now()+400;});}}
+        setContext(key);if(row){if(!selection.includes(key)){setSelected(key);setSelection([key]);}activate(key);}
+      }} onPointerDownCapture={event=>{if(event.button===0&&!(event.target as Element).closest(".ant-tree-treenode,.explorer-sticky,input,button")){setSelection([]);setSelected('');activate(null);}fileDrag.current?.();fileDrag.current=explorerDrag(event,root,canMove,moveTo,()=>{suppressClick.current=performance.now()+400;});}}
         onClickCapture={event=>{if(event.detail>0&&performance.now()<suppressClick.current){event.preventDefault();event.stopPropagation();suppressClick.current=0;}}}
         onDragStart={event=>event.preventDefault()} onDragOver={event=>event.preventDefault()} onDrop={event=>event.preventDefault()}>
         {!nodes.length&&<div className='explorer-empty'>{filter?'一致するソースがありません':'ソースはまだありません'}</div>}
@@ -276,22 +328,22 @@ export function Explorer({s,reveal,width,resize}:{s:Surface;reveal:()=>void;widt
           // Ant Design 6.6 treats null as its default collapse motion. false
           // keeps rc-tree from mounting a second branch for the transition;
           // explorer-performance measures both row bounds and next input.
-          treeData={nodes} height={height} itemHeight={22} virtual blockNode showIcon motion={false} expandedKeys={expanded} selectedKeys={[selected]}
+          treeData={nodes} height={height} itemHeight={22} virtual blockNode showIcon motion={false} expandedKeys={expanded} multiple selectedKeys={selection}
           onExpand={next=>{if(!filter.trim())setKeys(next.map(String));setSticky(null);}}
-          onSelect={(_keys,info)=>{
-            const key=String(info.node.key);setSelected(key);activate(key);
-            if(key.startsWith('folder:'))toggleFolder(key);
-            else if(key!==s.target||s.pending||(!s.projection&&!s.typeProjection))void desktop.selectTarget(key).catch(desktop.showError);
+          onSelect={(next,info)=>{
+            const key=String(info.node.key),modified=info.nativeEvent.ctrlKey||info.nativeEvent.metaKey||info.nativeEvent.shiftKey;
+            if(!info.nativeEvent.shiftKey)rangeAnchor.current=key;setSelection(modified?next.map(String):[key]);setSelected(key);activate(key);
+            if(!modified){if(key.startsWith('folder:'))toggleFolder(key);else if(key!==s.target||s.pending||(!s.projection&&!s.typeProjection))void desktop.selectTarget(key).catch(desktop.showError);}
           }}
 
           titleRender={node=>node.key==='creation:temporary'?creation.inline:<ExplorerRow key={s.status.epoch+':'+node.key} path={String(node.key)} title={String(node.title)} root={inventory.root}
             dirty={s.status.dirty.includes(String(node.key))} state={s.pending&&s.target===node.key?'pending':s.status.uncertain.includes(String(node.key))?'uncertain':s.projection?.source===node.key&&s.projection.conflict?'conflict':null}
-            actionable={String(node.key)===activeKey||String(node.key)===selected} commands={`${canCreate}:${canMove(String(node.key))}`} menu={rowMenu}
-            inline={pathMutation.draft?.inline&&pathMutation.draft.source===node.key?pathMutation.inline:undefined}/>}/>
+            actionable={String(node.key)===activeKey||String(node.key)===selected} commands={`${canCreate}:${canMove(String(node.key))}:${selection.length}:${!!actions.clipboard}`} menu={rowMenu}
+            inline={pathMutation.draft?.inline&&(pathMutation.draft.choices.directory?folderKey(pathMutation.draft.source):pathMutation.draft.source)===node.key?pathMutation.inline:undefined}/>}/>
         {sticky&&!filter.trim()&&<button className='explorer-sticky' data-folder={sticky} title={inventory.root+'/'+sticky} aria-label= {basename(sticky)+' フォルダーへ戻る'} onClick={()=>{setSelected(folderKey(sticky));focusItem(folderKey(sticky));setSticky(null);}}><RightOutlined rotate={90} aria-hidden='true'/><SourceIcon category='folder' expanded/><span>{basename(sticky)}</span></button>}
       </div>
     </Dropdown>
-    {trash.feedback}{trash.drawer}
+    {trash.feedback}{trash.drawer}{actions.feedback}{actions.drawers}
     <div className='explorer-resize-handle' role='separator' aria-label='エクスプローラーの幅' aria-orientation='vertical' tabIndex={0} aria-valuemin={200} aria-valuemax={maxPaneWidth} aria-valuenow={width}
       onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();dragWidth.current={pointer:event.pointerId,x:event.clientX,width};event.currentTarget.setPointerCapture(event.pointerId);setResizing(true);}}
       onPointerMove={event=>{const drag=dragWidth.current;if(drag?.pointer===event.pointerId)resize(clamp(drag.width+event.clientX-drag.x));}}

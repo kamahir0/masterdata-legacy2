@@ -1,6 +1,7 @@
 import type {KeyboardEventHandler, MouseEventHandler, PointerEventHandler, Ref} from 'react';
 import {Input, Select, type InputRef} from 'antd';
 import type {Shape} from './types';
+import {NullableValue} from './nullable-control';
 
 export const isBooleanShape = (shape:Shape|null|undefined) => !!shape && !shape.array && (shape.typeName==='bool'||shape.underlying==='bool');
 
@@ -22,12 +23,20 @@ type Props = {
   onBlur?:()=>void;
   onCompositionStart?:()=>void;
   onCompositionEnd?:()=>void;
+  passive?:boolean;
+  isNull?:boolean;
 };
 
 // Hosts own draft/commit/cancel and source authority; this renderer owns the
 // control for a resolved scalar. Keeping even the cheap grid toggle here avoids
 // a second visual system growing beside nested and temporary editors.
-export function ScalarValueControl({shape,value,label,onChange,disabled,invalid,textSession,autoFocus,defaultOpen,placeholder,inputRef,onKeyDown,onPointerDown,onClick,onBlur,onCompositionStart,onCompositionEnd}:Props) {
+export function ScalarValueControl(props:Props) {
+  return <NullableValue nullable={!!props.shape?.nullable} isNull={props.isNull??props.value===null} label={props.label}
+    disabled={props.disabled} passive={props.passive} onClear={()=>props.onChange(null)}>
+    <ScalarInput {...props}/>
+  </NullableValue>;
+}
+function ScalarInput({shape,value,label,onChange,disabled,invalid,textSession,autoFocus,defaultOpen,placeholder,inputRef,onKeyDown,onPointerDown,onClick,onBlur,onCompositionStart,onCompositionEnd}:Props) {
   const activate=(next:string|null):MouseEventHandler<HTMLButtonElement>=>event=>{
     onClick?.(event);
     if(!event.defaultPrevented)onChange(next);
@@ -35,15 +44,13 @@ export function ScalarValueControl({shape,value,label,onChange,disabled,invalid,
   if(!textSession&&isBooleanShape(shape)&&(value===null||value==='true'||value==='false'))
     return <span className='scalar-control boolean-control' data-value-control='bool' onKeyDown={onKeyDown}>
       {value===null?<span className='boolean-empty' role='group' aria-label={label}>
-        <span className='boolean-state'>未設定</span>
         {['true','false'].map((choice,i)=><button type='button' className='boolean-choice' key={choice} disabled={disabled} autoFocus={autoFocus&&i===0} aria-label={`${label} を${choice}にする`} onPointerDown={onPointerDown} onClick={activate(choice)}>{choice}</button>)}
       </span>:<button type='button' className='boolean-value' role='switch' aria-label={label} aria-checked={value==='true'} aria-invalid={invalid||undefined} disabled={disabled} autoFocus={autoFocus} onPointerDown={onPointerDown} onClick={activate(value==='true'?'false':'true')}>
         <span className='boolean-track' aria-hidden='true'><span/></span><span className='boolean-state'>{value}</span>
       </button>}
-      {value!==null&&shape?.nullable&&<button type='button' className='value-clear' disabled={disabled} aria-label={`${label} を未設定にする`} title='未設定（null）にする' onPointerDown={onPointerDown} onClick={activate(null)}>×</button>}
     </span>;
   if(!textSession&&shape?.category==='enum'&&!shape.array)
-    return <Select className='scalar-control scalar-enum' data-value-control='enum' aria-label={label} showSearch optionFilterProp='label' autoFocus={autoFocus} defaultOpen={defaultOpen} allowClear={shape.nullable} placeholder={placeholder??'未設定（null）'} value={value??undefined} options={shape.members?.map(symbol=>({value:symbol,label:symbol}))} disabled={disabled} status={invalid?'error':undefined} onChange={symbol=>onChange(symbol??null)} onKeyDown={event=>{
+    return <Select className='scalar-control scalar-enum' data-value-control='enum' aria-label={label} showSearch optionFilterProp='label' autoFocus={autoFocus} defaultOpen={defaultOpen} placeholder={placeholder??'値を選択'} value={value??undefined} options={shape.members?.map(symbol=>({value:symbol,label:symbol}))} disabled={disabled} status={invalid?'error':undefined} onChange={symbol=>onChange(symbol??null)} onKeyDown={event=>{
       onKeyDown?.(event);
       // Choosing a member must not also submit an enclosing structural form.
       if(event.key==='Enter')event.stopPropagation();

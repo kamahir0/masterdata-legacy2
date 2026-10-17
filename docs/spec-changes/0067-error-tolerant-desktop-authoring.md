@@ -20,7 +20,7 @@ Source Edit、Field Declaration Mutation、GUI Table / Type Editor、Explorer、
 4. nullableは型別controlの外側の共通表示・解除操作とする。表、active editor、nested、initializerで同じ配置・label・null状態を使い、型rendererはnullable actionを重複して持たない。処理中の入力は順に処理し、対象が変われば理由を示す。無言で捨てない。
 5. Explorerのfile/folderにrename、move、copy/paste、cut/paste、duplicate、recoverable delete/restoreを提供する。複数選択のcopy/move/deleteを可能にする。選択祖先と子孫は重複実行しない。domain identityはcopyを含め暗黙変更しない。
 6. folder mutationはtree entryをnative境界でexclusiveに移動する。root、自分自身の子孫への移動・copy、symlink escape、collisionは拒否する。deleteはProject内trashへの退避とし、元path・全内容・空folderを保持して再起動後も復元できる。永久削除は追加しない。
-7. dirty guardは対象と配下だけへ適用し、まとめた一つの判断にする。batchはitem別結果を明示し、失敗を全成功にしない。Unknownは対象pathを保持してrecheckし、blind retryしない。
+7. move / deleteのdirty guardは対象と配下だけへ適用し、まとめた一つの判断にする。copyは保存済みbytesを複製し、元のdirty bufferを保持する。batchはitem別結果を明示し、失敗を全成功にしない。Unknownは対象pathを保持してrecheckし、blind retryしない。
 8. 局所編集は全体busy / disable / mount transitionへ波及させない。background diagnosticsは編集許可を所有せず、エラー修復中の入力・focus・selection・scrollを保持する。
 
 ## New / Changed Requirements

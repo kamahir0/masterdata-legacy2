@@ -1,6 +1,7 @@
 //! Fresh native source identity and single-file commit authority.
 pub mod artifact;
 pub mod dotnet;
+pub mod entry;
 mod namespace;
 mod path;
 pub mod publish;
@@ -37,6 +38,7 @@ pub struct Snapshot {
     pub path: PathBuf,
     pub physical: PathBuf,
     pub bytes: Arc<str>,
+    pub directory: bool,
     pub content: String,
     file: Arc<Identity>,
     parent: Arc<Identity>,
@@ -124,6 +126,7 @@ impl Snapshot {
     }
     pub fn matches(&self, other: &Self) -> bool {
         self.physical == other.physical
+            && self.directory == other.directory
             && self.content == other.content
             && self.file == other.file
             && self.parent == other.parent
@@ -343,6 +346,7 @@ pub fn capture(root: &Path, roots: &[PathBuf], logical: &str) -> Result<Snapshot
         file: Arc::new(handle),
         parent: Arc::new(parent),
         permissions: metadata.permissions(),
+        directory: false,
     })
 }
 
@@ -552,4 +556,32 @@ fn rename_slots(
         }
         Ok(())
     }
+}
+
+pub(super) fn storage_directory(root: &Path, name: &str, create: bool) -> Result<Option<PathBuf>> {
+    let mut path = root.to_path_buf();
+    for part in [".masterdata", name] {
+        path.push(part);
+        match fs::symlink_metadata(&path) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound && create => {
+                fs::create_dir(&path).map_err(io_error)?;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(io_error(e)),
+            Ok(m) if path_alias(&m) || !m.is_dir() => {
+                return Err(Error::new(
+                    "E-PATH-ALIAS",
+                    "trash must be an ordinary Project directory",
+                ));
+            }
+            Ok(_) => {}
+        }
+        let logical = path
+            .strip_prefix(root)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        checked_path(root, &[root.to_path_buf()], &logical)?;
+    }
+    Ok(Some(path.canonicalize().map_err(io_error)?))
 }

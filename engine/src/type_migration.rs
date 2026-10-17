@@ -88,7 +88,8 @@ fn precondition(message: impl Into<String>) -> Error {
 }
 
 /// GUI-TYPE-INT-011: an explicit command suggestion, never implicit numbering
-/// in source interpretation. The normal Plan must still validate this command.
+/// in source interpretation. The eventual authoring intent / strict Plan must
+/// still check its current target; a suggestion authorizes no source write.
 pub fn suggest_enum_member(type_name: &str, declaration: &Type) -> Result<Command> {
     let Type::Enum {
         underlying,
@@ -101,10 +102,8 @@ pub fn suggest_enum_member(type_name: &str, declaration: &Type) -> Result<Comman
     semantic::integer_value("0", underlying).map_err(|e| precondition(e.message))?;
     let used: BTreeSet<i128> = members
         .iter()
-        .map(|(_, value)| {
-            semantic::integer_value(value, underlying).map_err(|e| precondition(e.message))
-        })
-        .collect::<Result<_>>()?;
+        .filter_map(|(_, value)| semantic::integer_value(value, underlying).ok())
+        .collect();
     let value = if *flags {
         let width = if matches!(underlying.as_str(), "int" | "uint") {
             32
@@ -543,10 +542,14 @@ struct Values<'a> {
     doc: &'a Document,
     patches: Vec<Patch>,
     count: usize,
+    strict: bool,
 }
 impl Values<'_> {
     fn field(&mut self, field: &Field, node: &Node) -> Result<Value> {
         if !self.closure.related.contains(&field.type_name) {
+            return Ok(node.value());
+        }
+        if !self.strict && !node.safe {
             return Ok(node.value());
         }
         if !node.safe {
@@ -558,6 +561,9 @@ impl Values<'_> {
             return Ok(Value::Null);
         }
         if field.array {
+            if !self.strict && node.items().is_err() {
+                return Ok(node.value());
+            }
             return Ok(Value::Sequence(
                 node.items()?
                     .iter()
@@ -568,6 +574,9 @@ impl Values<'_> {
         self.base(&field.type_name, node)
     }
     fn symbol(&mut self, node: &Node) -> Result<Value> {
+        if !self.strict && (!node.safe || node.text().is_err()) {
+            return Ok(node.value());
+        }
         if !node.safe {
             return Err(resolution("symbolic occurrence is unsafe"));
         }
@@ -587,15 +596,21 @@ impl Values<'_> {
                 }
                 Ok(Value::Text(new_name.clone()))
             }
-            Command::DropEnumMember { member, .. } if name == member => Err(precondition(
-                "member is used by an existing value occurrence",
-            )),
+            Command::DropEnumMember { member, .. } if self.strict && name == member => Err(
+                precondition("member is used by an existing value occurrence"),
+            ),
             _ => Ok(node.value()),
         }
     }
     fn base(&mut self, name: &str, node: &Node) -> Result<Value> {
+        if !self.strict && !node.safe {
+            return Ok(node.value());
+        }
         if !node.safe {
             return Err(resolution("dependent occurrence is unsafe"));
+        }
+        if !self.strict && !self.project.types.contains_key(name) {
+            return Ok(node.value());
         }
         match self
             .project
@@ -608,6 +623,9 @@ impl Values<'_> {
                     return Ok(node.value());
                 }
                 if *flags {
+                    if !self.strict && node.items().is_err() {
+                        return Ok(node.value());
+                    }
                     Ok(Value::Sequence(
                         node.items()?
                             .iter()
@@ -619,6 +637,9 @@ impl Values<'_> {
                 }
             }
             Type::Custom { fields } => {
+                if !self.strict && node.members().is_err() {
+                    return Ok(node.value());
+                }
                 let target = name == self.command.target();
                 let mut expected = vec![];
                 for member in node.members()? {
@@ -660,6 +681,9 @@ impl Values<'_> {
                         ..
                     } = self.command
                 {
+                    if !self.strict && initializer.is_none() {
+                        return Ok(Value::Mapping(expected));
+                    }
                     let value = initializer.as_ref().ok_or_else(|| {
                         precondition(
                             "explicit constant initializer required for existing Custom values",
@@ -682,6 +706,10 @@ impl Values<'_> {
     fn records(&mut self, table: &semantic::Table) -> Result<Value> {
         let mut expected = vec![];
         for record in self.doc.records()? {
+            if !self.strict && record.value.members().is_err() {
+                expected.push(record.value.value());
+                continue;
+            }
             let mut members = vec![];
             for member in record.value.members()? {
                 let value = if let Some(field) = table.fields.iter().find(|f| f.name == member.name)
@@ -768,6 +796,7 @@ pub fn derive(project: &Project, command: Command) -> Result<Plan> {
                 doc,
                 patches: vec![],
                 count: 0,
+                strict: true,
             };
             let expected = values.records(table)?;
             count += values.count;
@@ -834,6 +863,128 @@ pub fn derive(project: &Project, command: Command) -> Result<Plan> {
         destructive: command.destructive(),
         command: migration::Command::Type { command },
         affected_records: count,
+        candidates,
+    })
+}
+
+/// Ordinary editing reuses the same localized declaration/value patchers, while
+/// keeping unresolved and invalid occurrences as diagnostics instead of gates.
+pub(crate) fn derive_authoring(project: &Project, source: &str, command: Command) -> Result<Plan> {
+    let before = project
+        .sources
+        .get(source)
+        .and_then(|s| s.document.as_ref())
+        .ok_or_else(|| resolution("type source is unavailable"))?;
+    let (name, current) = semantic::parse_type_authoring(before)?;
+    if name != command.target() {
+        return Err(resolution("type target changed"));
+    }
+    match (&current, &command) {
+        (
+            Type::Enum { members, .. },
+            Command::RenameEnumMember { member, .. } | Command::DropEnumMember { member, .. },
+        ) if members.iter().filter(|(name, _)| name == member).count() != 1 => {
+            return Err(precondition("member is missing or ambiguous"));
+        }
+        (
+            Type::Custom { fields },
+            Command::RenameCustomField { field, .. } | Command::DropCustomField { field, .. },
+        ) if fields.iter().filter(|f| &f.name == field).count() != 1 => {
+            return Err(precondition("field is missing or ambiguous"));
+        }
+        (Type::Enum { members, .. }, Command::AddEnumMember { name, .. })
+            if members.iter().any(|(n, _)| n == name) =>
+        {
+            return Err(precondition("member name already exists"));
+        }
+        (Type::Custom { fields }, Command::AddCustomField { declaration, .. })
+            if fields.iter().any(|f| f.name == declaration.name) =>
+        {
+            return Err(precondition("field name already exists"));
+        }
+        (
+            Type::Enum { flags: true, .. },
+            Command::RenameEnumMember { member, .. } | Command::DropEnumMember { member, .. },
+        ) if member == "None" => return Err(precondition("Flags None=0 is protected")),
+        (
+            Type::Enum { members, .. },
+            Command::RenameEnumMember {
+                member, new_name, ..
+            },
+        ) if member != new_name && members.iter().any(|(n, _)| n == new_name) => {
+            return Err(precondition("member name already exists"));
+        }
+        (
+            Type::Custom { fields },
+            Command::RenameCustomField {
+                field, new_name, ..
+            },
+        ) if field != new_name && fields.iter().any(|f| &f.name == new_name) => {
+            return Err(precondition("field name already exists"));
+        }
+        _ => {}
+    }
+    let after = Arc::new(declaration_candidate(before, &current, &command)?);
+    semantic::parse_type_authoring(&after)?;
+    let closure = Closure {
+        source: source.into(),
+        related: project.types.keys().cloned().collect(),
+        tables: project.tables.keys().cloned().collect(),
+    };
+    let mut candidates = BTreeMap::new();
+    if before.bytes != after.bytes {
+        candidates.insert(
+            source.into(),
+            Candidate {
+                before: before.clone(),
+                after,
+            },
+        );
+    }
+    let mut affected_records = 0;
+    for (path, source) in &project.sources {
+        let Some(doc) = &source.document else {
+            continue;
+        };
+        let Some(table) = source
+            .binding
+            .as_ref()
+            .and_then(|name| project.tables.get(name))
+        else {
+            continue;
+        };
+        if doc.root.get("records").is_none() {
+            continue;
+        }
+        if doc.records().is_err() {
+            continue;
+        }
+        let mut values = Values {
+            project,
+            closure: &closure,
+            command: &command,
+            doc,
+            patches: vec![],
+            count: 0,
+            strict: false,
+        };
+        values.records(table)?;
+        affected_records += values.count;
+        if !values.patches.is_empty() {
+            let after = Arc::new(doc.patched(values.patches)?);
+            candidates.insert(
+                path.clone(),
+                Candidate {
+                    before: doc.clone(),
+                    after,
+                },
+            );
+        }
+    }
+    Ok(Plan {
+        destructive: command.destructive(),
+        command: crate::migration::Command::Type { command },
+        affected_records,
         candidates,
     })
 }

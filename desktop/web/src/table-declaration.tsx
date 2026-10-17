@@ -1,11 +1,11 @@
-import { uiMessage, statusLabel, uiTerms } from "./language";
+import { uiMessage, uiTerms } from "./language";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {Alert, Button, Checkbox, Descriptions, Drawer, Empty, Flex, Form, Input, Select, Space, Spin, Table, Tabs, Tag, Typography} from "antd";
+import {Alert, Button, Checkbox, Drawer, Empty, Flex, Form, Input, Select, Space, Spin, Table, Tabs, Tag, Typography} from "antd";
 import {DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined} from "@ant-design/icons";
 import {desktop, type Surface} from "./workspace";
-import type {DeclarationKey, ReferenceDetail, ReferenceInput, SetResult, TableDeclarationChange, TableDeclarationReview, TableDeclarationSnapshot} from "./types";
+import type {DeclarationKey, ReferenceDetail, ReferenceInput, TableDeclarationChange, TableDeclarationSnapshot} from "./types";
 
-type Context={id:number;epoch:number;target:string;source:string;table:string;snapshot:TableDeclarationSnapshot|null;change:TableDeclarationChange|null;review:TableDeclarationReview|null;pending:boolean;applying:boolean;closing:boolean;error:string|null;stale:boolean;uncertain:boolean;outcome:SetResult|null;referenceKey:number|null;externalVersion:number;tab:string;requestedField?:string;origin:HTMLElement|null};
+type Context={id:number;epoch:number;target:string;source:string;table:string;snapshot:TableDeclarationSnapshot|null;change:TableDeclarationChange|null;pending:boolean;applying:boolean;closing:boolean;error:string|null;stale:boolean;referenceKey:number|null;externalVersion:number;tab:string;requestedField?:string;origin:HTMLElement|null};
 const errorText=(e:unknown)=>e&&typeof e==="object"&&"message" in e?`${"code" in e?String(e.code)+": ":""}${String(e.message)}`:String(e);
 const labels:Record<TableDeclarationChange["kind"],string>={setFieldKey:"MessagePackキー",setPrimaryKey:"主キー",addSecondaryKey:"副キーを追加",editSecondaryKey:"副キーを編集",removeSecondaryKey:"副キーを削除",addReference:"参照を追加",editReference:"参照を編集",removeReference:"参照を削除"};
 const keyLabel=(key:DeclarationKey)=>`${key.fields.join(" → ")}${key.nonUnique?" · 重複許可":" · 一意"}`;
@@ -13,14 +13,14 @@ export function useTableDeclaration(s:Surface) {
   const [context,setContext]=useState<Context|null>(null),live=useRef(context);live.current=context;
   const request=useRef(0),ids=useRef(0),closed=useRef<{epoch:number;target:string;input:number;origin:HTMLElement|null}|null>(null);
   const focus=useRef<{input:number;id:number}|null>(null);
-  const focusDetail=()=>{const root=document.querySelector('.ant-drawer-open');(root?.querySelector<HTMLElement>("[aria-label=\"テーブル宣言の変更計画\"],.table-declaration-operation input:not(:disabled)")??root?.querySelector<HTMLElement>("button[aria-label=\"テーブル宣言の変更を確認\"]:not(:disabled)")??root?.querySelector<HTMLElement>('.table-declarations button:not(:disabled)'))?.focus();};
+  const focusDetail=()=>{const root=document.querySelector('.ant-drawer-open');(root?.querySelector<HTMLElement>("[aria-label=\"テーブル宣言の変更計画\"],.table-declaration-operation input:not(:disabled)")??root?.querySelector<HTMLElement>("button[aria-label=\"テーブル宣言の変更を適用\"]:not(:disabled)")??root?.querySelector<HTMLElement>('.table-declarations button:not(:disabled)'))?.focus();};
   const patch=(value:Partial<Context>)=>{if(live.current){live.current={...live.current,...value};setContext(live.current);}};
   const current=(c:Context)=>live.current?.id===c.id&&desktop.surface.status.epoch===c.epoch&&desktop.surface.target===c.target;
   useLayoutEffect(()=>{
     const frame=requestAnimationFrame(()=>{const f=focus.current,c=live.current;if(!f||!c||c.closing||f.id!==c.id||f.input!==desktop.inputIntent||!current(c)||desktop.surface.choice||desktop.surface.comparison)return;
       focusDetail();});
     return()=>cancelAnimationFrame(frame);
-  },[context?.change?.kind,context?.review?.plan.token,context?.pending,s.choice,s.comparison]);
+  },[context?.change?.kind,context?.pending,s.choice,s.comparison]);
   useEffect(()=>{if(live.current&&(live.current.epoch!==s.status.epoch||live.current.target!==s.target)&&!live.current.applying){request.current++;live.current=null;setContext(null);}},[s.status.epoch,s.target]);
   const wasOverlay=useRef(false);
   useLayoutEffect(()=>{const overlay=!!s.choice||!!s.comparison;if(wasOverlay.current&&!overlay&&live.current)focus.current={id:live.current.id,input:desktop.inputIntent};wasOverlay.current=overlay;},[s.choice,s.comparison]);
@@ -32,7 +32,7 @@ export function useTableDeclaration(s:Surface) {
       const reply=await desktop.rpc<TableDeclarationSnapshot>({kind:"tableDeclarationDetail",epoch:c.epoch,source:c.source,table:c.table});
       if(mine===request.current&&current(c)&&reply.host.epoch===c.epoch){
         const occurrence=c.requestedField===undefined?-1:reply.data.detail.fields.findIndex(f=>f.name===c.requestedField);
-        patch({snapshot:reply.data,change:occurrence>=0&&c.tab==="fields"?{kind:"setFieldKey",occurrence,key:String(reply.data.detail.fields[occurrence].key)}:null,requestedField:undefined,review:null,pending:false,stale:false,outcome:null,externalVersion:desktop.surface.status.externalVersion});
+        patch({snapshot:reply.data,change:occurrence>=0&&c.tab==="fields"?{kind:"setFieldKey",occurrence,key:String(reply.data.detail.fields[occurrence].key)}:null,requestedField:undefined,pending:false,stale:false,externalVersion:desktop.surface.status.externalVersion});
       }
     }catch(e){if(mine===request.current&&current(c))patch({pending:false,error:errorText(e),stale:true});}
   }
@@ -40,60 +40,33 @@ export function useTableDeclaration(s:Surface) {
     const expected=s.projection,input=desktop.inputIntent;
     if(s.pending||s.busy||s.status.recoveryRequired||s.uncertainField||!expected||!(await desktop.commit()))return;
     const p=desktop.surface.projection;if(!p||p.sessionEpoch!==expected.sessionEpoch||p.clicked!==expected.clicked||p.sessionEpoch!==desktop.surface.status.epoch||p.clicked!==desktop.surface.target||desktop.surface.pending)return;
-    const c:Context={id:++ids.current,epoch:p.sessionEpoch,target:p.clicked,source:p.table.source,table:p.table.name,snapshot:null,change:null,review:null,pending:true,applying:false,closing:false,error:null,stale:false,uncertain:false,outcome:null,referenceKey:null,externalVersion:desktop.surface.status.externalVersion,tab,requestedField:field,origin:field&&document.activeElement instanceof HTMLElement?document.activeElement:document.querySelector<HTMLElement>('button[aria-label="テーブルの操作"]')};
+    const c:Context={id:++ids.current,epoch:p.sessionEpoch,target:p.clicked,source:p.table.source,table:p.table.name,snapshot:null,change:null,pending:true,applying:false,closing:false,error:null,stale:false,referenceKey:null,externalVersion:desktop.surface.status.externalVersion,tab,requestedField:field,origin:field&&document.activeElement instanceof HTMLElement?document.activeElement:document.querySelector<HTMLElement>('button[aria-label="テーブルの操作"]')};
     focus.current={input,id:c.id};live.current=c;setContext(c);await load(c);
   }
   function change(value:TableDeclarationChange|null){request.current++;if(live.current)focus.current={id:live.current.id,input:desktop.inputIntent};
     const previous=live.current?.change;const referenceKey=value?.kind==="editReference"&&previous?.kind!=="editReference"?live.current?.snapshot?.detail.references[value.occurrence]?.selectedKey??null:value?.kind==="addReference"&&previous?.kind!=="addReference"?null:live.current?.referenceKey??null;
-    patch({change:value,review:null,error:null,outcome:null,referenceKey});}
-  async function review() {
-    const c=live.current,d=c?.snapshot?.detail;if(!c||!d||!c.change||c.pending||c.applying||c.uncertain||!current(c))return;
-    const mine=++request.current,input=desktop.inputIntent;patch({pending:true,error:null,review:null});
-    try {
-      const reply=await desktop.rpc<TableDeclarationReview>({kind:"tableDeclarationPlan",epoch:c.epoch,command:{table:d.table,source:d.source,identity:d.identity,change:c.change}});
-      if(mine===request.current&&current(c)&&reply.host.epoch===c.epoch){focus.current={input,id:c.id};patch({review:reply.data,pending:false});}
-    }catch(e){if(mine===request.current&&current(c))patch({pending:false,error:errorText(e),stale:errorText(e).includes("E-MIGRATION-STALE")});}
-  }
-  async function apply() {
-    const c=live.current,r=c?.review;if(!c||!r||c.pending||c.applying||c.uncertain||c.stale||!current(c)||s.status.recoveryRequired)return;
+    patch({change:value,error:null,referenceKey});}
+  async function commit() {
+    const c=live.current,d=c?.snapshot?.detail;if(!c||!d||!c.change||c.pending||c.applying||!current(c))return;
     patch({applying:true,error:null});
-    const key=`field:${r.plan.token}`;let received:SetResult|null=null,attempted=false;
-    try {
-      const inventory=await desktop.refreshInventory();if(!current(c)||!inventory)return;
-      const dirty=r.plan.files.filter(f=>inventory.dirty.includes(f.source));
-      for(const file of r.plan.files)if(!(await desktop.guardSource(file.source,c.epoch,"テーブル宣言変更前の未保存変更")))return;
-      if(!current(c))return;
-      if(dirty.length){patch({stale:true,error:"未保存変更を処理しました。テーブル定義を読み直し、現在の宣言から確認してください。"});return;}
-      const removal=c.change?.kind==="removeReference"?r.before.references[c.change.occurrence]?.declaration.name:c.change?.kind==="removeSecondaryKey"?keyLabel(r.before.secondary[c.change.occurrence]):null;
-      if(r.plan.destructive&&await desktop.choose(labels[c.change!.kind],`${c.table} · ${removal??"対象宣言"}を削除します。レコードの値は保持します。`,["Delete","Cancel"])!=="Delete")return;
-      if(!current(c))return;
-      attempted=true;desktop.protectWriteView(key,true);
-      const reply=await desktop.rpc<SetResult>({kind:"migrationApply",epoch:c.epoch,token:r.plan.token,authorizeDestructive:r.plan.destructive});
-      received=reply.data;desktop.protectWriteView(key,false);
-      if(!current(c))return;
-      patch({review:null,outcome:received});
-      await desktop.refreshInventory();if(desktop.surface.target===c.target)await desktop.refresh();
-      if(received.outcome==="Success")await load(c);
-      else patch({error:`${received.outcome}: ${received.message}`,stale:true});
-    }catch(e){
-      const known=!!e&&typeof e==="object"&&"code" in e;
-      if(received){if(current(c))patch({review:null,outcome:received,error:`${statusLabel(received.outcome)} · 表示を再取得できません: ${errorText(e)}`,stale:true});}
-      else if(!attempted||known){desktop.protectWriteView(key,false);if(current(c))patch({error:errorText(e),stale:attempted||errorText(e).includes("E-MIGRATION-STALE")});}
-      else {desktop.migrationUncertain(r.plan.token,c.epoch,c.target);if(current(c))patch({error:"Outcome Unknown: 自動再試行を止めています。再確認で現在のソース一式を確認してください。",uncertain:true});}
-    }finally{if(current(c)){focus.current={input:desktop.inputIntent,id:c.id};patch({applying:false});}else if(live.current?.id===c.id){live.current=null;setContext(null);}}
+    const ok=await desktop.operation(async()=>{
+      if(!current(c))throw new Error('テーブル定義の編集対象が変更されています。');
+      desktop.focusSchema();
+      return {kind:'authorTable',epoch:c.epoch,command:{table:d.table,source:d.source,identity:d.identity,change:c.change}};
+    });
+    if(current(c)){
+      patch({applying:false});focus.current={input:desktop.inputIntent,id:c.id};
+      if(ok)await load(c);else patch({error:desktop.surface.error??'変更を適用できません。'});
+    }
   }
   const c=context,d=c?.snapshot?.detail,operation=c?.change;
-  const blocked=!!c&&(c.pending||c.applying||c.uncertain||c.stale||s.status.recoveryRequired||s.pending||s.busy||!!s.uncertainField);
+  const blocked=!!c&&(c.pending||c.applying||c.stale||s.status.recoveryRequired||s.pending||s.busy||!!s.uncertainField);
   const reference=operation&&"declaration" in operation?operation.declaration:null;
   const setReference=(input:Partial<ReferenceInput>)=>{if(operation&&"declaration" in operation)change({...operation,declaration:{...operation.declaration,...input}});};
   const newReference=():ReferenceInput=>({name:"",fields:[],targetTable:"",targetFields:[],csharpName:null});
-  const footer=c&&<Space>
-    <Button disabled={c.applying} onClick={close}>閉じる</Button>
-    {c.uncertain?<Button type="primary" aria-label="状態を再確認（対象ソース一式）" disabled={c.applying} onClick={()=>void desktop.recheckFieldOperation().then(()=>{if(current(c)&&!desktop.surface.uncertainField)patch({uncertain:false,review:null,stale:true,error:desktop.surface.error});})}>{uiTerms.recheck}</Button>:<>
-      {c.stale&&<Button icon={<ReloadOutlined aria-hidden="true"/>} disabled={c.applying||c.pending} onClick={()=>void load(c)}>テーブル定義を再取得</Button>}
-      {operation&&!c.review&&<><Button disabled={c.pending||c.applying} onClick={()=>change(null)}>定義に戻る</Button><Button aria-label="テーブル宣言の変更を確認" type="primary" loading={c.pending} disabled={blocked} onClick={()=>void review()}>変更を確認</Button></>}
-      {c.review&&<><Button disabled={c.applying} onClick={()=>patch({review:null})}>入力を修正</Button><Button type="primary" danger={c.review.plan.destructive} loading={c.applying} disabled={blocked} onClick={()=>void apply()}>適用</Button></>}
-    </>}
+  const footer=c&&<Space><Button disabled={c.applying} onClick={close}>閉じる</Button>
+    {c.stale&&<Button icon={<ReloadOutlined/>} disabled={c.applying||c.pending} onClick={()=>void load(c)}>テーブル定義を再取得</Button>}
+    {operation&&<><Button disabled={c.pending||c.applying} onClick={()=>change(null)}>定義に戻る</Button><Button aria-label='テーブル宣言の変更を適用' type='primary' loading={c.applying} disabled={blocked} onClick={()=>void commit()}>変更</Button></>}
   </Space>;
   const ordered=(label:string,values:string[],options:string[],update:(v:string[])=>void)=><Form.Item label={`${label} · 選択順`}><Select showSearch optionFilterProp="label" aria-label={label} mode="multiple" value={values} disabled={blocked} options={options.map(value=>({value,label:`${value} (${d?.fields.find(field=>field.name===value)?.typeName??"?"}${d?.fields.find(field=>field.name===value)?.array?"[]":d?.fields.find(field=>field.name===value)?.nullable?"?":""})`}))} onChange={update}/></Form.Item>;
   const control=(label:string,changeValue:TableDeclarationChange,remove=false)=><Button type="text" size="small" aria-label={label} title={label} danger={remove} icon={remove?<DeleteOutlined aria-hidden="true"/>:<EditOutlined aria-hidden="true"/>} disabled={blocked} onClick={()=>change(changeValue)}/>;
@@ -104,8 +77,8 @@ export function useTableDeclaration(s:Surface) {
     const f=focus.current;if(!f||f.id!==live.current?.id||f.input!==desktop.inputIntent)return;
     focusDetail();
   }}>
-    <div className="table-declarations">{c?.uncertain&&<Typography.Paragraph>{uiTerms.sourceRecheckDescription}</Typography.Paragraph>}
-      <Typography.Paragraph type="secondary">{c?.source}  · 保存済みの宣言</Typography.Paragraph>
+    <div className="table-declarations">
+      <Typography.Paragraph type="secondary">{c?.source}</Typography.Paragraph>
       {c?.pending&&!d?<Spin/>:d&&!operation?<Tabs size="small" activeKey={c.tab} onChange={tab=>patch({tab})} destroyOnHidden items={[
         {key:"fields",label:"MessagePackキー",children:<Table size="small" rowKey="occurrence" pagination={{pageSize:20,hideOnSinglePage:true}} dataSource={d.fields.map((f,occurrence)=>({...f,occurrence}))} columns={[{title:"フィールド",dataIndex:"name"},{title:"キー",dataIndex:"key"},{title:"",width:44,render:(_,f)=>control(`編集: ${f.name} MessagePackキー`,{kind:"setFieldKey",occurrence:f.occurrence,key:String(f.key)})}]}/>},
         {key:"keys",label:"キー",children:<Space direction="vertical" className="declaration-section">
@@ -116,7 +89,7 @@ export function useTableDeclaration(s:Surface) {
         {key:"references",label:"参照",children:<Space direction="vertical" className="declaration-section"><Button size="small" icon={<PlusOutlined aria-hidden="true"/>} disabled={blocked} onClick={()=>change({kind:"addReference",declaration:newReference()})}>参照を追加</Button>
           <Table size="small" showHeader={false} rowKey="occurrence" pagination={{pageSize:20,hideOnSinglePage:true}} dataSource={d.references} locale={{emptyText:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="参照なし"/>}} columns={[{render:(_,ref:ReferenceDetail)=><ReferenceSummary reference={ref}/>},{width:78,render:(_,ref:ReferenceDetail)=><Space size={0}>{control(`編集: ${ref.declaration.name} 参照`,{kind:"editReference",occurrence:ref.occurrence,declaration:ref.declaration})}{control(`削除: ${ref.declaration.name} 参照`,{kind:"removeReference",occurrence:ref.occurrence},true)}</Space>}]}/>
         </Space>},
-      ]}/>:d&&operation&&!c?.review?<Form layout="vertical" className={`table-declaration-operation${reference?" reference-operation":""}`} disabled={blocked} onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing&&e.target instanceof HTMLInputElement&&e.target.getAttribute('role')!=="combobox"){e.preventDefault();void review();}}}>
+      ]}/>:d&&operation?<Form layout="vertical" className={`table-declaration-operation${reference?" reference-operation":""}`} disabled={blocked} onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing&&e.target instanceof HTMLInputElement&&e.target.getAttribute('role')!=="combobox"){e.preventDefault();void commit();}}}>
         {operation.kind==="setFieldKey"&&<Form.Item label={`MessagePackキー · ${d.fields[operation.occurrence]?.name}`}><Input aria-label="MessagePackキー" inputMode="numeric" value={operation.key} onChange={e=>change({...operation,key:e.target.value})}/></Form.Item>}
         {"fields" in operation&&ordered("キーのフィールド",operation.fields,d.keyFields,fields=>change({...operation,fields}))}
         {"nonUnique" in operation&&<Form.Item><Checkbox checked={operation.nonUnique} onChange={e=>change({...operation,nonUnique:e.target.checked})}>重複を許可</Checkbox></Form.Item>}
@@ -128,15 +101,8 @@ export function useTableDeclaration(s:Surface) {
         </>}
         {(operation.kind==="removeReference"||operation.kind==="removeSecondaryKey")&&<Alert type="warning" showIcon title="対象宣言を削除" description={operation.kind==="removeReference"?d.references[operation.occurrence]?.declaration.name:keyLabel(d.secondary[operation.occurrence])}/>}
       </Form>:null}
-      {c?.review&&<div aria-label="テーブル宣言の変更計画" tabIndex={-1}>
-        <Descriptions size="small" column={1} items={[{key:"saved",label:"入力",children:"保存済みソース・取得時点の設定"},{key:"source",label:"書き換えるソース",children:c.review.plan.files.map(f=>f.source).join(", ")||"変更なし"},...(operation?.kind==="setFieldKey"?[{key:"field",label:c.review.after.fields[operation.occurrence].name,children:`キー ${c.review.before.fields[operation.occurrence].key} → ${c.review.after.fields[operation.occurrence].key}`}]:[]),...(operation?.kind==="setPrimaryKey"?[{key:"primary",label:"主キー",children:`${keyLabel(c.review.before.primary)} → ${keyLabel(c.review.after.primary)}`}]:[]),...(operation?.kind==="addSecondaryKey"?[{key:"secondary",label:"副キーを追加",children:keyLabel(c.review.after.secondary.at(-1)!)}]:operation?.kind==="editSecondaryKey"?[{key:"secondary",label:`副キー ${operation.occurrence+1}`,children:`${keyLabel(c.review.before.secondary[operation.occurrence])} → ${keyLabel(c.review.after.secondary[operation.occurrence])}`}]:operation?.kind==="removeSecondaryKey"?[{key:"secondary",label:"副キーを削除",children:keyLabel(c.review.before.secondary[operation.occurrence])}]:[])]}/>
-        {operation?.kind==="removeReference"&&<Alert type="warning" title={`削除: ${c.review.before.references[operation.occurrence].declaration.name}`}/>}
-        {!!(c.review.after.references.length+c.review.after.dependents.length)&&<Table size="small" showHeader={false} rowKey={ref=>`${ref.source}:${ref.occurrence}`} pagination={{pageSize:20,hideOnSinglePage:true}} dataSource={[...c.review.after.references,...c.review.after.dependents]} columns={[{render:(_,ref:ReferenceDetail)=><ReferenceSummary reference={ref}/>}]}/>}
-        {c.review.plan.files.map(file=><Flex key={file.source} justify="space-between" className="type-plan-file"><Typography.Text>{file.source} · {file.beforeBytes} → {file.afterBytes} バイト</Typography.Text><Button size="small" disabled={c.applying} onClick={()=>void desktop.migrationCompare(c.review!.plan.token,file.source,c.review!.plan.files.map(f=>f.source)).catch(desktop.showError)}>比較</Button></Flex>)}
-      </div>}
-      {!!(c?.review?.dirtyDependencies.length||c?.snapshot?.dirtySources.length||c?.review?.configDirty||c?.snapshot?.configDirty)&&<Alert type="warning" showIcon title="未保存変更は変更計画に含めません" description={<Typography.Text>{[...(c?.review?.dirtyDependencies??c?.snapshot?.dirtySources??[]),...(c?.review?.configDirty||c?.snapshot?.configDirty?["プロジェクト設定"]:[])].join(", ")}</Typography.Text>}/>}
-      {!!d?.diagnostics.length&&!c?.review&&<Alert type="warning" showIcon title="宣言の問題" description={d.diagnostics.slice(0,8).map((p,i)=><div key={i}>{p.code}: {uiMessage(p.message)}</div>)}/>}
-      {c?.error&&<Alert type={c.uncertain?"warning":"error"} showIcon title="変更を適用できません" description={uiMessage(c.error)}/>}
+      {!!d?.diagnostics.length&&<Alert type="warning" showIcon title="宣言の問題" description={d.diagnostics.slice(0,8).map((p,i)=><div key={i}>{p.code}: {uiMessage(p.message)}</div>)}/>}
+      {c?.error&&<Alert type="error" showIcon title="変更を適用できません" description={uiMessage(c.error)}/>}
     </div>
   </Drawer>};
 }

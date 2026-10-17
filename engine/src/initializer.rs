@@ -124,6 +124,10 @@ fn build(shape: &Shape, input: &Input) -> Result<Value> {
         )),
     }
 }
+
+pub(crate) fn authoring_value(shape: &Shape, input: &Input) -> Result<Value> {
+    build(shape, input)
+}
 pub fn resolve(field: &Field, input: &Input, types: &Types) -> Result<Value> {
     let value = build(&semantic::shape(field, types)?, input)?;
     crate::migration::constant(field, &value, types)?;

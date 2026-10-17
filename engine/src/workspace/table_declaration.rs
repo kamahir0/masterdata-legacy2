@@ -36,38 +36,15 @@ impl Workspace {
     ) -> Result<TableDeclarationDetail> {
         self.check_config()?;
         self.refresh_source(source)?;
-        if self
-            .read
-            .tables
-            .get(table)
-            .is_none_or(|t| t.source != source)
-        {
+        self.ensure_draft(source)?;
+        if self.current_table(table)?.source != source {
             return Err(Error::new(
                 "E-SOURCE-BINDING",
-                "Table schema binding changed; select its current source",
+                "Table schema binding changed",
             ));
         }
-        let mut refreshed = BTreeSet::from([source.to_owned()]);
-        loop {
-            let detail = table_declaration::detail(&self.read, table)?;
-            let required = detail
-                .dependency_sources
-                .into_iter()
-                .filter(|p| !refreshed.contains(p))
-                .collect::<Vec<_>>();
-            if required.is_empty() {
-                break;
-            }
-            for path in required {
-                refreshed.insert(path.clone());
-                // Failed refresh invalidates that read source. The detail shows
-                // an unresolved declaration rather than an obsolete target key.
-                let _ = self.refresh_source(&path);
-            }
-        }
-        let mut saved = (*self.read).clone();
-        saved.rebuild_declarations();
-        let detail = table_declaration::detail(&saved, table)?;
+        let project = self.authoring_project();
+        let detail = table_declaration::detail(&project, table)?;
         Ok(TableDeclarationDetail {
             dirty_sources: self.declaration_dirty(&detail),
             config_dirty: self.config_dirty(),

@@ -18,7 +18,7 @@ Table fieldのadd / rename / drop、Type Editorのconversion / member / field操
 
 ### AUTHORING-STRUCTURE-004
 
-一操作の全candidateを検証してからdraftへ反映し、複数sourceへ跨る場合も一Undo / Redo unitとしてexact前後のbytesとoccurrence identityを復元する（MUST）。他の後続編集を巻き戻してgroup historyを適用しない。通常Saveは関連groupのdirty sourceを含め、file別lost-update / partial-save結果を保持する。SaveとBuildabilityを同一視せず、Build / Publish / Gitを暗黙実行しない。
+一操作の全candidateを検証してからdraftへ反映し、複数sourceへ跨る場合も一Undo / Redo unitとしてexact前後のbytesとoccurrence identityを復元する（MUST）。他の後続編集を巻き戻してgroup historyを適用しない。通常Saveは関連groupのdirty sourceを含め、file別lost-update / partial-save結果を保持する。明示Save / Discardでhistoryを終了したfileは残るgroup historyから外し、後のUndoでそのfileへ書き戻さない。SaveとBuildabilityを同一視せず、Build / Publish / Gitを暗黙実行しない。
 
 ### AUTHORING-STRUCTURE-005
 

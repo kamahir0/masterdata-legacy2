@@ -109,7 +109,7 @@ def check_explorer(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
     assert report['checks'] == ['compact-hidden-root-bounded-tree', 'dense-folder-scroll-and-ancestor-return', 'sticky-folder-drop-and-context-target', 'keyboard-resize-and-stable-row-height',
-                               'folder-focus-navigation-typeahead', 'filter-is-presentation-only', 'context-menu-closes-before-next-surface', 'file-context-freezes-data-binding', 'external-drop-is-not-source-import',
+                               'folder-focus-navigation-typeahead', 'range-selection-and-escape-delete-safety', 'filter-is-presentation-only', 'context-menu-closes-before-next-surface', 'file-context-freezes-data-binding', 'external-drop-is-not-source-import',
                                'inline-rename-stem-ime-empty-conflict', 'outside-rename-waits-latest-preview-preserves-new-intent',
                                'uncertain-rename-no-retry-explicit-recheck', 'inline-rename-scoped-dirty-guard']
     assert report['inventoryFolders'] > 1500 and report['renderedRows'] < 60
@@ -148,7 +148,7 @@ def check_migration(report):
     assert report['visibility'] == 'visible' and report['focused']
     assert report['checks'] == ['inline-rename-composition-cancel', 'failed-rename-preserves-input',
                                 'direct-rename-exact-occurrences', 'tail-add-explicit-null-focus',
-                                'relative-column-insert', 'drop-compare-explicit-authorization']
+                                'relative-column-insert', 'drop-draft-group-undo-redo']
     assert not report['startup']['browserErrors']
     assert report['dirty'] == []
     return {'checks': len(report['checks']), 'directStructuralAuthoring': True}
@@ -157,14 +157,13 @@ def check_migration(report):
 def check_type(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
-    assert report['checks'] == ['resolved-type-selection-warm-zero', 'type-keyboard-menu-cancel-focus', 'value-object-plan-diff-apply',
-                               'flags-none-protected', 'exhausted-flags-reason-and-no-write', 'one-click-enum-flags-add-outside-name-and-cancel', 'one-click-add-late-reply-preserves-newer-focus', 'flags-explicit-bit-candidate-no-write', 'external-stale-plan-explicit-replan', 'enum-ulong-lossless-add',
-                               'enum-rename-preserves-number', 'unused-member-authorized-drop',
-                               'custom-long-min-guided-initializer', 'custom-rename-occurrences',
-                               'custom-authorized-drop', 'affected-dirty-plan-apply-gate', 'unrelated-draft-history-survives-apply']
+    assert report['checks'] == ['resolved-type-selection-warm-zero', 'type-keyboard-menu-cancel-focus', 'outgoing-inline-type-rename-preserves-input',
+        'value-object-draft-undo-redo-save', 'flags-none-width-and-exhaustion', 'quick-add-inline-name-and-exact-undo',
+        'flags-explicit-bit-candidate-no-write', 'external-stale-input-retained', 'enum-ulong-add-drop-undo',
+        'custom-guided-long-and-group-history', 'affected-dirty-and-used-symbol-repair', 'unrelated-draft-history-survives']
     assert report['dirty'] == ['sources/catalog-data.yaml', 'sources/independent.yaml']
     assert not report['startup']['browserErrors']
-    return {'checks': len(report['checks']), 'typedOperationsAndExplicitApply': True}
+    return {'checks': len(report['checks']), 'typedDraftsAndExplicitSave': True}
 
 
 def check_delivery(report):
@@ -240,10 +239,11 @@ def check_project(report):
 def check_declaration(report):
     assert not report.get('error'), report.get('error')
     assert report['visibility'] == 'visible' and report['focused']
-    assert report['checks'] == ['column-context-direct-definition-no-write', 'open-close-physical-draft-focus', 'messagepack-review-compare-composition',
-        'primary-key-direct-ordered-components', 'secondary-key-composite-order', 'reference-add-rust-resolved-feedback',
-        'reference-helper-override', 'incoming-reference-key-removal-rejected', 'reference-remove-explicit-authorization',
-        'stale-plan-no-auto-replan-apply', 'unknown-reply-explicit-recheck', 'dirty-revisit-undo-warm-zero-stable-grid']
+    assert report['checks'] == ['column-context-direct-definition-no-write', 'open-close-physical-draft-focus',
+        'messagepack-direct-draft-composition', 'primary-key-direct-ordered-components', 'secondary-key-composite-order',
+        'reference-add-rust-resolved-feedback', 'reference-helper-override', 'incoming-reference-repair-and-undo',
+        'reference-and-key-recoverable-drop', 'explicit-save-keeps-inactive-record-draft', 'external-stale-input-retained',
+        'dirty-revisit-undo-warm-zero-stable-grid']
     assert not report['startup']['browserErrors']
     return {'checks': len(report['checks']), 'exactPhysicalSchemaAndPreservedRecordHistory': True}
 

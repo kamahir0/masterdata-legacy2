@@ -136,8 +136,22 @@ pub enum Intent {
     RecheckMove {
         token: String,
     },
+    EntryBatchPreview {
+        operation: masterdata_engine::workspace::EntryOperation,
+        sources: Vec<String>,
+        folder: Option<String>,
+    },
+    EntryBatchApply {
+        token: String,
+    },
+    EntryBatchRecheck {
+        token: String,
+    },
     SaveSource {
         source: String,
+    },
+    SaveSources {
+        sources: Vec<String>,
     },
     DiscardSource {
         source: String,
@@ -183,6 +197,24 @@ pub enum Intent {
         revision: u64,
         generation: u64,
         operation: masterdata_engine::workspace::FieldOperation,
+    },
+    AuthorField {
+        source: String,
+        revision: u64,
+        generation: u64,
+        operation: masterdata_engine::workspace::FieldOperation,
+    },
+    AuthorType {
+        source: String,
+        identity: String,
+        command: masterdata_engine::type_migration::Command,
+        input: Option<masterdata_engine::initializer::Input>,
+    },
+    AuthorTable {
+        command: Box<masterdata_engine::table_declaration::Command>,
+    },
+    SaveAuthoring {
+        source: String,
     },
     FieldOperation {
         source: String,
@@ -392,10 +424,13 @@ impl Intent {
                 | Self::ConfigSave { .. }
                 | Self::SaveAll
                 | Self::SaveSource { .. }
+                | Self::SaveSources { .. }
+                | Self::SaveAuthoring { .. }
                 | Self::Overwrite { .. }
                 | Self::Create { .. }
                 | Self::CreateProject { .. }
                 | Self::MoveSource { .. }
+                | Self::EntryBatchApply { .. }
                 | Self::TrashSource { .. }
                 | Self::RestoreSource { .. }
         )
@@ -532,7 +567,7 @@ impl Session {
             let mut scheduled = 0;
             let mut _watcher = None;
             loop {
-                enum Work { Job(Job), Diagnostics(DiagnosticResult), External(External) }
+                enum Work { Job(Box<Job>), Diagnostics(DiagnosticResult), External(External) }
                 let work = {
                     let mut p = q.pending.lock().unwrap();
                     while p.commands.is_empty() && p.selection.is_none() && p.diagnostics.is_none() && p.external.is_none() && !p.stopped {
@@ -540,7 +575,7 @@ impl Session {
                     }
                     if p.stopped { break; }
                     if let Some(result) = p.diagnostics.take() { Work::Diagnostics(result) }
-                    else if let Some(job) = p.commands.pop_front().or_else(|| p.selection.take()) { Work::Job(job) }
+                    else if let Some(job) = p.commands.pop_front().or_else(|| p.selection.take()) { Work::Job(Box::new(job)) }
                     else { Work::External(p.external.take().unwrap()) }
                 };
                 match work {
@@ -557,6 +592,7 @@ impl Session {
                         }
                     }
                     Work::Job(job) => {
+                        let job = *job;
                         if job.epoch.is_some_and(|expected| expected != epoch) {
                             if job.intent.operation_flags().is_some() {jobs.gate.release();}
                             let _ = job.reply.send(Err(UiError::new("E-PROJECT-OBSOLETE", "request belongs to a previous Project session")));
@@ -949,6 +985,13 @@ fn execute(
         } => convert(w.prepare_path_move(&source, &destination)?),
         Intent::MoveSource { token } => convert(w.apply_path_move(&token)?),
         Intent::RecheckMove { token } => convert(w.recheck_path_move(&token)?),
+        Intent::EntryBatchPreview {
+            operation,
+            sources,
+            folder,
+        } => convert(w.prepare_entry_batch(operation, sources, folder)?),
+        Intent::EntryBatchApply { token } => convert(w.apply_entry_batch(&token)?),
+        Intent::EntryBatchRecheck { token } => convert(w.recheck_entry_batch(&token)?),
         Intent::MigrationPlan { command } => convert(w.prepare_migration(command)?),
         Intent::TableDeclarationDetail { source, table } => {
             convert(w.table_declaration_detail(&source, &table)?)
@@ -989,6 +1032,20 @@ fn execute(
             generation,
             operation,
         } => Ok(w.field_operation_scope(&source, revision, generation, operation)?),
+        Intent::AuthorField {
+            source,
+            revision,
+            generation,
+            operation,
+        } => convert(w.author_field(&source, revision, generation, operation)?),
+        Intent::AuthorType {
+            source,
+            identity,
+            command,
+            input,
+        } => convert(w.author_type(&source, &identity, command, input)?),
+        Intent::AuthorTable { command } => convert(w.author_table(*command)?),
+        Intent::SaveAuthoring { source } => convert(w.save_authoring(&source)?),
         Intent::FieldOperation {
             source,
             revision,
@@ -1008,9 +1065,8 @@ fn execute(
             restore_old,
             authorized,
         } => convert(w.recheck_migration_recovery(&id, restore_old, authorized)?),
-        Intent::SaveSource { source } => {
-            convert(w.save_paths(vec![source], masterdata_engine::native::Fault::None)?)
-        }
+        Intent::SaveSources { sources } => convert(w.save_authoring_sources(sources)?),
+        Intent::SaveSource { source } => convert(w.save_authoring(&source)?),
         Intent::DiscardSource { source } => {
             w.discard_source(&source)?;
             Ok(Value::Null)

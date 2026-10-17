@@ -72,7 +72,7 @@ Dropはdestructive actionとして明示しなければならない（MUST）。
 
 ### GUI-TYPE-INT-003
 
-Custom Typeは`AddCustomField`、`RenameCustomField`、`DropCustomField`のguided inputを提供しなければならない（MUST）。AddはMessagePack key、field name、base type、modifier、およびType Migration semantics上必要なexplicit initializerを入力できなければならない（MUST）。initializerのvalidityをfrontend独自Type Systemで確定してはならない（MUST NOT）。
+Custom Typeは`AddCustomField`、`RenameCustomField`、`DropCustomField`のguided inputを提供しなければならない（MUST）。AddはMessagePack key、field name、base type、modifier、およびshared default / explicit initializerを入力できなければならない（MUST）。initializerのvalidityをfrontend独自Type Systemで確定してはならない（MUST NOT）。
 
 Renameはcurrent field nameをselectorとしてshared ordinary authoring boundaryへ渡し、MessagePack key / base type / modifierを同時変更してはならない（MUST NOT）。Dropはdestructive actionとして明示しなければならない（MUST）。
 
@@ -116,7 +116,7 @@ keyboardだけでAdd / Rename / Drop、form確定・取消、Undo / Redo、Save�
 
 ### GUI-TYPE-FOCUS-001
 
-Explorerからtype documentを開いた場合、main Type Editorへ移動できる明確なkeyboard pathを持たなければならない（MUST）。operation dialog / panelを閉じた場合は、可能な範囲で開始元setting/member/field/actionへfocusを復元しなければならない（MUST）。Plan / Diffからoverviewへ戻る場合も、可能な範囲でtarget selectionを復元しなければならない（MUST）。
+Explorerからtype documentを開いた場合、main Type Editorへ移動できる明確なkeyboard pathを持たなければならない（MUST）。operation dialog / panelを閉じた場合は、可能な範囲で開始元setting/member/field/actionへfocusを復元しなければならない（MUST）。source comparisonから戻る場合も、可能な範囲でtarget selectionを復元しなければならない（MUST）。
 
 ## 検証（Validation）
 
@@ -126,7 +126,7 @@ Explorerからtype documentを開いた場合、main Type Editorへ移動でき�
 
 ### GUI-TYPE-VAL-002
 
-Plan / diagnosticがsource locationまたはaffected fileへmap可能な場合、利用者が該当source / member / fieldを識別できる形で表示しなければならない（MUST）。unmappable project-level diagnosticも不必要に失ってはならない（MUST NOT）。
+diagnosticがsource locationまたはaffected fileへmap可能な場合、利用者が該当source / member / fieldを識別できる形で表示しなければならない（MUST）。unmappable project-level diagnosticも不必要に失ってはならない（MUST NOT）。
 
 ## エラー（Errors）
 

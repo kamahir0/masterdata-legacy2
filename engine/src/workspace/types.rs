@@ -13,6 +13,10 @@ pub struct TypeProjection {
     pub flag_bits: BTreeMap<String, u32>,
     pub available_flag_bits: Vec<FlagChoice>,
     pub generation: u64,
+    pub revision: u64,
+    pub dirty: bool,
+    pub can_undo: bool,
+    pub can_redo: bool,
     pub measurement: Measurement,
 }
 #[derive(Clone, Debug, Serialize)]
@@ -34,26 +38,14 @@ impl Workspace {
         freshness: instrument::Span,
     ) -> Result<TypeProjection> {
         let document = self.current_doc(clicked)?;
-        let (name, _) = semantic::parse_type(&document)?;
-        for dependency in self.read.type_dependencies(&name) {
+        let (name, _) = semantic::parse_type_authoring(&document)?;
+        for dependency in self.dependency_context()?.type_dependencies(&name) {
             if dependency != clicked {
-                self.refresh_source(&dependency)?;
+                let _ = self.refresh_source(&dependency);
             }
         }
         let document = self.current_doc(clicked)?;
-        let (name, declaration) = semantic::parse_type(&document)?;
-        // Invalid/deleted/renamed dependencies remove current editing authority.
-        // A read-generation projection never authorizes the later Plan or write.
-        crate::migration::field_resolution(
-            &self.read,
-            &Field {
-                key: 0,
-                name: "value".into(),
-                type_name: name.clone(),
-                nullable: false,
-                array: false,
-            },
-        )?;
+        let (name, declaration) = semantic::parse_type_authoring(&document)?;
         drop(freshness);
         let _projection = instrument::span("projection");
         let flag_bits: BTreeMap<String, u32> = if let semantic::Type::Enum {
@@ -78,8 +70,8 @@ impl Workspace {
         } else {
             BTreeMap::new()
         };
-        // These are read suggestions for explicit Add input. A later Plan
-        // validates the current declaration again; this cache authorizes no write.
+        // These are read suggestions for explicit Add input. The eventual intent
+        // checks the current declaration again; this cache authorizes no write.
         let available_flag_bits = if let semantic::Type::Enum {
             underlying,
             flags: true,
@@ -124,6 +116,10 @@ impl Workspace {
             available_flag_bits,
             declaration,
             generation: self.generation,
+            revision: self.drafts.get(clicked).map_or(0, |d| d.revision),
+            dirty: self.drafts.get(clicked).is_some_and(Draft::dirty),
+            can_undo: self.drafts.get(clicked).is_some_and(Draft::can_undo),
+            can_redo: self.drafts.get(clicked).is_some_and(Draft::can_redo),
             measurement: instrument::measure(|| ()).1,
         })
     }
@@ -136,11 +132,12 @@ impl Workspace {
         self.prepare_type_migration_input(source, identity, command, None)
     }
     pub fn default_enum_member(
-        &self,
+        &mut self,
         source: &str,
         identity: &str,
     ) -> Result<crate::type_migration::Command> {
-        let project = self.type_input_project(source, identity)?;
+        self.refresh_source(source)?;
+        let project = self.authoring_type_project(source, identity)?;
         let document = project
             .sources
             .get(source)
@@ -151,7 +148,7 @@ impl Workspace {
                     "current type source is unavailable",
                 )
             })?;
-        let (name, declaration) = semantic::parse_type(document)?;
+        let (name, declaration) = semantic::parse_type_authoring(document)?;
         crate::type_migration::suggest_enum_member(&name, &declaration)
     }
     pub fn type_initializer_shape(
@@ -160,7 +157,7 @@ impl Workspace {
         identity: &str,
         declaration: &crate::creation::Declaration,
     ) -> Result<Shape> {
-        let project = self.type_input_project(source, identity)?;
+        let project = self.authoring_type_project(source, identity)?;
         let field = Field {
             key: 0,
             name: "value".into(),
@@ -209,11 +206,31 @@ impl Workspace {
         if matches!(action, crate::initializer::Action::Materialize) {
             shape.nullable = false;
         }
-        let project = self.type_input_project(source, identity)?;
+        let project = self.authoring_type_project(source, identity)?;
         Ok(crate::initializer::from_value(super::defaults::value(
             &shape,
             &project.types,
         )?))
+    }
+    fn authoring_type_project(&self, source: &str, identity: &str) -> Result<Project> {
+        let project = self.authoring_project();
+        let target = project
+            .sources
+            .get(source)
+            .and_then(|source| source.document.as_ref())
+            .ok_or_else(|| {
+                Error::new(
+                    "E-TYPE-MIGRATION-TARGET",
+                    "current type source is unavailable",
+                )
+            })?;
+        if target.identity != identity || semantic::parse_type_authoring(target).is_err() {
+            return Err(Error::new(
+                "E-MIGRATION-STALE",
+                "type source changed; confirm the current declaration before requesting a Plan",
+            ));
+        }
+        Ok(project)
     }
     fn type_input_project(&self, source: &str, identity: &str) -> Result<Project> {
         let project = Project::open(&self.read.root)?;

@@ -490,12 +490,22 @@ pub fn key_capable(f: &Field, types: &Types) -> bool {
 }
 
 pub fn fields(node: &Node) -> Result<Vec<Field>> {
+    fields_inner(node, true)
+}
+fn declaration_members(node: &Node, known: &[&str], validate: bool) -> Result<()> {
+    if validate {
+        reject_unknown(node, known)
+    } else {
+        node.members().map(|_| ())
+    }
+}
+fn fields_inner(node: &Node, validate: bool) -> Result<Vec<Field>> {
     let mut names = BTreeSet::new();
     let mut keys = BTreeSet::new();
     let mut fields = Vec::new();
     for item in node.items()? {
         let n = &item.value;
-        reject_unknown(n, &["key", "name", "type", "nullable", "array"])?;
+        declaration_members(n, &["key", "name", "type", "nullable", "array"], validate)?;
         let key_node = n.required("key")?;
         if key_node.style != Style::Plain || !integer_grammar(key_node.text()?) {
             return Err(Error::new(
@@ -522,12 +532,13 @@ pub fn fields(node: &Node) -> Result<Vec<Field>> {
             nullable: bool_option(n, "nullable")?,
             array: bool_option(n, "array")?,
         };
-        if !lower_identifier(&f.name)
-            || crate::project::csharp_keyword(&f.name)
-            || !names.insert(f.name.clone())
-            || !keys.insert(f.key)
-            || (f.nullable && f.array)
-            || f.type_name.contains(['?', '[', ']'])
+        if validate
+            && (!lower_identifier(&f.name)
+                || crate::project::csharp_keyword(&f.name)
+                || !names.insert(f.name.clone())
+                || !keys.insert(f.key)
+                || (f.nullable && f.array)
+                || f.type_name.contains(['?', '[', ']']))
         {
             return Err(Error::new(
                 "E-SCHEMA-FIELD",
@@ -536,7 +547,7 @@ pub fn fields(node: &Node) -> Result<Vec<Field>> {
         }
         fields.push(f);
     }
-    if fields.is_empty() {
+    if validate && fields.is_empty() {
         return Err(Error::new("E-SCHEMA-FIELD", "at least one field required"));
     }
     Ok(fields)
@@ -550,8 +561,16 @@ fn string_sequence(node: &Node) -> Result<Vec<String>> {
 }
 
 pub fn parse_table(doc: &Document, source: &str) -> Result<Table> {
+    parse_table_inner(doc, source, true)
+}
+/// Decode editable declaration structure even while its semantics are invalid.
+/// Validation/Build keep using the strict parser, never this editing projection.
+pub fn parse_table_authoring(doc: &Document, source: &str) -> Result<Table> {
+    parse_table_inner(doc, source, false)
+}
+fn parse_table_inner(doc: &Document, source: &str, validate: bool) -> Result<Table> {
     let n = &doc.root;
-    reject_unknown(
+    declaration_members(
         n,
         &[
             "kind",
@@ -563,35 +582,38 @@ pub fn parse_table(doc: &Document, source: &str) -> Result<Table> {
             "references",
             "records",
         ],
+        validate,
     )?;
     let name = text(n, "table")?;
-    if !kebab(&name) {
+    if validate && !kebab(&name) {
         return Err(Error::new("E-TABLE-NAME", name));
     }
     let csharp_name = optional_text(n, "csharpName")?
         .unwrap_or_else(|| name.split('-').map(public_name).collect());
-    if !csharp_identifier(&csharp_name) {
+    if validate && !csharp_identifier(&csharp_name) {
         return Err(Error::new("E-CSHARP-NAME", csharp_name));
     }
-    let fields = fields(n.required("fields")?)?;
+    let fields = fields_inner(n.required("fields")?, validate)?;
     let parse_key = |n: &Node, secondary: bool| -> Result<Key> {
-        reject_unknown(
+        declaration_members(
             n,
             if secondary {
                 &["fields", "nonUnique"]
             } else {
                 &["fields"]
             },
+            validate,
         )?;
         let k = Key {
             fields: string_sequence(n.required("fields")?)?,
             non_unique: bool_option(n, "nonUnique")?,
         };
-        if k.fields.is_empty()
-            || k.fields.iter().collect::<BTreeSet<_>>().len() != k.fields.len()
-            || k.fields
-                .iter()
-                .any(|n| !fields.iter().any(|f| &f.name == n))
+        if validate
+            && (k.fields.is_empty()
+                || k.fields.iter().collect::<BTreeSet<_>>().len() != k.fields.len()
+                || k.fields
+                    .iter()
+                    .any(|n| !fields.iter().any(|f| &f.name == n)))
         {
             return Err(Error::new(
                 "E-KEY-SHAPE",
@@ -616,7 +638,9 @@ pub fn parse_table(doc: &Document, source: &str) -> Result<Table> {
     let mut query_names = BTreeSet::new();
     query_names.insert(query_name(&primary.fields));
     for k in &secondary {
-        if !key_names.insert(k.fields.clone()) || !query_names.insert(query_name(&k.fields)) {
+        if validate
+            && (!key_names.insert(k.fields.clone()) || !query_names.insert(query_name(&k.fields)))
+        {
             return Err(Error::new(
                 "E-KEY-COLLISION",
                 "duplicate key or generated query",
@@ -630,13 +654,13 @@ pub fn parse_table(doc: &Document, source: &str) -> Result<Table> {
                 .iter()
                 .map(|item| {
                     let n = &item.value;
-                    reject_unknown(n, &["name", "fields", "target", "csharpName"])?;
+                    declaration_members(n, &["name", "fields", "target", "csharpName"], validate)?;
                     let name = text(n, "name")?;
                     let csharp_name = optional_text(n, "csharpName")?
                         .unwrap_or_else(|| format!("Get{}", public_name(&name)));
                     let target = n.required("target")?;
-                    reject_unknown(target, &["table", "fields"])?;
-                    if !lower_identifier(&name) || !csharp_identifier(&csharp_name) {
+                    declaration_members(target, &["table", "fields"], validate)?;
+                    if validate && (!lower_identifier(&name) || !csharp_identifier(&csharp_name)) {
                         return Err(Error::new("E-REFERENCE-NAME", name));
                     }
                     Ok(Reference {
@@ -653,7 +677,7 @@ pub fn parse_table(doc: &Document, source: &str) -> Result<Table> {
         .unwrap_or_default();
     let mut ref_names = BTreeSet::new();
     for r in &references {
-        if !ref_names.insert(r.name.clone()) {
+        if validate && !ref_names.insert(r.name.clone()) {
             return Err(Error::new("E-REFERENCE-NAME", "duplicate Reference"));
         }
     }
@@ -676,13 +700,20 @@ pub fn query_name(fields: &[String]) -> String {
 }
 
 pub fn parse_type(doc: &Document) -> Result<(String, Type)> {
+    parse_type_inner(doc, true)
+}
+pub fn parse_type_authoring(doc: &Document) -> Result<(String, Type)> {
+    parse_type_inner(doc, false)
+}
+fn parse_type_inner(doc: &Document, validate: bool) -> Result<(String, Type)> {
     let n = &doc.root;
-    reject_unknown(
+    declaration_members(
         n,
         &["kind", "name", "valueObject", "custom", "enum", "flags"],
+        validate,
     )?;
     let name = text(n, "name")?;
-    if !upper_identifier(&name) {
+    if validate && !upper_identifier(&name) {
         return Err(Error::new("E-TYPE-NAME", name));
     }
     let categories: Vec<_> = ["valueObject", "custom", "enum", "flags"]
@@ -699,13 +730,17 @@ pub fn parse_type(doc: &Document) -> Result<(String, Type)> {
     let body = n.required(kind)?;
     let t = match kind {
         "valueObject" => {
-            reject_unknown(body, &["underlying", "conversions"])?;
+            declaration_members(body, &["underlying", "conversions"], validate)?;
             let underlying = text(body, "underlying")?;
             if !integral(&underlying) && underlying != "string" {
                 return Err(Error::new("E-VO-UNDERLYING", underlying));
             }
             let (from_implicit, to_implicit) = if let Some(c) = body.get("conversions") {
-                reject_unknown(c, &["fromUnderlyingImplicit", "toUnderlyingImplicit"])?;
+                declaration_members(
+                    c,
+                    &["fromUnderlyingImplicit", "toUnderlyingImplicit"],
+                    validate,
+                )?;
                 (
                     bool_option(c, "fromUnderlyingImplicit")?,
                     bool_option(c, "toUnderlyingImplicit")?,
@@ -720,13 +755,13 @@ pub fn parse_type(doc: &Document) -> Result<(String, Type)> {
             }
         }
         "custom" => {
-            reject_unknown(body, &["fields"])?;
+            declaration_members(body, &["fields"], validate)?;
             Type::Custom {
-                fields: fields(body.required("fields")?)?,
+                fields: fields_inner(body.required("fields")?, validate)?,
             }
         }
         _ => {
-            reject_unknown(body, &["underlying", "members"])?;
+            declaration_members(body, &["underlying", "members"], validate)?;
             let underlying = text(body, "underlying")?;
             if !integral(&underlying) {
                 return Err(Error::new("E-ENUM-UNDERLYING", underlying));
@@ -737,25 +772,31 @@ pub fn parse_type(doc: &Document) -> Result<(String, Type)> {
             let mut members = Vec::new();
             for item in body.required("members")?.items()? {
                 let n = &item.value;
-                reject_unknown(n, &["name", "value"])?;
+                declaration_members(n, &["name", "value"], validate)?;
                 let member = text(n, "name")?;
                 let value = n.required("value")?;
-                if value.style != Style::Plain {
+                if validate && value.style != Style::Plain {
                     return Err(Error::new(
                         "E-ENUM-VALUE",
                         "unquoted integer declaration required",
                     ));
                 }
-                let value = integer_value(value.text()?, &underlying)
-                    .map_err(|e| Error::new("E-ENUM-VALUE", e.message))?;
-                if !upper_identifier(&member)
-                    || member == name
-                    || !names.insert(member.clone())
-                    || !numbers.insert(value)
+                let spelling = value.text()?.to_owned();
+                let numeric = integer_value(&spelling, &underlying);
+                let value = if validate {
+                    numeric.map_err(|e| Error::new("E-ENUM-VALUE", e.message))?
+                } else {
+                    numeric.unwrap_or_default()
+                };
+                if validate
+                    && (!upper_identifier(&member)
+                        || member == name
+                        || !names.insert(member.clone())
+                        || !numbers.insert(value))
                 {
                     return Err(Error::new("E-ENUM-MEMBER", "invalid or duplicate member"));
                 }
-                if flags {
+                if validate && flags {
                     let mask = if matches!(underlying.as_str(), "int" | "uint") {
                         value as u32 as u64
                     } else {
@@ -770,9 +811,16 @@ pub fn parse_type(doc: &Document) -> Result<(String, Type)> {
                         ));
                     }
                 }
-                members.push((member, value.to_string()));
+                members.push((
+                    member,
+                    if validate {
+                        value.to_string()
+                    } else {
+                        spelling
+                    },
+                ));
             }
-            if members.is_empty() || (flags && !names.contains("None")) {
+            if validate && (members.is_empty() || (flags && !names.contains("None"))) {
                 return Err(Error::new("E-ENUM-MEMBER", "required members missing"));
             }
             Type::Enum {
@@ -800,7 +848,12 @@ pub fn key_part(value: &Typed, f: &Field, types: &Types) -> Result<KeyPart> {
         }
         Typed::Text(s) => Ok(KeyPart::Ordinal(s.encode_utf16().collect())),
         Typed::Enum(n) => {
-            let Some(Type::Enum { members, .. }) = types.get(&f.type_name) else {
+            let Some(Type::Enum {
+                members,
+                underlying,
+                ..
+            }) = types.get(&f.type_name)
+            else {
                 return Err(Error::new("E-KEY-VALUE", "enum type missing"));
             };
             let value = &members
@@ -808,7 +861,9 @@ pub fn key_part(value: &Typed, f: &Field, types: &Types) -> Result<KeyPart> {
                 .find(|(s, _)| s == n)
                 .ok_or_else(|| Error::new("E-KEY-VALUE", "enum member missing"))?
                 .1;
-            Ok(KeyPart::Number(value.parse().unwrap()))
+            integer_value(value, underlying)
+                .map(KeyPart::Number)
+                .map_err(|e| Error::new("E-KEY-VALUE", e.message))
         }
         _ => Err(Error::new("E-KEY-VALUE", "key-compatible scalar required")),
     }

@@ -1,4 +1,5 @@
-//! Saved declaration intent and exact-occurrence patches. Native Plan owns writes.
+//! Shared declaration intent and exact-occurrence patches. Ordinary drafts and
+//! strict saved-source Plans share patch derivation, with separate validation.
 use crate::{
     Error, Result,
     migration::{self, Candidate, Plan},
@@ -425,6 +426,12 @@ fn validate_reference(project: &Project, table: &Table, reference: &Reference) -
     Ok(())
 }
 pub fn derive(project: &Project, command: Command) -> Result<Plan> {
+    derive_inner(project, command, true)
+}
+pub(crate) fn derive_authoring(project: &Project, command: Command) -> Result<Plan> {
+    derive_inner(project, command, false)
+}
+fn derive_inner(project: &Project, command: Command, strict: bool) -> Result<Plan> {
     use Position::{Item, Member};
     let table = target(project, &command.table)?;
     let before = project.sources[&table.source]
@@ -534,6 +541,25 @@ pub fn derive(project: &Project, command: Command) -> Result<Plan> {
         }
     };
     let after = Arc::new(after);
+    if !strict {
+        semantic::parse_table_authoring(&after, &table.source)?;
+        let mut candidates = BTreeMap::new();
+        if before.bytes != after.bytes {
+            candidates.insert(
+                table.source.clone(),
+                Candidate {
+                    before: before.clone(),
+                    after,
+                },
+            );
+        }
+        return Ok(Plan {
+            destructive: command.change.destructive(),
+            command: migration::Command::TableDeclaration { command },
+            affected_records: 0,
+            candidates,
+        });
+    }
     if semantic::parse_table(&after, &table.source)? != expected {
         return Err(error("declaration differs from the captured intent"));
     }

@@ -36,6 +36,7 @@ import {
 import type { Field, Projection, Row } from "./types";
 import { desktop, GRID, type Editor } from "./workspace";
 import {isBooleanShape,ScalarValueControl} from "./value-control";
+import {NullableValue} from './nullable-control';
 import {
   beginColumnDrag,
   beginRowDrag,
@@ -534,7 +535,7 @@ const GridRow = memo(function GridRow({
         return (
           <div
             key={p.columns[column].field.name}
-            className={`cell${cell.valid ? "" : " invalid"}${p.columns[column].primary ? " primary-cell" : ""}${p.columns[column].field.nullable&&!booleanCell ? " nullable-cell" : ""}`}
+            className={`cell${cell.valid ? "" : " invalid"}${p.columns[column].primary ? " primary-cell" : ""}`}
             id={`cell-${row.viewIndex}-${column}`}
             role="gridcell"
             aria-colindex={column + 2}
@@ -572,17 +573,14 @@ const GridRow = memo(function GridRow({
               menu(row, e.clientX, e.clientY);
             }}
           >
-            {p.columns[column].field.nullable && !booleanCell && !cell.isNull && cell.editable && (
-              <button className="cell-null" aria-label={`${p.columns[column].field.name} 行 ${row.viewIndex + 1} をnullにする`} title="nullにする（Alt+Backspace）"
-                onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); void desktop.setCellNull(p, row.id, p.columns[column].field.name); }}>
-                <CloseOutlined aria-hidden="true" />
-              </button>
-            )}
             {cell.editable && !row.pendingDelete && booleanCell ?
-              <ScalarValueControl shape={shape} value={booleanText!} label={`${p.columns[column].field.name} 行 ${row.viewIndex+1}`} invalid={!cell.valid}
+              <ScalarValueControl shape={shape} value={booleanText!} label={`${p.columns[column].field.name} 行 ${row.viewIndex+1}`} invalid={!cell.valid} passive
                 onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();if(e.shiftKey||e.metaKey||e.ctrlKey||consumeSpatialClick(e.detail))e.preventDefault();}}
                 onChange={next=>{if(next===null)void desktop.setCellNull(p,row.id,p.columns[column].field.name);else void desktop.toggleBoolean(p,row.id,p.columns[column].field.name);}}/>
-              : <span className="cell-value">{complexSummary(cell.display, cell.value === null)}</span>}
+              : <NullableValue nullable={p.columns[column].field.nullable&&cell.editable&&!row.pendingDelete} isNull={cell.isNull}
+                  label={`${p.columns[column].field.name} 行 ${row.viewIndex+1}`} passive onClear={()=>void desktop.setCellNull(p,row.id,p.columns[column].field.name)}>
+                  <span className="cell-value">{cell.isNull&&cell.editable?'':complexSummary(cell.display, cell.value === null)}</span>
+                </NullableValue>}
           </div>
         );
       })}
@@ -724,6 +722,7 @@ function CellInput({ editor, pending }: { editor: Editor; pending:boolean }) {
         inputRef={input}
         label={`${editor.field} 行 ${editor.rowIndex + 1}`}
         value={editor.isNull&&boolean?null:text}
+        isNull={editor.isNull&&text===''}
         autoFocus={boolean}
         onChange={next=>{
           if(next===null){const p=desktop.surface.projection;if(p)void desktop.setCellNull(p,editor.row,editor.field);return;}

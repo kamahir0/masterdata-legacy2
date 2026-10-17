@@ -74,7 +74,14 @@ export async function run({startup}:{startup:Record<string,unknown>}){
   const nestedBool=child('enabled').querySelector<HTMLElement>('[role="switch"]')!;
   assert(booleanGeometry(nestedBool)===geometry,'nested / direct bool appearance differs');
   nestedBool.click();await until(()=>child('enabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')==='true','nested bool did not commit');await settled();
-  const undoOrigin=child('enabled').querySelector<HTMLElement>('[role="switch"]')!;undoOrigin.focus();undoOrigin.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true}));
+  const undoOrigin=child('enabled').querySelector<HTMLElement>('[role="switch"]')!;
+  const actualRpc=desktop.rpc.bind(desktop);let heldDescriptor=false,releaseDescriptor=()=>{};
+  const descriptorGate=new Promise<void>(resolve=>{releaseDescriptor=resolve;});
+  desktop.rpc=async function<T>(intent:Record<string,unknown>){const reply=await actualRpc<T>(intent);if(intent.kind==='complex'){heldDescriptor=true;await descriptorGate;}return reply;};
+  try{undoOrigin.focus();undoOrigin.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true}));await until(()=>heldDescriptor,'Undo did not refresh its descriptor');
+    const valueBody=document.querySelector<HTMLElement>('.near-value-body>[aria-busy],.ant-drawer-body>[aria-busy]')!;
+    assert(!valueBody.inert&&valueBody.getAttribute('aria-busy')==='false'&&document.activeElement===undoOrigin,'local descriptor refresh disabled keyboard input / lost focus');
+  }finally{releaseDescriptor();desktop.rpc=actualRpc;}
   await until(()=>child('enabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')==='false','nested keyboard Undo did not commit');await settled();await readyValue();
   assert(document.activeElement===child('enabled').querySelector('[role="switch"]'),'nested keyboard Undo lost control focus');
   assert(child('enabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')==='false','nested bool Undo failed');

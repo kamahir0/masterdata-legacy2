@@ -76,7 +76,7 @@ fn migration_review(token: u64, plan: &native::SourceSetPlan) -> MigrationReview
     }
 }
 impl Workspace {
-    fn field_command(
+    pub(super) fn field_command(
         &mut self,
         source: &str,
         revision: u64,

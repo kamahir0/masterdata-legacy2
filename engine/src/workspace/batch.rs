@@ -46,9 +46,9 @@ impl Workspace {
             .and_then(|s| s.binding.clone())
             .ok_or_else(|| Error::new("E-TABLE-MISSING", path))?;
         let table = self.current_table(&binding)?;
-        for dependency in self.read.dependencies(&table) {
+        for dependency in self.dependency_context()?.dependencies(&table) {
             if dependency != path {
-                self.refresh_source(&dependency)?;
+                let _ = self.refresh_source(&dependency);
             }
         }
         self.ensure_draft(path)?;

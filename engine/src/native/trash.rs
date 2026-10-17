@@ -36,33 +36,6 @@ fn stamp(snapshot: &Snapshot) -> Result<String> {
         Ok(format!("{volume}:{id:?}:{created}"))
     }
 }
-fn directory(root: &Path, create: bool) -> Result<Option<PathBuf>> {
-    let mut path = root.to_path_buf();
-    for part in [".masterdata", "trash"] {
-        path.push(part);
-        match fs::symlink_metadata(&path) {
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound && create => {
-                fs::create_dir(&path).map_err(io_error)?;
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(e) => return Err(io_error(e)),
-            Ok(m) if path_alias(&m) || !m.is_dir() => {
-                return Err(Error::new(
-                    "E-PATH-ALIAS",
-                    "trash must be an ordinary Project directory",
-                ));
-            }
-            Ok(_) => {}
-        }
-        let logical = path
-            .strip_prefix(root)
-            .unwrap()
-            .to_string_lossy()
-            .replace('\\', "/");
-        checked_path(root, &[root.to_path_buf()], &logical)?;
-    }
-    Ok(Some(path.canonicalize().map_err(io_error)?))
-}
 fn read(root: &Path, trash: &Path, id: &str) -> Result<Receipt> {
     if !id.starts_with("entry-") || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
         return Err(Error::new("E-TRASH-RECEIPT", "invalid receipt"));
@@ -96,7 +69,7 @@ fn finish_restore(root: &Path, roots: &[PathBuf], trash: &Path, receipt: &Receip
     }
     let (path, bytes) = marker(receipt);
     let result = create_exclusive(root, trash, &path, Some(&bytes), Fault::None, || {
-        if capture(root, roots, &receipt.source).is_ok_and(|s| matches(&s, receipt)) {
+        if entry::capture(root, roots, &receipt.source).is_ok_and(|s| matches(&s, receipt)) {
             Ok(())
         } else {
             Err(Error::new(
@@ -112,7 +85,7 @@ fn finish_restore(root: &Path, roots: &[PathBuf], trash: &Path, receipt: &Receip
     }
 }
 pub fn entries(root: &Path, roots: &[PathBuf]) -> Result<Vec<Entry>> {
-    let Some(trash) = directory(root, false)? else {
+    let Some(trash) = storage_directory(root, "trash", false)? else {
         return Ok(vec![]);
     };
     let mut result = vec![];
@@ -123,8 +96,8 @@ pub fn entries(root: &Path, roots: &[PathBuf]) -> Result<Vec<Entry>> {
         }
         let id = item.file_name().to_string_lossy().to_string();
         let receipt = read(root, &trash, &id)?;
-        let stored = capture(root, std::slice::from_ref(&trash), &receipt.stored);
-        let original = capture(root, roots, &receipt.source);
+        let stored = entry::capture(root, std::slice::from_ref(&trash), &receipt.stored);
+        let original = entry::capture(root, roots, &receipt.source);
         let state = if retired(root, &trash, &receipt) {
             "Restored"
         } else if stored.as_ref().is_ok_and(|s| matches(s, &receipt)) {
@@ -165,12 +138,12 @@ pub fn archive_with_fault(
     fault: Fault,
     authorize: impl FnOnce() -> Result<()>,
 ) -> Result<(Receipt, WriteResult)> {
-    let base = preflight(root, roots, source, expected)?;
+    let base = entry::preflight(root, roots, source, expected)?;
     let source_root = roots
         .iter()
         .find(|r| base.physical.starts_with(r))
         .ok_or_else(|| Error::new("E-PATH-SCOPE", "source root required"))?;
-    let trash = directory(root, true)?.unwrap();
+    let trash = storage_directory(root, "trash", true)?.unwrap();
     let entry = tempfile::Builder::new()
         .prefix("entry-")
         .tempdir_in(&trash)
@@ -212,10 +185,10 @@ pub fn restore(
     id: &str,
     authorize: impl FnOnce() -> Result<()>,
 ) -> Result<(String, WriteResult)> {
-    let trash =
-        directory(root, false)?.ok_or_else(|| Error::new("E-TRASH-RECEIPT", "trash is empty"))?;
+    let trash = storage_directory(root, "trash", false)?
+        .ok_or_else(|| Error::new("E-TRASH-RECEIPT", "trash is empty"))?;
     let receipt = read(root, &trash, id)?;
-    let snapshot = capture(root, std::slice::from_ref(&trash), &receipt.stored)?;
+    let snapshot = entry::capture(root, std::slice::from_ref(&trash), &receipt.stored)?;
     if !matches(&snapshot, &receipt) {
         return Err(Error::new(
             "E-SOURCE-CONFLICT",

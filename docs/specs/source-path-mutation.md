@@ -103,4 +103,4 @@ None identified. exact native rename primitive、case-only renameのintermediate
 
 ### SOURCE-PATH-008
 
-fileとfolderのrename / move / copyをshared native境界で提供する。folderはroot以外の全entryを対象にし、配下content・空folderを保持する。自分の子孫へのmove / copy、symlink escape、collisionは拒否する。copyは一時entryへ完全な内容を作成してからexclusiveに公開し、元entryを変更しない。copy後のdomain identity重複は診断として扱い、暗黙renameしない。対象配下のdirtyはまとめたSave / Don't Save / Cancelで解決し、unrelated bufferを保持する。batchの事前検査後はitem別結果を返し、Unknownのold/new pathをrecheckする。
+fileとfolderのrename / move / copyをshared native境界で提供する。folderはroot以外の全entryを対象にし、配下content・空folderを保持する。自分の子孫へのmove / copy、symlink escape、collisionは拒否する。copyは一時entryへ完全な内容を作成してからexclusiveに公開し、元entryを変更しない。copy後のdomain identity重複は診断として扱い、暗黙renameしない。move / delete対象配下のdirtyはまとめたSave / Don't Save / Cancelで解決する。copyは保存済みbytesを複製し、元のdirty bufferを保持する。unrelated bufferを保持する。batchの事前検査後はitem別結果を返し、Unknownのold/new pathをrecheckする。

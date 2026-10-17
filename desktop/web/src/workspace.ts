@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { flushSync } from "react-dom";
+import {SerialActions} from './serial-actions';
 import type {
   Inventory,
   Projection,
@@ -13,6 +14,9 @@ import type {
   MigrationReview,
   SetResult,
   TypeProjection,
+  AuthoringResult,
+  TypeOperation,
+  ConstantInput,
 } from "./types";
 
 export const GRID = {
@@ -252,6 +256,7 @@ class Desktop {
   viewport: HTMLElement | null = null;
   private local = new Map<string, SavedView>();
   private token = 0;
+  private navigationCommits = 0;
   private readToken = 0;
   private problemToken = 0;
   private queryVersion = 0;
@@ -377,15 +382,16 @@ class Desktop {
     const epoch=await invoke<number>("project_epoch");
     await this.openProject(path,attempt.discard,epoch);
   }
-  async sourceRemoved(source:string,epoch:number) {
+  async sourceRemoved(source:string,epoch:number,refresh=true) {
     if(epoch!==this.surface.status.epoch)return;
-    this.local.delete(source);
+    const affected=(path:string)=>path===source||path.startsWith(source+'/');
+    for(const path of this.local.keys())if(affected(path))this.local.delete(path);
     const p=this.surface.projection;
-    if(this.surface.target===source||p?.source===source||p?.table.source===source){
+    if(affected(this.surface.target)||affected(p?.source??'')||affected(p?.table.source??'')){
       this.token++;this.readToken++;this.interact({editor:null,complex:null,tags:null,anchor:null,selection:{row:0,column:0,id:null,field:null}});
       this.publish({target:"",projection:null,typeProjection:null,pending:false,queryPending:false,query:"",error:null});
     }
-    await this.refreshInventory();
+    if(refresh)await this.refreshInventory();
   }
   async selectRecordSource(source:string) {
     const epoch=this.surface.status.epoch,intent=this.inputIntent;
@@ -433,62 +439,46 @@ class Desktop {
     if (pending) this.unconfirmedWriteViews.add(key);
     else this.unconfirmedWriteViews.delete(key);
   }
-  async guardSource(source: string, epoch: number, title = "名前変更・移動前の未保存変更", ignoreTemporary = false) {
-    const current = () => epoch === this.surface.status.epoch;
-    const inventory = await this.rpc<Inventory>({kind: "inventory", epoch});
-    if (!current()) return false;
-    const input = ignoreTemporary ? null : this.inputPreview?.();
-    const held = this.surface.heldInputs.some(input => input.source === source);
-    if (inventory.data.recoveryRequired || inventory.data.uncertain.includes(source)) {
-      this.showError("書き込み結果の再確認が必要です。");
-      return false;
-    }
-    const temporary = input?.source === source && input.dirty;
-    if (temporary || held || inventory.data.dirty.includes(source)) {
-      const choice = await this.choose(title, `${source} の変更をどう扱いますか。`, held ? ["Don't Save", "Cancel"] : ["Save", "Don't Save", "Cancel"]);
-      if (!current() || choice === "Cancel") return false;
-      if (choice === "Save") {
-        if (!ignoreTemporary && this.inputPreview?.()?.source === source && !(await this.commit())) return false;
-        if (!current() || this.surface.heldInputs.some(input => input.source === source)) return false;
-        const saved = await this.rpc<WriteResult[]>({kind: "saveSource", epoch, source});
-        const failures = saved.data.filter(result => result.outcome !== "Success");
-        if (!current()) return false;
-        if (failures.length) { this.showError(failures.map(result => `${result.outcome}: ${result.message}`).join("\n")); return false; }
-      } else {
-        await this.rpc({kind: "discardSource", epoch, source});
-        if (!current()) return false;
-        // The explicit guard authorizes only this physical source's input and
-        // history. Other open inputs/drafts are independent authoring lifetimes.
-        if (!ignoreTemporary && this.inputPreview?.()?.source === source) this.inputPreview()?.cancel();
-        this.publish({heldInputs: this.surface.heldInputs.filter(input => input.source !== source)});
+  async guardSource(source:string,epoch:number,title='名前変更・移動前の未保存変更',ignoreTemporary=false){return this.guardEntries([source],epoch,title,ignoreTemporary);}
+  async guardEntries(sources:string[],epoch:number,title='ファイル操作前の未保存変更',ignoreTemporary=false){
+    await this.authoring.idle();
+    const current=()=>epoch===this.surface.status.epoch;
+    const contains=(path:string)=>sources.some(source=>path===source||path.startsWith(source+'/'));
+    const reply=await this.rpc<Inventory>({kind:'inventory',epoch});if(!current())return false;
+    const input=ignoreTemporary?null:this.inputPreview?.(),held=this.surface.heldInputs.filter(i=>contains(i.source));
+    if(reply.data.recoveryRequired||reply.data.uncertain.some(contains)){this.showError('書き込み結果を再確認してください。');return false;}
+    const dirty=reply.data.dirty.filter(contains),temporary=input?.dirty&&contains(input.source);
+    if(dirty.length||temporary||held.length){
+      const paths=[...new Set([...dirty,...(temporary?[input!.source]:[]),...held.map(i=>i.source)])];
+      const answer=await this.choose(title,paths.join('\n')+'\nこれらの変更をどう扱いますか。',held.length?["Don't Save",'Cancel']:['Save',"Don't Save",'Cancel']);
+      if(!current()||answer==='Cancel')return false;
+      if(answer==='Save'){
+        if(!ignoreTemporary&&this.inputPreview?.()&&contains(this.inputPreview()!.source)&&!(await this.commit()))return false;
+        const fresh=await this.rpc<Inventory>({kind:'inventory',epoch});
+        const paths=fresh.data.dirty.filter(contains);
+        const saved=await this.rpc<WriteResult[]>(paths.length===1?{kind:'saveSource',epoch,source:paths[0]}:{kind:'saveSources',epoch,sources:paths});
+        if(!current())return false;const failures=saved.data.filter(r=>r.outcome!=='Success');if(failures.length){this.showError(failures.map(r=>r.source+': '+r.message).join('\n'));return false;}
+      }else{
+        if(input&&contains(input.source))input.cancel();
+        for(const source of dirty){await this.rpc({kind:'discardSource',epoch,source});if(!current())return false;}
+        this.publish({heldInputs:this.surface.heldInputs.filter(i=>!contains(i.source))});
       }
-      await this.refreshInventory();
-      if (current() && (this.surface.projection?.source === source || this.surface.projection?.table.source === source)) await this.refresh();
-    } else if (input?.source === source) input.cancel();
+      await this.refreshInventory();if(current()&&(contains(this.surface.target)||contains(this.surface.projection?.table.source??'')))await this.refresh();
+    }else if(input&&contains(input.source))input.cancel();
     return current();
   }
-  async sourceMoved(source: string, destination: string, epoch: number) {
-    if (epoch !== this.surface.status.epoch) return;
-    const p = this.surface.projection, focus=document.activeElement, input=this.inputIntent;
-    const restoreEditor=focus===document.getElementById('editor-pane')||!!(focus&&this.viewport?.contains(focus));
-    if (p?.source === source || p?.clicked === source) this.saveView();
-    const view = this.local.get(source);
-    if (view) { this.local.delete(source); this.local.set(destination, view); }
-    if (this.historySource === source) this.historySource = destination;
-    const clicked = this.surface.target;
-    // Fresh navigation makes the old grid inert. Hold focus on its stable pane
-    // so keyboard input remains routed while the new projection is pending.
-    if(restoreEditor)document.getElementById('editor-pane')?.focus({preventScroll:true});
-    if (clicked === source) await this.selectTarget(destination, "source-path", true);
-    else if (p?.source === source || p?.table.source === source || this.surface.pending) await this.selectTarget(clicked, "source-path", true);
-    // Relocating a Table's data source refreshes its grid while another
-    // file remains selected. Recover only focus lost by that refresh;
-    // newer navigation or a control already holding focus takes precedence.
+  async sourceMoved(source:string,destination:string,epoch:number){await this.sourcesMoved([{source,destination}],epoch);}
+  async sourcesMoved(moves:{source:string;destination:string}[],epoch:number){
+    if(epoch!==this.surface.status.epoch||!moves.length)return;
+    const remap=(path:string)=>{const move=moves.find(m=>path===m.source||path.startsWith(m.source+'/'));return move?move.destination+path.slice(move.source.length):path;};
+    const p=this.surface.projection,clicked=this.surface.target,focus=document.activeElement,input=this.inputIntent;
+    const restore=focus===document.getElementById('editor-pane')||!!(focus&&this.viewport?.contains(focus));
+    this.saveView();this.local=new Map([...this.local].map(([path,view])=>[remap(path),view]));if(this.historySource)this.historySource=remap(this.historySource);
+    if(restore)document.getElementById('editor-pane')?.focus({preventScroll:true});
+    const target=remap(clicked);
+    if(target!==clicked||p&&(remap(p.source??'')!==(p.source??'')||remap(p.table.source)!==p.table.source))await this.selectTarget(target,'source-path',true);
     const pane=document.getElementById('editor-pane');
-    if(restoreEditor&&input===this.inputIntent&&epoch===this.surface.status.epoch&&
-      this.surface.target===(clicked===source?destination:clicked)&&
-      (document.activeElement===document.body||document.activeElement===pane))
-      (this.viewport??pane)?.focus({preventScroll:true});
+    if(restore&&input===this.inputIntent&&this.surface.target===target&&(document.activeElement===document.body||document.activeElement===pane))(this.viewport??pane)?.focus({preventScroll:true});
   }
   choose = (title: string, description: string, actions: string[]) => {
     if (this.surface.choice) return Promise.resolve("Cancel");
@@ -649,6 +639,25 @@ class Desktop {
     this.samples.push(sample);
     if (!this.evidence && this.samples.length > (this.inputCapture?8192:256)) {this.samples.shift();this.droppedSamples++;}
     this.currentSample = sample;
+    try {
+      // Commit in the outgoing context before publishing a new target. Its
+      // ordinary mutation must not start a competing refresh/navigation.
+      let committed=true;
+      if(!same){this.navigationCommits++;try{committed=await this.commit();}finally{this.navigationCommits--;}}
+      if (!committed) {
+        const input=this.inputPreview?.();
+        if(input?.dirty) {
+          this.publish({heldInputs:[...this.surface.heldInputs,{source:input.source,label:input.label,text:input.text,reason:"入力を確定できませんでした。元のソースで確認してください。"}]});
+          input.cancel();
+        }
+        throw new Error(
+          "入力を確定できません。元のソースに戻って確認してください。",
+        );
+      }
+      if (mine !== this.token) {
+        sample.invalid = "obsolete";
+        return sample;
+      }
     if (!same) {this.comparisonRequest++;this.interact({ focusIntent: this.interaction.focusIntent + 1 });}
     // A pending grid becomes inert. Move its existing focus to the stable pane
     // before that DOM update, including filesystem observation during a move.
@@ -667,21 +676,6 @@ class Desktop {
       }),
     );
     sample.selectionPublication = performance.now();
-    try {
-      if (!same && !(await this.commit())) {
-        const input=this.inputPreview?.();
-        if(input?.dirty) {
-          this.publish({heldInputs:[...this.surface.heldInputs,{source:input.source,label:input.label,text:input.text,reason:"入力を確定できませんでした。元のソースで確認してください。"}]});
-          input.cancel();
-        }
-        throw new Error(
-          "入力を確定できません。元のソースに戻って確認してください。",
-        );
-      }
-      if (mine !== this.token) {
-        sample.invalid = "obsolete";
-        return sample;
-      }
       if (!same) this.interact({ editor: null, complex: null, tags: null });
       const read = ++this.readToken,
         previous = restore ? this.local.get(path) : undefined;
@@ -720,11 +714,11 @@ class Desktop {
       }
       if ("kind" in r.data) {
         const p = r.data;
-        this.historySource = null;
+        this.historySource = p.source;
         this.interact({editor:null,complex:null,anchor:null});
         sample.statePublication = performance.now();
         const paint = new Promise<void>(resolve => this.paintResolve.set(mine,resolve));
-        flushSync(()=>this.publish({projection:null,typeProjection:p,pending:external,externalPending:external,query:"",queryPending:false}));
+        flushSync(()=>this.publish({projection:null,typeProjection:p,pending:external,externalPending:external,query:"",queryPending:false,error:null}));
         if (!same && this.evidence) await this.waitSelectionPaint(mine,paint);
         return sample;
       }
@@ -787,6 +781,7 @@ class Desktop {
           externalPending: external,
           queryPending: false,
           query: p.viewState.search,
+          error: null,
         }),
       );
       if (this.viewport) {
@@ -893,22 +888,21 @@ class Desktop {
       this.surface.projection?.rowStart ?? 0,
     );
   }
-  private operationPending=false;
-  get mutating(){return this.operationPending||this.surface.busy;}
-  async operation(intent: Record<string, unknown>, refresh=true):Promise<boolean> {
-    if(this.mutating)return false;
-    const target=this.surface.target,epoch=this.surface.status.epoch;
-    this.operationPending=true;
-    this.publish({error:null,saveNotice:null});
-    // Fast buffer edits must not disable/re-enable every control and steal
-    // focus. The immediate private gate still serializes mutation requests.
-    const pending=setTimeout(()=>{if(epoch===this.surface.status.epoch)this.publish({busy:true});},180);
-    try {
-      await this.rpc(intent);
-      if(refresh&&target===this.surface.target&&epoch===this.surface.status.epoch&&!this.surface.pending)await this.refresh();
-      return true;
-    }catch(error){if(epoch===this.surface.status.epoch)this.showError(error);return false;}
-    finally{clearTimeout(pending);this.operationPending=false;if(epoch===this.surface.status.epoch&&this.surface.busy)this.publish({busy:false});}
+  private authoring=new SerialActions();
+  get mutating(){return this.authoring.size>0||this.surface.busy;}
+  async operation(intent: Record<string, unknown>|(()=>Promise<Record<string,unknown>>), refresh=true, onReply?:(reply:Reply<unknown>)=>void):Promise<boolean> {
+    const target=this.surface.target,epoch=this.surface.status.epoch,external=this.surface.status.externalVersion;
+    return this.authoring.run(async()=>{
+      try {
+        if(epoch!==this.surface.status.epoch)throw new Error('プロジェクトが変更されたため、この操作を適用できません。');
+        if(external!==this.surface.status.externalVersion)throw new Error('ソースが外部で変更されています。現在の値を確認して再操作してください。');
+        this.publish({error:null,saveNotice:null});
+        const reply=await this.rpc(typeof intent==='function'?await intent():intent);
+        onReply?.(reply);
+        if(refresh&&!this.navigationCommits&&target===this.surface.target&&!this.surface.pending)await this.refresh();
+        return true;
+      }catch(error){if(epoch===this.surface.status.epoch)this.showError(error);return false;}
+    });
   }
   setSelection(row: number, column: number, extend = false) {
     const p = this.surface.projection;
@@ -1095,30 +1089,35 @@ class Desktop {
   async setCellNull(expected: Projection, row: string, field: string) {
     const intent=this.inputIntent, element=document.activeElement;
     if (!(await this.commit())) return false;
-    const p = this.currentFor(expected);
-    if (!p?.source) return false;
-    const view = await this.complexView({epoch:p.sessionEpoch,source:p.source,row,root:field,path:[field],start:0});
-    if (!view || !this.currentFor(p)) return false;
-    const ok = await this.complexEdit(view, [field], {kind:"null"});
-    if(ok && this.currentFor(p) && intent===this.inputIntent &&
+    const ok = await this.operation(async()=>{
+      const p=this.currentFor(expected);
+      if(!p?.source)throw new Error('未設定にする対象が変更されています。');
+      const view=await this.complexView({epoch:p.sessionEpoch,source:p.source,row,root:field,path:[field],start:0});
+      if(!view||!this.currentFor(p))throw new Error('未設定にする対象を取得できません。');
+      this.historySource=p.source;
+      return {kind:'complexEdit',epoch:p.sessionEpoch,source:p.source,revision:view.revision,generation:view.generation,row,path:[field],operation:{kind:'null'}};
+    });
+    const p=this.currentFor(expected);
+    if(ok && p && intent===this.inputIntent &&
       (document.activeElement===element || (element && !element.isConnected && document.activeElement===document.body)))
       this.viewport?.focus({preventScroll:true});
     return ok;
   }
   async toggleBoolean(expected: Projection, rowId: string, field: string) {
     const intent=this.inputIntent;
-    if (!(await this.commit()) || intent!==this.inputIntent) return false;
-    const p=this.currentFor(expected);
-    if(!p?.source || this.surface.busy) return false;
-    const column=p.columns.findIndex(c=>c.field.name===field), row=p.rows.find(r=>r.id===rowId);
-    const cell=row?.cells[column], shape=p.columns[column]?.shape;
-    if(!row || row.pendingDelete || !cell?.editable || cell.isNull || shape?.array ||
-      !(shape?.typeName==="bool" || shape?.underlying==="bool") ||
-      !cell.value || !("value" in cell.value) || typeof cell.value.value!=="string" || !["true","false"].includes(cell.value.value)) return false;
-    this.setSelection(row.viewIndex,column);
-    this.historySource=p.source;
-    const ok=await this.operation({kind:"editText",...this.scope(p),row:rowId,field,text:cell.value.value==="true"?"false":"true"});
-    if(ok && intent===this.inputIntent && this.currentFor(p))this.viewport?.focus({preventScroll:true});
+    if (!(await this.commit())) return false;
+    const ok=await this.operation(async()=>{
+      const p=this.currentFor(expected);
+      if(!p?.source)throw new Error('切り替える対象が変更されています。');
+      const column=p.columns.findIndex(c=>c.field.name===field),row=p.rows.find(r=>r.id===rowId);
+      const cell=row?.cells[column],shape=p.columns[column]?.shape;
+      if(!row||row.pendingDelete||!cell?.editable||cell.isNull||shape?.array||
+        !(shape?.typeName==='bool'||shape?.underlying==='bool')||!cell.value||!('value' in cell.value)||
+        typeof cell.value.value!=='string'||!['true','false'].includes(cell.value.value))throw new Error('値が変更されています。現在の値から再操作してください。');
+      this.setSelection(row.viewIndex,column);this.historySource=p.source;
+      return {kind:'editText',...this.scope(p),row:rowId,field,text:cell.value.value==='true'?'false':'true'};
+    });
+    if(ok&&intent===this.inputIntent&&this.currentFor(expected))this.viewport?.focus({preventScroll:true});
     return ok;
   }
   closeComplex = () => this.interact({ complex: null });
@@ -1154,32 +1153,16 @@ class Desktop {
     });
     return r.data;
   }
-  async complexEdit(
-    view: ComplexView,
-    path: string[],
-    operation: Record<string, unknown>,
-  ) {
-    const current = this.surface.projection;
-    // Navigation publishes the incoming identity before committing outgoing
-    // typing. Its captured descriptor still targets the original source; Rust
-    // checks that complete generation/revision context before applying it.
-    if (
-      !current ||
-      current.source !== view.source ||
-      current.sessionEpoch !== view.sessionEpoch ||
-      current.revision !== view.revision
-    )
-      return false;
-    this.historySource = view.source;
-    return this.operation({
-      kind: "complexEdit",
-      epoch: view.sessionEpoch,
-      source: view.source,
-      revision: view.revision,
-      generation: view.generation,
-      row: view.row,
-      path,
-      operation,
+  async complexEdit(view:ComplexView,path:string[],operation:Record<string,unknown>) {
+    const expected=this.surface.projection;
+    return this.operation(async()=>{
+      const p=expected&&this.currentFor(expected);
+      if(!p||p.source!==view.source||p.sessionEpoch!==view.sessionEpoch)throw new Error('編集する値の対象が変更されています。');
+      const fresh=await this.complexView({epoch:view.sessionEpoch,source:view.source,row:view.row,root:path[0],path,start:0});
+      if(!fresh||!this.currentFor(p))throw new Error('編集する値を取得できません。');
+      if(operation.kind==='place'&&(fresh.revision!==view.revision||fresh.generation!==view.generation))throw new Error('配列の内容が変更されています。現在の並びを確認して、もう一度ドラッグしてください。');
+      this.historySource=view.source;
+      return {kind:'complexEdit',epoch:view.sessionEpoch,source:view.source,revision:fresh.revision,generation:fresh.generation,row:view.row,path,operation};
     });
   }
   closeTags = () => this.interact({tags: null});
@@ -1227,54 +1210,25 @@ class Desktop {
       array: change.array ?? (change.nullable ? false : f.array),
     });
   }
-  async fieldOperation(operation: FieldOperation, expected: Projection, ignoreTemporary = false) {
-    const epoch = expected.sessionEpoch;
-    if (this.mutating || this.surface.status.recoveryRequired || this.surface.uncertainField || epoch !== this.surface.status.epoch) throw new Error("現在この操作を開始できません。未確定の結果は結果を再確認してください。");
-    if (!ignoreTemporary && !(await this.commit())) throw new Error("入力を確定できません。");
-    const p = this.surface.projection;
-    if (!p || p.clicked !== expected.clicked || p.sessionEpoch !== epoch) throw new Error("対象が変更されています。もう一度確定してください。");
-    const context = { epoch, source: p.table.source, revision: p.schemaRevision, generation: p.generation };
-    this.publish({busy: true, error: null});
-    let scope: FieldScope | null = null;
-    let attempted = false;
-    try {
-      scope = (await this.rpc<FieldScope>({kind:"fieldScope", ...context, operation})).data;
-      if (epoch !== this.surface.status.epoch) throw new Error("プロジェクトが変更されています。");
-      for (const source of scope.sources) {
-        if (!(await this.guardSource(source, epoch, "構造変更前の未保存変更", ignoreTemporary))) return null;
-      }
-      if (scope.dirty.length) throw new Error("未保存変更を処理しました。変更後のテーブルで、もう一度確定してください。");
-      if (scope.destructive) {
-        let answer: string;
-        do {
-          answer = await this.choose("フィールドを削除", `${operation.kind === "drop" ? operation.field : "フィールド"}を${scope.affectedRecords}件のレコード、${scope.sources.length}個のソースから削除します。`, ["Delete", "Compare", "Cancel"]);
-          if (answer === "Compare") {
-            await this.migrationCompare(scope.token,scope.sources[0],scope.sources);
-            const shown = this.surface.comparison;
-            if (shown) await new Promise<void>(resolve => { const unsubscribe=this.subscribe(() => {if(!this.surface.comparison){unsubscribe();resolve();}}); });
-          }
-        } while(answer === "Compare" && epoch === this.surface.status.epoch);
-        if(answer !== "Delete") return null;
-      }
-      if (epoch !== this.surface.status.epoch) return null;
-      attempted = true;
-      this.protectWriteView(`field:${scope.token}`,true);
-      const [review,result] = (await this.rpc<[MigrationReview,SetResult]>({kind:"fieldOperation", ...context, request:{token:scope.token,operation,authorizeDestructive:scope.destructive}})).data;
-      this.protectWriteView(`field:${scope.token}`,false);
-      await this.refreshInventory();
-      if(this.surface.target === expected.clicked && !this.surface.pending) await this.refresh();
-      if(result.outcome !== "Success") throw new Error(`${result.outcome}: ${result.message}`);
-      return review;
-    } catch(e) {
-      if (scope && attempted && typeof e === "object" && e && "code" in e) this.protectWriteView(`field:${scope.token}`,false);
-      if (scope && attempted && this.unconfirmedWriteViews.has(`field:${scope.token}`)) {
-        this.publish({uncertainField:{token:scope.token,epoch,target:expected.clicked}});
-        this.showError(`結果を確認できません。自動再試行は止めています。${errorText(e)}`);
-      }
-      throw e;
-    } finally {
-      if(epoch === this.surface.status.epoch) this.publish({busy:false});
-    }
+  async fieldOperation(operation:FieldOperation,expected:Projection,ignoreTemporary=false):Promise<AuthoringResult|null> {
+    if(!ignoreTemporary&&!(await this.commit()))return null;
+    let result:AuthoringResult|null=null;
+    const ok=await this.operation(async()=>{
+      const p=this.currentFor(expected);
+      if(!p)throw new Error('構造編集の対象が変更されています。');
+      this.historySource=p.table.source;
+      return {kind:'authorField',epoch:p.sessionEpoch,source:p.table.source,revision:p.schemaRevision,generation:p.generation,operation};
+    },true,reply=>{result=reply.data as AuthoringResult;});
+    if(!ok)throw new Error(this.surface.error??'構造編集を適用できません。');
+    return result;
+  }
+  async authorType(expected:TypeProjection,command:TypeOperation,input:ConstantInput|null=null):Promise<boolean> {
+    return this.operation(async()=>{
+      const p=this.surface.typeProjection;
+      if(!p||p.source!==expected.source||p.sessionEpoch!==expected.sessionEpoch||p.identity!==expected.identity)throw new Error('型の宣言が変更されています。入力を保持したまま、現在の宣言を確認してください。');
+      this.historySource=p.source;
+      return {kind:'authorType',epoch:p.sessionEpoch,source:p.source,identity:p.identity,command,input};
+    });
   }
   private addedFieldFocus: {name:string;target:string;epoch:number;intent:number}|null = null;
   focusAddedField() {
@@ -1310,31 +1264,22 @@ class Desktop {
     this.publish({});
   };
   history() {
-    const p = this.surface.projection;
+    const p = this.surface.projection,t=this.surface.typeProjection;
+    if(t)return {undo:t.canUndo,redo:t.canRedo};
     return this.historySource === p?.table.source
       ? { undo: p?.schemaCanUndo, redo: p?.schemaCanRedo }
       : { undo: p?.canUndo, redo: p?.canRedo };
   }
-  undo = async (redo = false) => {
-    const source = this.historySource,
-      previous = this.surface.projection;
-    if (
-      source &&
-      previous &&
-      (await this.commit()) &&
-      this.currentFor(previous)
-    )
-      await this.operation({
-        kind: "undo",
-        epoch: previous.sessionEpoch,
-        source,
-        redo,
-      });
+  undo = async (redo=false) => {
+    const source=this.historySource,epoch=this.surface.status.epoch;
+    if(source&&(this.surface.projection||this.surface.typeProjection)&&(await this.commit()))
+      await this.operation({kind:'undo',epoch,source,redo});
   };
   save = async () => {
     if(this.surface.openingProject||this.surface.projectCreation||this.surface.projectOpenUncertain)return;
     if(this.surface.settingsOpen) {await this.settingsHooks?.save();return;}
-    const p = this.surface.projection;
+    const p = this.surface.projection,t=this.surface.typeProjection;
+    if(t){if(await this.commit())await this.saveIntent({kind:'saveAuthoring',epoch:t.sessionEpoch,source:t.source});return;}
     const restore = !!document.activeElement?.closest('#viewport,.active-cell-editor'), intent = this.inputIntent;
     if (!p || !(await this.commit())) return;
     await this.saveIntent({
@@ -1351,8 +1296,10 @@ class Desktop {
     if (await (this.settingsHooks?.commit()??Promise.resolve(true)) && await this.commit()) await this.saveIntent({ kind: "saveAll", epoch });
   };
   private async saveIntent(intent: Record<string, unknown>) {
+    await this.authoring.idle();
+    if(intent.epoch!==this.surface.status.epoch)return;
     if(this.surface.openingProject)return;
-    if (this.mutating) return;
+    if (this.mutating) {this.showError('別の保存処理が進行中です。完了後に保存してください。');return;}
     if (this.surface.deliveryCapturing) {this.showError("保存済み入力の取得中です。完了後に保存を再操作してください。");return;}
     const epoch = this.surface.status.epoch;
     this.publish({ busy: true, error: null });

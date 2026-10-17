@@ -11,11 +11,17 @@ pub struct MoveReview {
 }
 impl Workspace {
     pub(super) fn check_pending_move(&self, path: &str) -> Result<()> {
-        if self.trash_pending.values().any(|p| p == path)
+        if self.pending_entry_paths().iter().any(|p| overlaps(p, path)) {
+            return Err(Error::new(
+                "E-OUTCOME-UNKNOWN",
+                "recheck the pending file/folder operation",
+            ));
+        }
+        if self.trash_pending.values().any(|p| overlaps(p, path))
             || self
                 .pending_moves
                 .values()
-                .any(|p| p.source == path || p.destination == path)
+                .any(|p| overlaps(&p.source, path) || overlaps(&p.destination, path))
         {
             return Err(Error::new(
                 "E-OUTCOME-UNKNOWN",
@@ -24,7 +30,10 @@ impl Workspace {
         }
         Ok(())
     }
-    fn path_gate(&self, source: &str) -> Result<()> {
+    pub(super) fn path_gate(&self, source: &str) -> Result<()> {
+        self.entry_gate(source, true)
+    }
+    pub(super) fn entry_gate(&self, source: &str, clean: bool) -> Result<()> {
         self.check_config()?;
         self.check_pending_move(source)?;
         if self.recovery_required || native::has_pending_recovery(&self.read.root)? {
@@ -33,26 +42,34 @@ impl Workspace {
                 "path mutations are gated",
             ));
         }
-        if self.drafts.get(source).is_some_and(Draft::dirty) {
+        if clean
+            && self
+                .drafts
+                .iter()
+                .any(|(p, d)| within(p, source) && d.dirty())
+        {
             return Err(Error::new(
                 "E-PATH-DIRTY",
                 "Save / Don't Save / Cancel required for this source",
             ));
         }
-        if self.uncertain_paths().iter().any(|p| p == source) {
+        if self.uncertain_paths().iter().any(|p| overlaps(p, source)) {
             return Err(Error::new(
                 "E-OUTCOME-UNKNOWN",
                 "source outcome must be rechecked",
             ));
         }
-        if !self.read.sources.contains_key(source) {
+        if source == self.read.source_directory_path() {
+            return Err(Error::new("E-PATH-SCOPE", "source root cannot be changed"));
+        }
+        if !self.read.sources.contains_key(source) && !self.read.folders.contains(source) {
             return Err(Error::new("E-SOURCE-MISSING", source));
         }
         Ok(())
     }
     pub fn path_move_choices(&self, source: &str) -> Result<serde_json::Value> {
         self.check_config()?;
-        let snapshot = native::capture(&self.read.root, &self.read.roots, source)?;
+        let snapshot = native::entry::capture(&self.read.root, &self.read.roots, source)?;
         let root = self
             .read
             .roots
@@ -63,18 +80,21 @@ impl Workspace {
             .read
             .folders
             .iter()
-            .filter(|p| self.read.root.join(p).starts_with(root))
+            .filter(|p| {
+                self.read.root.join(p).starts_with(root)
+                    && (!snapshot.directory || !within(p, source))
+            })
             .collect::<Vec<_>>();
         Ok(
-            serde_json::json!({"root":self.read.source_directory_path(),"folders":folders,"filename":std::path::Path::new(source).file_name().unwrap().to_string_lossy()}),
+            serde_json::json!({"root":self.read.source_directory_path(),"folders":folders,"filename":std::path::Path::new(source).file_name().unwrap().to_string_lossy(),"directory":snapshot.directory}),
         )
     }
     pub fn prepare_path_move(&mut self, source: &str, destination: &str) -> Result<MoveReview> {
         self.path_gate(source)?;
         self.check_pending_move(destination)?;
-        let actual = native::capture(&self.read.root, &self.read.roots, source)?;
+        let actual = native::entry::capture(&self.read.root, &self.read.roots, source)?;
         let expected = self.snapshots.get(source).unwrap_or(&actual);
-        if actual.bytes != self.read.sources[source].bytes {
+        if !actual.directory && actual.bytes != self.read.sources[source].bytes {
             return Err(Error::new(
                 "E-SOURCE-CONFLICT",
                 "source changed; refresh before requesting Rename / Move",
@@ -156,7 +176,10 @@ impl Workspace {
         }
         Ok(result)
     }
-    fn accept_move(&mut self, plan: &native::MovePlan) -> Result<()> {
+    pub(super) fn accept_move(&mut self, plan: &native::MovePlan) -> Result<()> {
+        if plan.base.directory {
+            return self.accept_folder_move(plan);
+        }
         let actual = native::capture(&self.read.root, &self.read.roots, &plan.destination)?;
         if !plan.destination_matches(&actual) {
             return Err(Error::new(
@@ -212,6 +235,7 @@ impl Workspace {
             draft.external = None;
             self.drafts.insert(plan.destination.clone(), draft);
         }
+        self.remap_authoring_groups(&plan.source, &plan.destination);
         if let Some(view) = self.views.remove(&plan.source) {
             self.views.insert(plan.destination.clone(), view);
         }
@@ -248,6 +272,7 @@ impl Workspace {
         let actual = native::capture(&self.read.root, &self.read.roots, path)?;
         let parsed = Document::parse(actual.bytes.clone()).map(Arc::new);
         self.drafts.remove(path);
+        self.finish_authoring_save();
         self.authoring_views.remove(path);
         self.search_indexes.remove(path);
         self.replace_read(
@@ -282,15 +307,17 @@ impl Workspace {
             .filter(|e| e.state != "Restored")
             .collect())
     }
-    fn accept_source_removal(&mut self, source: &str) {
-        self.drafts.remove(source);
-        self.snapshots.remove(source);
-        self.views.remove(source);
-        self.unavailable.remove(source);
-        self.search_indexes.remove(source);
-        self.last_source.retain(|_, path| path != source);
+    pub(super) fn accept_source_removal(&mut self, source: &str) {
+        self.drafts.retain(|p, _| !within(p, source));
+        self.finish_authoring_save();
+        self.snapshots.retain(|p, _| !within(p, source));
+        self.views.retain(|p, _| !within(p, source));
+        self.unavailable.retain(|p, _| !within(p, source));
+        self.search_indexes.retain(|p, _| !within(p, source));
+        self.last_source.retain(|_, p| !within(p, source));
         let read = Arc::make_mut(&mut self.read);
-        read.sources.remove(source);
+        read.sources.retain(|p, _| !within(p, source));
+        read.folders.retain(|p| !within(p, source));
         read.rebuild_declarations();
         read.generation += 1;
         self.authoring_views.clear();
@@ -307,8 +334,8 @@ impl Workspace {
         fault: Fault,
     ) -> Result<serde_json::Value> {
         self.path_gate(source)?;
-        let actual = native::capture(&self.read.root, &self.read.roots, source)?;
-        if actual.bytes != self.read.sources[source].bytes {
+        let actual = native::entry::capture(&self.read.root, &self.read.roots, source)?;
+        if !actual.directory && actual.bytes != self.read.sources[source].bytes {
             return Err(Error::new(
                 "E-SOURCE-CONFLICT",
                 "source changed before deletion",
@@ -350,5 +377,92 @@ impl Workspace {
             self.trash_pending.insert(id.into(), source);
         }
         Ok(result)
+    }
+}
+
+pub(super) fn within(path: &str, parent: &str) -> bool {
+    path == parent || path.starts_with(&format!("{parent}/"))
+}
+fn overlaps(a: &str, b: &str) -> bool {
+    within(a, b) || within(b, a)
+}
+impl Workspace {
+    fn accept_folder_move(&mut self, plan: &native::MovePlan) -> Result<()> {
+        let actual = native::entry::capture(&self.read.root, &self.read.roots, &plan.destination)?;
+        if !plan.destination_matches(&actual) {
+            return Err(Error::new(
+                "E-PATH-OBSERVATION",
+                "folder changed after rename",
+            ));
+        }
+        let mut entries = Vec::new();
+        for (old, source) in &self.read.sources {
+            if !within(old, &plan.source) {
+                continue;
+            }
+            let new = format!("{}{}", plan.destination, &old[plan.source.len()..]);
+            let snapshot = native::capture(&self.read.root, &self.read.roots, &new)?;
+            let document = source
+                .document
+                .clone()
+                .filter(|d| d.bytes == snapshot.bytes)
+                .map(Ok)
+                .unwrap_or_else(|| Document::parse(snapshot.bytes.clone()).map(Arc::new));
+            let mut changed = (**source).clone();
+            changed.path = new.clone();
+            changed.physical = snapshot.physical.clone();
+            changed.bytes = snapshot.bytes.clone();
+            changed.identity = snapshot.content.clone();
+            changed.document = document.as_ref().ok().cloned();
+            changed.error = document.err().map(|e| e.to_string());
+            entries.push((old.clone(), new, snapshot, Arc::new(changed)));
+        }
+        let read = Arc::make_mut(&mut self.read);
+        for (old, new, snapshot, source) in entries {
+            read.sources.remove(&old);
+            read.sources.insert(new.clone(), source);
+            self.snapshots.remove(&old);
+            self.snapshots.insert(new.clone(), snapshot.clone());
+            if let Some(mut draft) = self.drafts.remove(&old) {
+                draft.base = snapshot;
+                draft.document = read.sources[&new]
+                    .document
+                    .clone()
+                    .unwrap_or(draft.document);
+                draft.revision += 1;
+                draft.outcome = None;
+                draft.external = None;
+                self.drafts.insert(new.clone(), draft);
+            }
+            if let Some(view) = self.views.remove(&old) {
+                self.views.insert(new, view);
+            }
+            self.unavailable.remove(&old);
+        }
+        read.folders = read
+            .folders
+            .iter()
+            .map(|p| {
+                if within(p, &plan.source) {
+                    format!("{}{}", plan.destination, &p[plan.source.len()..])
+                } else {
+                    p.clone()
+                }
+            })
+            .collect();
+        read.rebuild_declarations();
+        read.generation += 1;
+        self.remap_authoring_groups(&plan.source, &plan.destination);
+        for source in self.last_source.values_mut() {
+            if within(source, &plan.source) {
+                *source = format!("{}{}", plan.destination, &source[plan.source.len()..]);
+            }
+        }
+        self.authoring_views.clear();
+        self.search_indexes.clear();
+        self.generation += 1;
+        self.external_version += 1;
+        self.diagnostics_pending = true;
+        Ok(())
     }
 }

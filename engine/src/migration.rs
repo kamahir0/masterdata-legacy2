@@ -216,6 +216,7 @@ fn expected_tables(
     project: &Project,
     target: &Table,
     command: &Command,
+    strict: bool,
 ) -> Result<BTreeMap<String, Arc<Table>>> {
     let mut expected = project.tables.clone();
     let changed = Arc::make_mut(expected.get_mut(&target.name).unwrap());
@@ -229,7 +230,9 @@ fn expected_tables(
             ..
         } => {
             let field = field_declaration(declaration, &project.types)?;
-            field_resolution(project, &field)?;
+            if strict {
+                field_resolution(project, &field)?;
+            }
             if changed
                 .fields
                 .iter()
@@ -257,7 +260,9 @@ fn expected_tables(
                 .find(|f| f.name == *field)
                 .ok_or_else(|| precondition("field not found"))?;
             current.name = new_name.clone();
-            field_resolution(project, current)?;
+            if strict {
+                field_resolution(project, current)?;
+            }
             for table in expected.values_mut() {
                 let table = Arc::make_mut(table);
                 if table.name == target.name {
@@ -270,7 +275,8 @@ fn expected_tables(
                     let touched = (table.name == target.name && reference.fields.contains(field))
                         || (reference.target_table == target.name
                             && reference.target_fields.contains(field));
-                    if touched
+                    if strict
+                        && touched
                         && project.declaration_problems.iter().any(|p| {
                             p.source == table.source
                                 && p.code.starts_with("E-REFERENCE")
@@ -295,15 +301,17 @@ fn expected_tables(
             if !changed.fields.iter().any(|f| f.name == *field) {
                 return Err(precondition("field not found"));
             }
-            if has_dependency(project, target, field) {
+            if strict && has_dependency(project, target, field) {
                 return Err(precondition(format!(
                     "{field}: Key or Reference depends on this field"
                 )));
             }
-            field_resolution(
-                project,
-                changed.fields.iter().find(|f| f.name == *field).unwrap(),
-            )?;
+            if strict {
+                field_resolution(
+                    project,
+                    changed.fields.iter().find(|f| f.name == *field).unwrap(),
+                )?;
+            }
             changed.fields.retain(|f| f.name != *field);
         }
         Command::SetFieldDeclaration {
@@ -407,7 +415,7 @@ pub(crate) fn ordered_value(node: &Node, expected: &Value) -> bool {
         _ => source::matches_value(node, expected),
     }
 }
-fn expected_records(doc: &Document, command: &Command) -> Result<Value> {
+fn expected_records(doc: &Document, command: &Command, strict: bool) -> Result<Value> {
     let mut expected = doc.root.value();
     let Value::Mapping(root) = &mut expected else {
         unreachable!()
@@ -420,8 +428,14 @@ fn expected_records(doc: &Document, command: &Command) -> Result<Value> {
     else {
         return Err(resolution("record sequence required"));
     };
-    for record in records {
+    for (index, record) in records.iter_mut().enumerate() {
+        if !strict && !doc.records()?[index].value.safe {
+            continue;
+        }
         let Value::Mapping(members) = record else {
+            if !strict {
+                continue;
+            }
             return Err(resolution("record mapping required"));
         };
         match command {
@@ -460,6 +474,12 @@ fn expected_records(doc: &Document, command: &Command) -> Result<Value> {
     Ok(expected)
 }
 pub fn derive(project: &Project, command: Command) -> Result<Plan> {
+    derive_inner(project, command, true)
+}
+pub(crate) fn derive_authoring(project: &Project, command: Command) -> Result<Plan> {
+    derive_inner(project, command, false)
+}
+fn derive_inner(project: &Project, command: Command, strict: bool) -> Result<Plan> {
     if let Command::TableDeclaration { command } = &command {
         return crate::table_declaration::derive(project, command.clone());
     }
@@ -470,12 +490,28 @@ pub fn derive(project: &Project, command: Command) -> Result<Plan> {
         .tables
         .get(command.table()?)
         .ok_or_else(|| resolution("logical Table cannot be resolved"))?;
-    classification(project, &target.name)?;
-    let expected = expected_tables(project, target, &command)?;
+    if let Command::RenameField { field, .. }
+    | Command::DropField { field, .. }
+    | Command::SetFieldDeclaration { field, .. } = &command
+        && target.fields.iter().filter(|f| &f.name == field).count() != 1
+    {
+        return Err(precondition(format!(
+            "{field}: field is missing or ambiguous"
+        )));
+    }
+    if strict {
+        classification(project, &target.name)?;
+    }
+    let expected = expected_tables(project, target, &command, strict)?;
     let mut documents = project
         .sources
         .iter()
-        .map(|(path, source)| (path.clone(), source.document.clone().unwrap()))
+        .filter_map(|(path, source)| {
+            source
+                .document
+                .clone()
+                .map(|document| (path.clone(), document))
+        })
         .collect::<BTreeMap<_, _>>();
     let schema = &documents[&target.source];
     let fields = schema.root.required("fields")?;
@@ -566,9 +602,16 @@ pub fn derive(project: &Project, command: Command) -> Result<Plan> {
         let expected_records = if bound
             && (has_records || project.sources[path].kind.as_deref() == Some("data"))
         {
-            let records = doc.records()?;
-            affected_records += records.len();
+            let records = match doc.records() {
+                Ok(records) => records,
+                Err(_) if !strict => continue,
+                Err(error) => return Err(error),
+            };
             for record in records {
+                if !strict && (!record.value.safe || record.value.members().is_err()) {
+                    continue;
+                }
+                affected_records += 1;
                 match &command {
                     Command::Type { .. } | Command::TableDeclaration { .. } => {
                         return Err(resolution("Table operation required"));
@@ -598,6 +641,9 @@ pub fn derive(project: &Project, command: Command) -> Result<Plan> {
                         }
                     }
                     Command::SetFieldDeclaration { field, .. } => {
+                        if !strict {
+                            continue;
+                        }
                         let field = expected[&target.name]
                             .fields
                             .iter()
@@ -612,7 +658,7 @@ pub fn derive(project: &Project, command: Command) -> Result<Plan> {
                     }
                 }
             }
-            Some(expected_records(doc, &command)?)
+            Some(expected_records(doc, &command, strict)?)
         } else {
             None
         };
@@ -652,6 +698,14 @@ pub fn derive(project: &Project, command: Command) -> Result<Plan> {
                 },
             );
         }
+    }
+    if !strict {
+        return Ok(Plan {
+            destructive: command.destructive(),
+            command,
+            affected_records,
+            candidates,
+        });
     }
     transformed.rebuild_declarations();
     if transformed.tables != expected || transformed.types != project.types {

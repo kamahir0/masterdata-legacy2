@@ -5,7 +5,7 @@ import {CloseOutlined} from '@ant-design/icons';
 import {desktop} from './workspace';
 import {parentPath, stemEnd} from './explorer-model';
 
-type Choices = {root:string;folders:string[];filename:string};
+type Choices = {root:string;folders:string[];filename:string;directory:boolean};
 type Review = {token:string;source:string;destination:string};
 type Result = {source:string;outcome:string;message:string};
 type Draft = {id:number;source:string;folder:string;filename:string;choices:Choices;inline:boolean;direct:boolean;review:Review|null;pending:boolean;committing:boolean;result:Result|null;error:string|null};
@@ -41,7 +41,7 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
     const id=draft.id,intent=desktop.inputIntent;
     const frame=requestAnimationFrame(()=>{
       if(live.current?.id!==id||intent!==desktop.inputIntent)return;
-      filename.current?.focus();filename.current?.setSelectionRange(0,stemEnd(live.current.filename));
+      filename.current?.focus();filename.current?.setSelectionRange(0,live.current.choices.directory?live.current.filename.length:stemEnd(live.current.filename));
     });
     return()=>cancelAnimationFrame(frame);
   },[draft?.id,draft?.inline]);
@@ -145,7 +145,7 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
   </Flex>;
   const inline=draft?.inline&&<div ref={inlineElement} className='source-path-inline' onClick={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}>
     <div className='explorer-input-row'>
-      <Input aria-label='変更後のファイル名' ref={r=>{filename.current=r?.input??null;}} value={draft.filename} disabled={draft.committing||uncertain} status={draft.error||draft.result?'error':undefined}
+      <Input aria-label={draft.choices.directory?'変更後のフォルダー名':'変更後のファイル名'} ref={r=>{filename.current=r?.input??null;}} value={draft.filename} disabled={draft.committing||uncertain} status={draft.error||draft.result?'error':undefined}
         suffix={<span className='creation-pending'>{draft.pending||draft.committing?<Spin size='small'/>:null}</span>}
         onChange={e=>change({filename:e.target.value})} onCompositionStart={()=>{composing.current=true;}} onCompositionEnd={()=>{composing.current=false;}}
         onKeyDown={e=>{if(e.nativeEvent.isComposing||composing.current||e.keyCode===229)return;if(e.key==='Escape'){e.preventDefault();cancel();}else if(e.key==='Enter'||e.key==='Tab'){if(e.key==='Enter')e.preventDefault();void finish(e.key==='Enter');}}}/>
@@ -154,7 +154,7 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
     {feedback}
     {uncertain&&<Button loading={draft.committing} onClick={()=>void apply()}>変更前・変更後のパスを再確認</Button>}
   </div>;
-  const modal=draft&&!draft.inline&&!draft.direct&&<Modal title='ソースの名前変更・移動' open width={520} focusTriggerAfterClose={false} afterOpenChange={open=>{if(open){filename.current?.focus();filename.current?.setSelectionRange(0,stemEnd(draft.filename));}}} onCancel={()=>cancel()} keyboard={!draft.committing&&!uncertain} mask={{closable:!draft.committing&&!uncertain}} footer={<Space>
+  const modal=draft&&!draft.inline&&!draft.direct&&<Modal title='ソースの名前変更・移動' open width={520} focusTriggerAfterClose={false} afterOpenChange={open=>{if(open){filename.current?.focus();filename.current?.setSelectionRange(0,draft.choices.directory?draft.filename.length:stemEnd(draft.filename));}}} onCancel={()=>cancel()} keyboard={!draft.committing&&!uncertain} mask={{closable:!draft.committing&&!uncertain}} footer={<Space>
     <Button onClick={()=>cancel()} disabled={draft.committing||uncertain}>キャンセル</Button>
     {!uncertain&&!draft.review&&!draft.pending&&<Button onClick={()=>review()}>現在のソースを確認</Button>}
     <Button type='primary' loading={draft.committing||draft.pending} disabled={draft.pending||!draft.review} onClick={()=>void apply()}>{uncertain?'変更前・変更後のパスを再確認':'移動'}</Button>
@@ -162,7 +162,7 @@ export function useSourcePath(epoch:number,onMoved:(source:string,destination:st
     <Typography.Paragraph type='secondary' className='source-path-origin'>{draft.source}</Typography.Paragraph>
     <Form layout='vertical' disabled={draft.committing||uncertain}>
       <Form.Item label='フォルダー'>{draft.choices.folders.length>1?<Select showSearch optionFilterProp="label" aria-label='ソースの移動先フォルダー' value={draft.folder} options={draft.choices.folders.map(folder=>({value:folder,label:sourceFolderLabel(folder,draft.choices.root),title:folder}))} onChange={folder=>change({folder})}/>:<Typography.Text aria-label='ソースの移動先フォルダー' title={draft.folder}>{sourceFolderLabel(draft.folder,draft.choices.root)}</Typography.Text>}</Form.Item>
-      <Form.Item label='ファイル名'><Input aria-label='移動後のソースファイル名' ref={r=>{filename.current=r?.input??null;}} value={draft.filename} onChange={e=>change({filename:e.target.value})} onKeyDown={e=>{if(e.nativeEvent.isComposing)return;if(e.key==='Enter'){e.preventDefault();void apply();}}}/></Form.Item>
+      <Form.Item label={draft.choices.directory?'フォルダー名':'ファイル名'}><Input aria-label='移動後のソースファイル名' ref={r=>{filename.current=r?.input??null;}} value={draft.filename} onChange={e=>change({filename:e.target.value})} onKeyDown={e=>{if(e.nativeEvent.isComposing)return;if(e.key==='Enter'){e.preventDefault();void apply();}}}/></Form.Item>
     </Form>
     <Typography.Paragraph type='secondary'>{join(draft.folder,draft.filename)}</Typography.Paragraph>
     {feedback}

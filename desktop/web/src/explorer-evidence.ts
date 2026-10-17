@@ -92,6 +92,8 @@ export async function run({startup}:{startup:Record<string,unknown>}){
     key(tree(),'Home');await frame();key(tree(),'z');await frame();
     assert(document.querySelector('.ant-tree-treenode-active [data-path]')?.getAttribute('data-path')?.startsWith('folder:sources/z-folder-'),'type ahead did not focus matching row');
     checks.push('folder-focus-navigation-typeahead');
+    key(tree(),'ArrowDown',{shiftKey:true});await frame();assert(document.querySelectorAll('#explorer [role="treeitem"][aria-selected="true"]').length===2,'Shift range did not select exactly two visible entries');
+    key(tree(),'Escape');await frame();key(tree(),'Delete');await frame();assert(!desktop.surface.choice&&!document.querySelectorAll('#explorer [role="treeitem"][aria-selected="true"]').length,'Delete acted on a focused but unselected entry');checks.push('range-selection-and-escape-delete-safety');
     key(tree(),'f',{ctrlKey:true});await until(()=>!!document.querySelector('input[aria-label="ソースを絞り込む"]'),'filter shortcut missing');
     text(input('ソースを絞り込む'),'catalog-schema');await until(()=>!!document.querySelector('[data-path="sources/catalog-schema.yaml"]'),'filter did not show match');
     await until(()=>document.querySelectorAll('#explorer [data-path]').length===1,'filter kept unrelated rows after transition');

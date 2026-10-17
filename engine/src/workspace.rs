@@ -20,7 +20,11 @@ mod config;
 mod creation;
 mod defaults;
 mod migration;
+mod structure;
+pub use structure::AuthoringResult;
+mod entries;
 mod path;
+pub use entries::{EntryBatchResult, EntryBatchReview, EntryOperation};
 mod table_declaration;
 mod types;
 pub use migration::{FieldIntent, FieldOperation, MigrationReview};
@@ -47,6 +51,7 @@ struct State {
     origin: Option<Arc<AdditionOrigin>>,
     arrays: Arc<BTreeMap<Vec<String>, Vec<String>>>,
     tag_origins: Arc<BTreeMap<String, bool>>,
+    group: Option<u64>,
 }
 #[derive(Clone, Debug)]
 struct PendingRecord {
@@ -71,6 +76,7 @@ pub struct Draft {
     origin: Option<Arc<AdditionOrigin>>,
     arrays: Arc<BTreeMap<Vec<String>, Vec<String>>>,
     tag_origins: Arc<BTreeMap<String, bool>>,
+    group: Option<u64>,
     undo: Vec<State>,
     redo: Vec<State>,
     pub outcome: Option<Outcome>,
@@ -95,6 +101,7 @@ impl Draft {
             origin: self.origin.clone(),
             arrays: self.arrays.clone(),
             tag_origins: self.tag_origins.clone(),
+            group: self.group,
         }
     }
     fn active_index(&self, id: &str) -> Result<usize> {
@@ -129,6 +136,7 @@ impl Draft {
             return false;
         }
         self.undo.push(self.state());
+        self.group = None;
         self.redo.clear();
         for pending in Arc::make_mut(&mut self.pending).values_mut() {
             pending.position = document.map_anchor(pending.position);
@@ -251,10 +259,12 @@ pub struct Workspace {
     pub external_version: u64,
     authoring_views: BTreeMap<String, Vec<(u64, u64, AuthoringView)>>,
     creations: BTreeMap<String, creation::PendingCreation>,
+    entry_batches: BTreeMap<u64, entries::EntryBatch>,
     move_plans: BTreeMap<u64, native::MovePlan>,
     move_observations: BTreeMap<u64, native::MovePlan>,
     pending_moves: BTreeMap<u64, native::MovePlan>,
     trash_pending: BTreeMap<String, String>,
+    authoring_groups: BTreeMap<u64, BTreeSet<String>>,
     migration_plans: BTreeMap<u64, native::SourceSetPlan>,
     migration_results: BTreeMap<u64, native::SetResult>,
     completed_recoveries: BTreeMap<String, (native::RecoveryInfo, bool)>,
@@ -331,10 +341,12 @@ impl Workspace {
             external_version: 0,
             authoring_views: BTreeMap::new(),
             creations: BTreeMap::new(),
+            entry_batches: BTreeMap::new(),
             move_plans: BTreeMap::new(),
             move_observations: BTreeMap::new(),
             pending_moves: BTreeMap::new(),
             trash_pending: BTreeMap::new(),
+            authoring_groups: BTreeMap::new(),
             migration_plans: BTreeMap::new(),
             migration_results: BTreeMap::new(),
             completed_recoveries: BTreeMap::new(),
@@ -439,12 +451,12 @@ impl Workspace {
             }
             match source.kind.as_deref() {
                 Some("schema") => {
-                    if let Ok(t) = semantic::parse_table(doc, path) {
+                    if let Ok(t) = semantic::parse_table_authoring(doc, path) {
                         p.tables.insert(t.name.clone(), Arc::new(t));
                     }
                 }
                 Some("type") => {
-                    if let Ok((name, t)) = semantic::parse_type(doc) {
+                    if let Ok((name, t)) = semantic::parse_type_authoring(doc) {
                         p.type_sources.insert(name.clone(), path.into());
                         Arc::make_mut(&mut p.types).insert(name, t);
                     }
@@ -468,7 +480,7 @@ impl Workspace {
             let remaining = paths.first().unwrap();
             p.type_sources.insert(name.clone(), remaining.clone());
             if let Some(document) = p.sources[remaining].document.as_ref()
-                && let Ok((current, declaration)) = semantic::parse_type(document)
+                && let Ok((current, declaration)) = semantic::parse_type_authoring(document)
                 && current == name
             {
                 Arc::make_mut(&mut p.types).insert(name, declaration);
@@ -581,10 +593,10 @@ impl Workspace {
         let source_shape = || -> Result<()> {
             match document.root.get("kind").and_then(|n| n.text().ok()) {
                 Some("schema") => {
-                    semantic::parse_table(&document, path)?;
+                    semantic::parse_table_authoring(&document, path)?;
                 }
                 Some("type") => {
-                    semantic::parse_type(&document)?;
+                    semantic::parse_type_authoring(&document)?;
                 }
                 Some("data") => {
                     document.records()?;
@@ -672,6 +684,7 @@ impl Workspace {
                 origin: None,
                 arrays: Arc::new(BTreeMap::new()),
                 tag_origins: Arc::new(BTreeMap::new()),
+                group: None,
                 undo: vec![],
                 redo: vec![],
                 outcome: None,
@@ -691,19 +704,21 @@ impl Workspace {
             .ok_or_else(|| Error::new("E-YAML-PARSE", "no current parseable document"))
     }
     pub fn current_table(&self, name: &str) -> Result<Arc<Table>> {
-        let t = self
+        let paths = self
             .read
-            .tables
-            .get(name)
-            .ok_or_else(|| Error::new("E-TABLE-MISSING", name))?;
-        if let Some(error) = self.unavailable.get(&t.source) {
-            return Err(error.clone());
+            .sources
+            .values()
+            .filter(|s| s.kind.as_deref() == Some("schema") && s.binding.as_deref() == Some(name))
+            .map(|s| &s.path)
+            .collect::<Vec<_>>();
+        if paths.len() != 1 {
+            return Err(Error::new(
+                "E-TABLE-MISSING",
+                format!("{name}: declaration missing or ambiguous"),
+            ));
         }
-        if let Some(d) = self.drafts.get(&t.source) {
-            Ok(Arc::new(semantic::parse_table(&d.document, &t.source)?))
-        } else {
-            Ok(t.clone())
-        }
+        let doc = self.current_doc(paths[0])?;
+        Ok(Arc::new(semantic::parse_table_authoring(&doc, paths[0])?))
     }
     pub fn current_types(&self) -> Result<semantic::Types> {
         let mut types = (*self.read.types).clone();
@@ -713,15 +728,44 @@ impl Workspace {
                 .get(name)
                 .is_some_and(|paths| paths.len() == 1)
         });
+        for (name, paths) in &self.read.type_declarations {
+            if paths.len() == 1
+                && !types.contains_key(name)
+                && let Ok(doc) = self.current_doc(paths.first().unwrap())
+                && let Ok((current, declaration)) = semantic::parse_type_authoring(&doc)
+                && &current == name
+            {
+                types.insert(current, declaration);
+            }
+        }
         for (path, d) in &self.drafts {
             if !self.unavailable.contains_key(path)
                 && self.read.sources[path].kind.as_deref() == Some("type")
+                && let Ok((name, t)) = semantic::parse_type_authoring(&d.document)
+                && self
+                    .read
+                    .type_declarations
+                    .get(&name)
+                    .is_some_and(|paths| paths.len() == 1 && paths.contains(path))
             {
-                let (name, t) = semantic::parse_type(&d.document)?;
                 types.insert(name, t);
             }
         }
         Ok(types)
+    }
+    fn dependency_context(&self) -> Result<Project> {
+        let mut project = (*self.read).clone();
+        project.types = Arc::new(self.current_types()?);
+        // Use indexed physical declarations, including invalid ones that can be
+        // repaired, while never selecting an arbitrary duplicate definition.
+        for (name, paths) in &project.type_declarations {
+            if paths.len() == 1 {
+                project
+                    .type_sources
+                    .insert(name.clone(), paths.first().unwrap().clone());
+            }
+        }
+        Ok(project)
     }
     fn authoring_view(&self, path: &str) -> Result<AuthoringView> {
         let binding = self
@@ -731,21 +775,34 @@ impl Workspace {
             .and_then(|source| source.binding.as_ref())
             .ok_or_else(|| Error::new("E-TABLE-MISSING", path))?;
         let table = self.current_table(binding)?;
-        let mut paths = self.read.dependencies(&table);
+        let mut paths = self.dependency_context()?.dependencies(&table);
         paths.push(path.into());
         paths.sort();
         paths.dedup();
         let documents = paths
             .into_iter()
-            .map(|path| {
-                let doc = self.current_doc(&path)?;
+            .filter_map(|dependency| {
+                let doc = match self.current_doc(&dependency) {
+                    Ok(doc) => doc,
+                    Err(_) if dependency != path && dependency != table.source => return None,
+                    Err(error) => return Some(Err(error)),
+                };
                 let snapshot = self
                     .drafts
-                    .get(&path)
+                    .get(&dependency)
                     .map(|draft| &draft.base)
-                    .or_else(|| self.snapshots.get(&path))
-                    .ok_or_else(|| Error::new("E-DRAFT-STALE", "unobserved dependency"))?;
-                Ok((path, doc.identity.clone(), snapshot.observed_identity()))
+                    .or_else(|| self.snapshots.get(&dependency));
+                Some(
+                    snapshot
+                        .ok_or_else(|| Error::new("E-DRAFT-STALE", "unobserved dependency"))
+                        .map(|snapshot| {
+                            (
+                                dependency,
+                                doc.identity.clone(),
+                                snapshot.observed_identity(),
+                            )
+                        }),
+                )
             })
             .collect::<Result<Vec<_>>>()?;
         Ok(AuthoringView { documents })
@@ -859,9 +916,9 @@ impl Workspace {
             }
         }
         let table = self.current_table(table_name)?;
-        for path in self.read.dependencies(&table) {
+        for path in self.dependency_context()?.dependencies(&table) {
             if path != clicked {
-                self.refresh_source(&path)?;
+                let _ = self.refresh_source(&path);
             }
         }
         let table = self.current_table(table_name)?;
@@ -1257,6 +1314,17 @@ impl Workspace {
             ));
         }
         let fields = d.document.root.required("fields")?.items()?;
+        if fields
+            .iter()
+            .filter(|f| f.value.get("name").and_then(|n| n.text().ok()) == Some(field_name))
+            .count()
+            != 1
+        {
+            return Err(Error::new(
+                "E-FIELD-MISSING",
+                format!("{field_name}: field is missing or ambiguous"),
+            ));
+        }
         let field = fields
             .iter()
             .find(|f| f.value.get("name").and_then(|n| n.text().ok()) == Some(field_name))
@@ -1302,7 +1370,7 @@ impl Workspace {
             });
         }
         let candidate = d.document.patched(patches)?;
-        semantic::parse_table(&candidate, path)?;
+        semantic::parse_table_authoring(&candidate, path)?;
         let changed = d.apply(candidate, d.row_ids.clone());
         if changed {
             self.diagnostics_pending = true;
@@ -1317,34 +1385,72 @@ impl Workspace {
                 "source mutation is gated",
             ));
         }
-        let d = self
+        let draft = self
             .drafts
-            .get_mut(path)
+            .get(path)
             .ok_or_else(|| Error::new("E-DRAFT-MISSING", path))?;
-        if d.outcome == Some(Outcome::OutcomeUnknown) {
-            return Err(Error::new("E-OUTCOME-UNKNOWN", "observation required"));
-        }
-        let state = if redo { d.redo.pop() } else { d.undo.pop() };
-        let Some(state) = state else {
-            return Ok(false);
-        };
-        let current = d.state();
-        if redo {
-            d.undo.push(current);
+        let group = if redo {
+            draft.redo.last().and_then(|s| s.group)
         } else {
-            d.redo.push(current);
+            draft.group
+        };
+        let paths = group
+            .and_then(|g| self.authoring_groups.get(&g))
+            .cloned()
+            .unwrap_or_else(|| BTreeSet::from([path.into()]));
+        for p in &paths {
+            let d = self.drafts.get(p).ok_or_else(|| {
+                Error::new(
+                    "E-HISTORY-GROUP",
+                    format!("{p}: related history is unavailable"),
+                )
+            })?;
+            if d.outcome == Some(Outcome::OutcomeUnknown) {
+                return Err(Error::new("E-OUTCOME-UNKNOWN", "observation required"));
+            }
+            if group.is_some()
+                && (if redo {
+                    d.redo.last().and_then(|s| s.group)
+                } else {
+                    d.group
+                }) != group
+            {
+                return Err(Error::new(
+                    "E-HISTORY-GROUP",
+                    format!("{p}: undo the later related edit first"),
+                ));
+            }
         }
-        d.document = state.document;
-        d.row_ids = state.rows;
-        d.pending = state.pending;
-        d.added = state.added;
-        d.origin = state.origin;
-        d.arrays = state.arrays;
-        d.tag_origins = state.tag_origins;
-        d.revision += 1;
-        self.diagnostics_pending = true;
-        self.generation += 1;
-        Ok(true)
+        let mut changed = false;
+        for p in paths {
+            let d = self.drafts.get_mut(&p).unwrap();
+            let state = if redo { d.redo.pop() } else { d.undo.pop() };
+            let Some(state) = state else {
+                continue;
+            };
+            let current = d.state();
+            if redo {
+                d.undo.push(current);
+            } else {
+                d.redo.push(current);
+            }
+            d.document = state.document;
+            d.row_ids = state.rows;
+            d.pending = state.pending;
+            d.added = state.added;
+            d.origin = state.origin;
+            d.arrays = state.arrays;
+            d.tag_origins = state.tag_origins;
+            d.group = state.group;
+            d.revision += 1;
+            changed = true;
+        }
+        if changed {
+            self.diagnostics_pending = true;
+            self.generation += 1;
+            self.authoring_views.clear();
+        }
+        Ok(changed)
     }
     pub fn dirty_paths(&self) -> Vec<String> {
         self.drafts
@@ -1362,7 +1468,7 @@ impl Workspace {
                 .get(path)
                 .ok_or_else(|| Error::new("E-SOURCE-MISSING", path))?;
             if source.binding.as_deref() != Some(table)
-                || self.current_doc(path)?.root.get("records").is_none()
+                || path != schema && self.current_doc(path)?.root.get("records").is_none()
             {
                 return Err(Error::new(
                     "E-SAVE-SCOPE",
@@ -1370,8 +1476,9 @@ impl Workspace {
                 ));
             }
         }
-        let targets =
+        let mut targets =
             BTreeSet::from_iter(std::iter::once(schema).chain(selected.map(str::to_owned)));
+        self.include_authoring_group(&mut targets);
         self.save_paths(
             targets
                 .into_iter()
@@ -1440,6 +1547,7 @@ impl Workspace {
                 d.saved();
                 d.undo.clear();
                 d.redo.clear();
+                d.group = None;
                 d.outcome = None;
                 d.external = None;
                 d.revision += 1;
@@ -1450,6 +1558,7 @@ impl Workspace {
             }
             results.push(result);
         }
+        self.finish_authoring_save();
         Ok(results)
     }
     pub fn compare(&mut self, path: &str) -> Result<SourceComparison> {
@@ -1546,6 +1655,7 @@ impl Workspace {
             .map(|(path, _)| path.clone())
             .chain(self.creations.keys().cloned())
             .chain(self.trash_pending.values().cloned())
+            .chain(self.pending_entry_paths())
             .chain(
                 self.pending_moves
                     .values()

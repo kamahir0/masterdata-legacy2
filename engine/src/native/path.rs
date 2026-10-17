@@ -32,7 +32,7 @@ fn destination_available(plan: &MovePlan) -> Result<()> {
             // be the source's case-insensitive lookup alias.
             let same_lookup = plan.base.path.parent() == plan.target.parent()
                 && !exact_entry(&plan.target)?
-                && capture(
+                && entry::capture(
                     &plan.root,
                     std::slice::from_ref(&plan.selected_root),
                     &plan.destination,
@@ -60,10 +60,11 @@ pub fn prepare_move(
         .iter()
         .find(|r| expected.physical.starts_with(r))
         .ok_or_else(|| Error::new("E-PATH-SCOPE", "source root required"))?;
-    if !Path::new(destination)
-        .extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|e| matches!(e, "yaml" | "yml"))
+    if !expected.directory
+        && !Path::new(destination)
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| matches!(e, "yaml" | "yml"))
     {
         return Err(Error::new(
             "E-PATH-EXTENSION",
@@ -87,11 +88,19 @@ pub(super) fn prepare_transfer(
     destination: &str,
     expected: &Snapshot,
 ) -> Result<MovePlan> {
-    let base = preflight(root, &[source_root.to_path_buf()], source, expected)?;
+    let base = entry::preflight(root, &[source_root.to_path_buf()], source, expected)?;
     if !exact_entry(&base.path)? {
         return Err(Error::new("E-PATH-STALE", "source spelling changed"));
     }
     let target = creation_path(root, destination_root, destination)?;
+    if base.directory
+        && (base.path == source_root || target.parent().is_some_and(|p| p.starts_with(&base.path)))
+    {
+        return Err(Error::new(
+            "E-PATH-SCOPE",
+            "cannot move a source root or move a folder into itself",
+        ));
+    }
     let parent = Arc::new(path_identity(target.parent().unwrap()).map_err(io_error)?);
     let plan = MovePlan {
         source: source.into(),
@@ -113,8 +122,8 @@ impl MovePlan {
             && snapshot.parent == self.parent
             && snapshot.bytes == self.base.bytes
     }
-    fn fresh(&self) -> Result<()> {
-        preflight(
+    pub(crate) fn fresh(&self) -> Result<()> {
+        entry::preflight(
             &self.root,
             std::slice::from_ref(&self.selected_root),
             &self.source,
@@ -212,12 +221,12 @@ fn rename_exclusive(plan: &MovePlan) -> std::io::Result<()> {
 }
 
 pub fn observe_move(plan: &MovePlan) -> WriteResult {
-    let new = capture(
+    let new = entry::capture(
         &plan.root,
         std::slice::from_ref(&plan.destination_root),
         &plan.destination,
     );
-    let old = capture(
+    let old = entry::capture(
         &plan.root,
         std::slice::from_ref(&plan.selected_root),
         &plan.source,

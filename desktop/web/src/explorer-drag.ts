@@ -8,7 +8,7 @@ import {entryPath,parentPath} from './explorer-model';
 export function explorerDrag(event:Pick<ReactPointerEvent<HTMLElement>,'button'|'isPrimary'|'pointerId'|'target'|'currentTarget'|'clientX'|'clientY'>,root:string,canMove:(path:string)=>boolean,drop:(path:string,folder:string)=>void,suppressClick:()=>void):(()=>void)|null {
  if(event.button!==0||!event.isPrimary||!(event.target instanceof Element)||event.target.closest('button,input,textarea,[role=combobox]'))return null;
  const area=event.currentTarget,row=event.target.closest<HTMLElement>('.ant-tree-treenode'),source=row?.querySelector<HTMLElement>('[data-path]')?.dataset.path;
- if(!row||!source||source.startsWith('folder:')||!canMove(source))return null;
+ if(!row||!source||!canMove(source))return null;
  const epoch=desktop.surface.status.epoch,pointer=event.pointerId,first={x:event.clientX,y:event.clientY};
  let point=first,frame=0,lifted=false,alive=true,target:HTMLElement|null=null,folder:string|null=null,ghost:HTMLDivElement|null=null;
  const finish=()=>{
@@ -26,7 +26,7 @@ export function explorerDrag(event:Pick<ReactPointerEvent<HTMLElement>,'button'|
   if(hit&&area.contains(hit)){
    const hitRow=hit.closest<HTMLElement>('.ant-tree-treenode'),sticky=hit.closest<HTMLElement>('.explorer-sticky'),key=hitRow?.querySelector<HTMLElement>('[data-path]')?.dataset.path;
    const destination=sticky?.dataset.folder??(key?(key.startsWith('folder:')?entryPath(key):parentPath(key)):root);
-   if(key!=='creation:temporary'&&key!==source&&destination!==parentPath(source)){
+   if(key!=='creation:temporary'&&key!==source&&destination!==parentPath(entryPath(source))&&destination!==entryPath(source)&&(!source.startsWith('folder:')||!destination.startsWith(entryPath(source)+'/'))){
     folder=destination;target=hitRow??sticky??area;if(hitRow||sticky)target.classList.add('source-drop-target');else area.classList.add('source-drop-root');
    }
   }

@@ -98,6 +98,10 @@ export interface TypeProjection {
   flagBits:Record<string,number>;
   availableFlagBits:{bit:number;value:string}[];
   generation:number;
+  revision:number;
+  dirty:boolean;
+  canUndo:boolean;
+  canRedo:boolean;
   measurement:Measurement;
 }
 export interface DeclarationInput {key:string;name:string;typeName:string;nullable:boolean;array:boolean;}
@@ -153,6 +157,12 @@ export interface MigrationReview {
   affectedRecords: number;
   files: { source: string; beforeIdentity: string; afterIdentity: string; beforeBytes: number; afterBytes: number }[];
   dirtySources:string[];
+}
+export interface AuthoringResult {
+  command:MigrationReview['command'];
+  sources:string[];
+  affectedRecords:number;
+  changed:boolean;
 }
 export interface DeclarationKey {fields:string[];nonUnique:boolean}
 export interface ReferenceInput {name:string;fields:string[];targetTable:string;targetFields:string[];csharpName:string|null}

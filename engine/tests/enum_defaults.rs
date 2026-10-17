@@ -135,12 +135,9 @@ fn default_add_uses_a_saved_plan_and_rejects_changed_source_identity() {
     let SelectionProjection::Type(p) = w.select_view(source, 0, 32).unwrap() else {
         panic!("type required")
     };
+    let command = w.default_enum_member(source, &p.identity).unwrap();
     let plan = w
-        .prepare_type_migration(
-            source,
-            &p.identity,
-            w.default_enum_member(source, &p.identity).unwrap(),
-        )
+        .prepare_type_migration(source, &p.identity, command)
         .unwrap();
     assert_eq!(
         w.apply_migration(&plan.token, false).unwrap().outcome,
