@@ -349,8 +349,8 @@ export function ComplexPanel() {
     }
   };
   const history = (redo:boolean) => {
-    // History refresh makes the body inert after the keyboard intent advances.
-    // Retain the exact control path so that refresh cannot leave focus on body.
+    // History can replace a control as its descriptor arrives. Retain its exact
+    // path so a disappearing input can return focus to the same field.
     const element=document.activeElement;
     if(element instanceof HTMLElement&&body.current?.contains(element))
       restoreFocus.current={target:desktop.interaction.complex,intent:desktop.inputIntent,element,path:element.closest<HTMLElement>('[data-value-path]')?.dataset.valuePath};
