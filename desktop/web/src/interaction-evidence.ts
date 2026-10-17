@@ -9,7 +9,7 @@ function key(element:HTMLElement,key:string){element.dispatchEvent(new KeyboardE
 function text(input:HTMLInputElement,value:string){Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));}
 async function settled(){await until(()=>!desktop.surface.pending&&!desktop.mutating,'operation unsettled');await frame();assert(!desktop.surface.error,desktop.surface.error??'operation failed');}
 async function cell(row:number,column:number){desktop.viewport!.focus();desktop.setSelection(row,column);desktop.move(0,0);await until(()=>!!document.getElementById(`cell-${row}-${column}`),'cell not mounted');key(desktop.viewport!,'Enter');await frame();}
-async function readyValue(){await until(()=>!!document.querySelector('.near-value-body>[aria-busy="false"],.ant-drawer-body>[aria-busy="false"]'),'value control did not become interactive');await frame();}
+async function readyValue(){await until(()=>!!document.querySelector('.near-value-body>[aria-busy="false"],.ant-drawer-body>[aria-busy="false"]'),'value descriptor did not become current');await frame();}
 async function undo(){await desktop.undo(false);await settled();}
 function booleanGeometry(element:HTMLElement){
  const track=element.querySelector<HTMLElement>('.boolean-track')!,thumb=track.firstElementChild!,label=element.querySelector<HTMLElement>('.boolean-state')!,rect=track.getBoundingClientRect(),t=thumb.getBoundingClientRect(),l=label.getBoundingClientRect(),style=getComputedStyle(element);
@@ -80,7 +80,7 @@ export async function run({startup}:{startup:Record<string,unknown>}){
   desktop.rpc=async function<T>(intent:Record<string,unknown>){const reply=await actualRpc<T>(intent);if(intent.kind==='complex'){heldDescriptor=true;await descriptorGate;}return reply;};
   try{undoOrigin.focus();undoOrigin.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true}));await until(()=>heldDescriptor,'Undo did not refresh its descriptor');
     const valueBody=document.querySelector<HTMLElement>('.near-value-body>[aria-busy],.ant-drawer-body>[aria-busy]')!;
-    assert(!valueBody.inert&&valueBody.getAttribute('aria-busy')==='false'&&document.activeElement===undoOrigin,'local descriptor refresh disabled keyboard input / lost focus');
+    assert(!valueBody.inert&&valueBody.getAttribute('aria-busy')==='true'&&document.activeElement===undoOrigin,'local descriptor refresh hid pending state / disabled keyboard input / lost focus');
   }finally{releaseDescriptor();desktop.rpc=actualRpc;}
   await until(()=>child('enabled').querySelector('[role="switch"]')?.getAttribute('aria-checked')==='false','nested keyboard Undo did not commit');await settled();await readyValue();
   assert(document.activeElement===child('enabled').querySelector('[role="switch"]'),'nested keyboard Undo lost control focus');

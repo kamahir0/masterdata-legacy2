@@ -440,6 +440,7 @@ export function ComplexPanel() {
   // Retain keyboard focus during local edits/Undo. Making the body inert for
   // every revision dropped consecutive shortcuts into document.body in WKWebView.
   // External changes and navigation still gate the old descriptor.
+  // aria-busy separately reports descriptor freshness without gating input.
   const unavailable = blocked || !root || resolvedTarget.current !== target || resolvedExternal.current !== s.status.externalVersion;
   const focusCurrent=useRef<()=>void>(()=>{});
   focusCurrent.current=() => {
@@ -607,7 +608,7 @@ export function ComplexPanel() {
         ref={bindBody}
         onKeyDown={keydown}
         inert={unavailable}
-        aria-busy={unavailable}
+        aria-busy={loading || stale || blocked}
       >
         {error ? (
           <Alert
